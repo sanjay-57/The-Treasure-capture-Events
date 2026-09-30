@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router'
 import { AnimatePresence, motion, type PanInfo } from 'motion/react'
 import { useLenis } from 'lenis/react'
 import { Icon } from '../../components/Icon'
-import { Button, Card, EmptyState, Img, Modal, Segmented } from '../../components/ui'
+import { Button, Card, EmptyState, Img, Segmented } from '../../components/ui'
 import { EASE, Reveal } from '../../components/motion'
 import { PROOF_CATEGORIES, districtName, eventByKey, type ProofCategory } from '../../lib/data'
 import { formatDate, formatDateTime, useLang, useT } from '../../lib/i18n'
 import { IMG, photoUrl, type ImgKey } from '../../lib/images'
 import { useMyOrder, useStore, type Order } from '../../lib/store'
 import { toast, useTitle } from '../../lib/ui'
+import { LightTable } from './PhotosLightTable'
+import { AnimatedCount, SubmitSelectionModal, Watermark, pad2, ratioOf, useProofingVersion, useQuotaStatus } from './proofing'
 import { FloatingBar, LockedPanel, PHOTO_QUOTA, PageIntro, TamilCorners, gcsPath, isProof, photosUnlocked, proofCategory, proofFile, resolveCover, selectionClosed, useProofs } from './shared'
 
 const copy = {
@@ -32,9 +33,6 @@ const copy = {
   unselected: { en: 'Not selected', ta: 'தேர்வாகாதவை' },
   of: { en: 'of', ta: '/' },
   forAlbum: { en: 'for your album', ta: 'ஆல்பத்திற்கு' },
-  over: { en: 'over the album quota — extra sheets may apply', ta: 'ஆல்ப வரம்பை மீறியது — கூடுதல் தாள் கட்டணம் இருக்கலாம்' },
-  left: { en: 'more to reach the album quota', ta: 'இன்னும் தேர்வு செய்யலாம்' },
-  reached: { en: 'Album quota reached', ta: 'ஆல்ப வரம்பு நிறைவு' },
   submit: { en: 'Submit selection', ta: 'தேர்வைச் சமர்ப்பி' },
   source: { en: 'Streaming low-res proofs from', ta: 'குறைந்த தெளிவு மாதிரிகள் இங்கிருந்து:' },
   onlyIds: { en: 'Only your list of selected file names is saved.', ta: 'தேர்ந்த கோப்புப் பெயர்களின் பட்டியல் மட்டுமே சேமிக்கப்படும்.' },
@@ -49,16 +47,7 @@ const copy = {
   noneSelectedBody: { en: 'Tap the heart on a photo to add it to your album.', ta: 'படத்திலுள்ள இதயத்தைத் தொட்டு ஆல்பத்தில் சேர்க்கவும்.' },
   allSelected: { en: 'You’ve selected every photo in this chapter', ta: 'இந்த அத்தியாயத்தின் எல்லாப் படங்களையும் தேர்ந்தெடுத்துவிட்டீர்கள்' },
   showAll: { en: 'Show all photos', ta: 'அனைத்தையும் காட்டு' },
-
-  confirmTitle: { en: 'Submit your selection?', ta: 'தேர்வைச் சமர்ப்பிக்கலாமா?' },
-  confirmBody: {
-    en: 'Your list goes to our album designers and the gallery becomes read-only. Next, you’ll choose the cover, paper and typography.',
-    ta: 'உங்கள் பட்டியல் எங்கள் ஆல்ப வடிவமைப்பாளர்களுக்குச் செல்லும்; கேலரி பார்வைக்கு மட்டும் ஆகிவிடும். அடுத்து அட்டை, தாள், எழுத்துருவைத் தேர்வீர்கள்.',
-  },
   photos: { en: 'photos', ta: 'படங்கள்' },
-  keepChoosing: { en: 'Keep choosing', ta: 'தொடர்ந்து தேர்வு' },
-  confirm: { en: 'Submit', ta: 'சமர்ப்பி' },
-  submittedToast: { en: 'Selection submitted — album design is now open', ta: 'தேர்வு சமர்ப்பிக்கப்பட்டது — ஆல்பம் வடிவமைப்பு திறந்துள்ளது' },
   quotaToast: { en: 'You’ve reached the album quota', ta: 'ஆல்ப வரம்பை அடைந்துவிட்டீர்கள்' },
 
   lockedTitle: { en: 'Your proofs are being prepared', ta: 'உங்கள் மாதிரிப் படங்கள் தயாராகின்றன' },
@@ -77,21 +66,6 @@ const copy = {
 
 type Filter = 'all' | 'selected' | 'unselected'
 
-const pad2 = (n: number) => String(n).padStart(2, '0')
-const ratioOf = (id: ImgKey) => IMG[id].w / IMG[id].h
-
-/** One small studio mark in the bottom-right corner of each proof. */
-function Watermark({ size = 'sm' }: { size?: 'xs' | 'sm' | 'md' }) {
-  const cls = size === 'md' ? 'bottom-2.5 right-3 text-[10px]' : size === 'xs' ? 'bottom-1 right-1.5 text-[6.5px]' : 'bottom-1.5 right-2 text-[8px]'
-  return (
-    <span
-      aria-hidden="true"
-      className={`pointer-events-none absolute select-none whitespace-nowrap font-sans font-medium uppercase tracking-[0.14em] text-white/70 [text-shadow:0_1px_2px_rgba(0,0,0,0.55)] ${cls}`}
-    >
-      © The Treasure Capture
-    </span>
-  )
-}
 
 function useMinWidth(px: number) {
   const query = `(min-width: ${px}px)`
@@ -219,6 +193,7 @@ export default function Photos() {
   useTitle({ en: 'Select photos', ta: 'படத் தேர்வு' })
   const t = useT(copy)
   const order = useMyOrder()
+  const version = useProofingVersion(s => s.version)
   if (!order) return null
 
   if (!photosUnlocked(order)) {
@@ -230,7 +205,7 @@ export default function Photos() {
     )
   }
   if (selectionClosed(order)) return <Submitted order={order} />
-  return <Proofing order={order} />
+  return version === 2 ? <LightTable order={order} /> : <Proofing order={order} />
 }
 
 function Proofing({ order }: { order: Order }) {
@@ -238,8 +213,6 @@ function Proofing({ order }: { order: Order }) {
   const lang = useLang()
   const lenis = useLenis()
   const toggleSelection = useStore(s => s.toggleSelection)
-  const submitSelection = useStore(s => s.submitSelection)
-  const navigate = useNavigate()
   const proofs = useProofs()
   const [cat, setCat] = useState<ProofCategory>('individuals')
   const [filter, setFilter] = useState<Filter>('all')
@@ -288,14 +261,7 @@ function Proofing({ order }: { order: Order }) {
     else el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  const submit = () => {
-    submitSelection(order.id)
-    setConfirm(false)
-    toast(t.submittedToast, 'ruby')
-    navigate('/dashboard/album')
-  }
-
-  const status = count > quota ? `${count - quota} ${t.over}` : count === quota ? t.reached : `${quota - count} ${t.left}`
+  const status = useQuotaStatus(count, quota)
 
   return (
     <div>
@@ -439,31 +405,7 @@ function Proofing({ order }: { order: Order }) {
 
       <Lightbox ids={ordered} index={lightbox} onIndex={setLightbox} selected={selected} onToggle={toggle} />
 
-      <Modal open={confirm} onClose={() => setConfirm(false)} label={t.confirmTitle}>
-        <div className="p-7 md:p-9">
-          <div className="flex -space-x-3">
-            {[...selected].slice(0, 5).map((id, i) => (
-              <span key={id} className="relative h-14 w-14 overflow-hidden rounded-2xl border-2 border-white shadow-soft" style={{ zIndex: 5 - i, rotate: `${(i - 2) * 3}deg` }}>
-                <Img k={id} w={160} ratio={1} sizes="56px" className="h-full w-full" />
-              </span>
-            ))}
-          </div>
-          <h3 className="t-3 mt-6">{t.confirmTitle}</h3>
-          <p className="mt-2 font-display text-[28px] font-semibold text-ruby">
-            {count} <span className="text-[18px] font-medium text-ink/50">{t.photos}</span>
-          </p>
-          <p className="mt-3 text-[14.5px] leading-relaxed text-ink/60">{t.confirmBody}</p>
-          <p className={`mt-3 text-[13px] ${count > quota ? 'text-ruby' : 'text-ink/50'}`}>{status}</p>
-          <div className="mt-7 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
-            <Button variant="outline" onClick={() => setConfirm(false)}>
-              {t.keepChoosing}
-            </Button>
-            <Button onClick={submit} icon="check">
-              {t.confirm}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      <SubmitSelectionModal order={order} selected={selected} open={confirm} onClose={() => setConfirm(false)} />
     </div>
   )
 }
@@ -484,18 +426,6 @@ function JustifiedGrid({ ids, selected, onToggle, onOpen }: { ids: ImgKey[]; sel
         </div>
       ))}
     </div>
-  )
-}
-
-function AnimatedCount({ value }: { value: number }) {
-  return (
-    <span className="relative inline-flex overflow-hidden align-bottom">
-      <AnimatePresence mode="popLayout" initial={false}>
-        <motion.span key={value} initial={{ y: '100%', opacity: 0 }} animate={{ y: '0%', opacity: 1 }} exit={{ y: '-100%', opacity: 0 }} transition={{ duration: 0.35, ease: EASE }} className="inline-block">
-          {value}
-        </motion.span>
-      </AnimatePresence>
-    </span>
   )
 }
 
