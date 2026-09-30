@@ -1,0 +1,358 @@
+# The Treasure Capture Events — Product & Technical Specification (v2)
+
+Bilingual (English / தமிழ்) platform for a photography studio headquartered in Madurai, serving eight
+Tamil Nadu districts. It covers lead generation, instant dynamic quoting, client order tracking, online
+photo selection, album customisation, offline-payment billing (built into the admin console), and WhatsApp automation.
+
+Status: the FRONT END is complete and runs on mock data (see §11). The backend is the next phase.
+
+----------------------------------------------------------------------------------------------------
+## 1. What changed from v1
+
+- Tech stack now matches the repo: a React 19 + Vite SPA (not Next.js) with react-router; Zustand for state.
+- Order pipeline fixed: v1's tracker (Team → Bride/Groom → Event → Billed → Delivery) skipped the
+  photo-selection and album stages that the enum contained. v2 uses one 8-stage pipeline everywhere (§6).
+- "Bride/Groom meeting" is shown as "Family consultation" for non-couple events (puberty, naming, …).
+- Pricing is a documented formula (§7) instead of an implied one; travel beyond 20 km is per-km.
+- Data model extended (§9): Lead, Payment, StatusEvent, Assignment (many workers per order), Message,
+  GalleryItem, Story, CmsSetting, Review. Money is stored in paise (Int), never Float.
+- Added: moodboard (hearted gallery photos attached to an enquiry), deep-linkable gallery lightbox,
+  editorial "stories", OTP login, admin search/kanban, WhatsApp outbox, CMS for hero slides per language.
+- Security, non-functional requirements and delivery phases are now explicit (§12–§14).
+
+----------------------------------------------------------------------------------------------------
+## 2. Design system (mandatory)
+
+- Palette: black (ink #0A0A0B), white, ruby (#C0163C; deep #8C0D2B; bright #E2264F; soft #FCECEF).
+  Neutral greys only as tints of ink. No green/amber/blue — status is shown with ruby / ink / muted.
+- Apple-style glassmorphism, used sparingly where colour or overlays are needed: nav pill, floating bars,
+  captions over photos, modals, lightbox chrome. Classes: glass, glass-strong, glass-dark, glass-ruby.
+- Type: English — Cormorant Garamond (display) + Inter (UI). Tamil — Noto Serif Tamil (display),
+  Hind Madurai (UI), Arima (accents). The type scale (.t-hero … .t-label) re-scales for Tamil automatically.
+- Motion: route transitions (fade/lift/blur), Lenis smooth scroll, scroll reveals, word-by-word headings,
+  image wipe reveals, parallax, pinned horizontal sections. All respect prefers-reduced-motion.
+
+## 3. Bilingual experience (English ⇄ Tamil)
+
+- Every string, label, date and currency on every screen (public, client and admin) is translated.
+  Copy lives next to each component as { key: { en, ta } } pairs so languages cannot drift apart.
+- Switching language plays a full-screen curtain ("வணக்கம்" / "Welcome" with a self-drawing kolam);
+  text, fonts and photos swap while hidden.
+- Tamil mode is visibly more traditional: photos switch to traditional sets (temples, silk, jasmine,
+  kolam, lamps, rituals); ornaments appear — thoranam garland under the nav, pulli-kolam dividers and
+  corners, koil (temple) saree border, gopuram skyline, lit kuthu vilakku.
+- Voice (Gemini free tier, browser Speech APIs as stand-in today): "Listen" buttons read instructions
+  in Tamil (ta-IN); the cart has a voice/text assistant that understands Tamil and edits the cart.
+
+## 4. Route map
+
+Public
+  /                    Home — hero slideshow (CMS), district gateway, stories, services, process
+  /gallery             Gallery — photo wall hero, featured story, stories rail, filterable archive,
+                       moodboard, lightbox (?photo=<id>, ?cat=, ?district=)
+  /gallery/:slug       Story — editorial layout of one event
+  /services            Events, packages, add-ons, process, album craft, FAQ
+  /about               Studio story, values, team, district network
+  /contact             Contact details, form (creates a Lead), map
+  /terms, /privacy     Legal (PRD: client access to T&C)
+  /login               Client OTP login
+
+Booking (district first, per v1)
+  /book                1. District gateway
+  /book/event          2. Event type, duration (min 2 h, unlimited digital photos), crowd volume
+  /book/venue          3. Home vs Mahal (glass toggle), venue address + distance, date/time, exact/tentative
+  /book/package        4. Package, add-ons, voice cart assistant  (the "cart")
+  /book/details        5. Name, mobile, email, notes, review, submit (no payment)
+  /book/confirmed/:id  Confirmation + WhatsApp preview + next steps
+
+Client dashboard (login required)
+  /dashboard           Overview — stage, CTA, facts, payments, crew
+  /dashboard/track     Visual order tracker (8 stages with dates)
+  /dashboard/photos    Watermarked proof selection (unlocks at SELECT_PHOTOS)
+  /dashboard/album     Album customisation (unlocks at ALBUM_CUSTOMIZATION)
+  /dashboard/billing   Invoice view, offline payment instructions, print
+  /dashboard/review    Rating + Google review hand-off
+
+Admin (staff login required)
+  /admin/login, /admin (KPIs), /admin/orders (list + kanban), /admin/orders/:id,
+  /admin/team, /admin/cms, /admin/messages (WhatsApp outbox), /admin/leads,
+  /admin/billing (in-house invoicing — placeholder for now)
+
+## 5. Feature requirements
+
+Global
+- Lead popup on the first visit to any public page (after 6 s or one screen of scrolling); captures
+  name + mobile; never shown again once submitted or dismissed. Not shown on /admin or /login.
+- Dynamic header: when a client is logged in, a status pill under the nav shows their order stage and
+  the next action (Track order / Select photos / Customize album / View invoice / Leave a review).
+- CMS announcement strip above the nav (text per language + link), dismissible per session.
+
+Booking & quote
+- District must be chosen first; deep links ?district= and ?event= prefill the flow.
+- Distance: backend calls Google Distance Matrix from the district's studio hub to the venue address;
+  ≤ 20 km free, beyond that a per-km surcharge (§7). Front end shows an estimate until wired.
+- Live quote panel updates on every change. Submitting creates Lead → User → Order and a draft
+  invoice, and sends the WhatsApp "enquiry received" template. No payment gateway.
+
+Gallery (primary attraction)
+- Language-aware image set (modern set in English, traditional set in Tamil; some shared).
+- Category and district filters with counts, masonry (true aspect ratios) or grid view, infinite load.
+- Lightbox: swipe/keyboard, ambient blurred backdrop, filmstrip, share link, "book this look".
+- Moodboard: heart any photo; send it with an enquiry (attached to the order notes).
+- Stories: curated events with editorial layouts and a "next story" flow.
+
+Client dashboard
+- Proof selection stores only selected photo IDs (per v1). Quota shown; submission advances the
+  order to ALBUM_CUSTOMIZATION automatically.
+- Album: cover material, colour, paper, size, sheet count (price delta beyond package), typography
+  (incl. Tamil fonts), cover title — with a live 3D preview.
+
+Admin
+- Advance or set any stage; each change writes a StatusEvent and fires the matching WhatsApp template.
+- Record offline payments (UPI / cash / bank + note) → recorded against the invoice; paid / pending shown.
+- Adjust the final total before invoicing. Assign one or more crew; each assignment sends a WhatsApp
+  dispatch with venue, time and client contact. Delivery courier + tracking number.
+- Team directory (staff and freelancers, district, role, availability, rating).
+- CMS: announcement, hero slides per language, hide/show gallery items, add gallery items by upload/URL,
+  studio contact details, album option imagery.
+
+## 6. Order pipeline (single source of truth)
+
+  ENQUIRY → TEAM_MEETING → BRIDE_GROOM_MEETING* → EVENT_PICTURES → SELECT_PHOTOS
+          → ALBUM_CUSTOMIZATION → BILLED → DELIVERED
+  (* labelled "Family consultation" for non-couple events)
+
+Each transition: StatusEvent row, WhatsApp template `status_<stage>`, dashboard CTA change.
+Only admins move stages, except SELECT_PHOTOS → ALBUM_CUSTOMIZATION which the client's submission triggers.
+
+## 7. Pricing formula (all ₹, configurable in DB)
+
+  total = eventBase(first 2 h)
+        + max(0, hours − 2) × eventHourly
+        + crowdAdd            (<50: 0 · 50–150: 2,500 · 150–400: 6,000 · 400+: 12,000)
+        + venueAdd            (home: 0 · mahal lighting kit: 3,000)
+        + packageAdd          (Essential 0 · Signature 15,000 · Heirloom 38,000)
+        + Σ add-ons           (drone 8,000 · LED wall 12,000 · same-day reel 6,000 · extra album 7,500
+                               · pre-event shoot 15,000 · photo booth 9,000)
+        + travel              (km ≤ 20: 0 · else round((km − 20) × 40, nearest 100))
+  Event base / hourly: wedding 18,000/4,500 · engagement 12,000/3,000 · reception 14,000/3,500 ·
+  puberty 12,000/3,000 · ear piercing 8,000/2,500 · naming 7,000/2,500 · birthday 7,500/2,500 ·
+  outdoor 9,000/3,000. GST is applied on the invoice, not in the web quote.
+  Reference implementation: src/lib/pricing.ts (backend must reuse the same rules).
+
+## 8. Integrations
+
+Billing (in-house, admin console — no third-party invoicing)
+- On enquiry: create/find customer (by mobile) → store customerId.
+- On admin quote approval: create draft invoice from quote lines → invoiceId.
+- On payment logged: record payment against the invoice; status → Partially Paid / Paid.
+- Details of the /admin/billing area to be specified later; currently a static placeholder.
+
+WhatsApp Business (Meta Cloud API)
+- Client templates: enquiry_received, status_<stage>, payment_received, photos_ready (link), delivered.
+- Worker template: job_dispatch (event, date/time, venue + maps link, client name + phone, order ref).
+- All sends are logged in Message (status: queued / sent / delivered / read / failed via webhook).
+
+Google Cloud Storage
+- Private bucket per order: raw (never public) and proofs (low-res, watermarked).
+- Proofs served via short-lived signed URLs; watermark burned in at export, not only CSS.
+
+Gemini (free tier)
+- TTS for Tamil instructions; voice assistant in the cart returns structured intents
+  (set_package, add_addon, remove_addon, set_hours, ask_total) that the client applies to the cart.
+
+Google Maps Distance Matrix — server-side only; cache results per (hub, normalised address).
+Google Reviews — deep link to the studio's review URL after delivery.
+
+## 9. Database (PostgreSQL via Prisma) — revised
+
+```prisma
+enum Role        { CLIENT ADMIN STAFF }
+enum OrderStatus { ENQUIRY TEAM_MEETING BRIDE_GROOM_MEETING EVENT_PICTURES SELECT_PHOTOS ALBUM_CUSTOMIZATION BILLED DELIVERED }
+enum VenueType   { HOME MAHAL }
+enum PayMode     { UPI CASH BANK }
+enum Lang        { EN TA }
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String   @unique            // E.164, used for OTP login
+  email     String?
+  lang      Lang     @default(EN)
+  role      Role     @default(CLIENT)
+  orders    Order[]
+  createdAt DateTime @default(now())
+}
+
+model Lead {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String
+  source    String                      // popup | contact | booking
+  orderId   String?                     // set when the lead converts
+  createdAt DateTime @default(now())
+  @@index([phone])
+}
+
+model Order {
+  id               String      @id           // TTC-2026-0142
+  userId           String
+  user             User        @relation(fields: [userId], references: [id])
+  district         String
+  eventType        String
+  durationHours    Int
+  crowd            String
+  venueType        VenueType
+  venueName        String?
+  venueAddress     String
+  distanceKm       Int
+  eventDate        DateTime?
+  eventTime        String?
+  dateTentative    Boolean     @default(false)
+  packageId        String
+  addons           String[]
+  notes            String?
+  quoteLines       Json                      // snapshot of pricing lines at submission
+  totalPaise       Int
+  status           OrderStatus @default(ENQUIRY)
+  customerId       String?
+  invoiceId        String?
+  selectedPhotoIds String[]                  // PRD: only IDs are stored
+  selectionDoneAt  DateTime?
+  courier          String?
+  trackingNo       String?
+  createdAt        DateTime    @default(now())
+  statusEvents     StatusEvent[]
+  payments         Payment[]
+  assignments      Assignment[]
+  albumSpec        AlbumSpec?
+  review           Review?
+  messages         Message[]
+  @@index([status])
+  @@index([eventDate])
+}
+
+model StatusEvent { id String @id @default(uuid()) orderId String order Order @relation(fields: [orderId], references: [id]) status OrderStatus byUserId String? at DateTime @default(now()) }
+
+model Payment {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id])
+  amountPaise Int
+  mode        PayMode
+  note        String?
+  at          DateTime @default(now())
+}
+
+model Worker {
+  id          String   @id @default(uuid())
+  nameEn      String
+  nameTa      String
+  phone       String   @unique
+  role        String                 // lead | candid | cinema | drone | assistant
+  district    String
+  freelance   Boolean  @default(true)
+  available   Boolean  @default(true)
+  assignments Assignment[]
+}
+
+model Assignment { id String @id @default(uuid()) orderId String order Order @relation(fields: [orderId], references: [id]) workerId String worker Worker @relation(fields: [workerId], references: [id]) at DateTime @default(now()) @@unique([orderId, workerId]) }
+
+model AlbumSpec {
+  id        String @id @default(uuid())
+  orderId   String @unique
+  order     Order  @relation(fields: [orderId], references: [id])
+  cover     String
+  color     String
+  paper     String
+  size      String
+  font      String
+  sheets    Int
+  title     String?
+  subtitle  String?
+  submittedAt DateTime?
+}
+
+model Review  { id String @id @default(uuid()) orderId String @unique order Order @relation(fields: [orderId], references: [id]) rating Int text String createdAt DateTime @default(now()) }
+
+model Message {
+  id        String   @id @default(uuid())
+  orderId   String?
+  order     Order?   @relation(fields: [orderId], references: [id])
+  audience  String                       // client | worker
+  toPhone   String
+  template  String
+  body      String
+  status    String   @default("queued")  // queued | sent | delivered | read | failed
+  waMessageId String?
+  createdAt DateTime @default(now())
+}
+
+model GalleryItem {
+  id        String  @id @default(uuid())
+  gcsPath   String
+  width     Int
+  height    Int
+  category  String
+  tone      String                       // modern | traditional | both
+  titleEn   String
+  titleTa   String
+  district  String
+  storySlug String?
+  hidden    Boolean @default(false)
+  sort      Int     @default(0)
+}
+
+model Story      { slug String @id tone String titleEn String titleTa String namesEn String namesTa String introEn String introTa String quoteEn String quoteTa String district String venueEn String venueTa String date DateTime coverId String images String[] }
+model CmsSetting { key String @id value Json updatedAt DateTime @updatedAt }   // banner, heroSlides, studio, album assets
+```
+
+## 10. API (Fastify) — first cut
+
+  POST /auth/otp/request {phone}          POST /auth/otp/verify {phone, code} → session cookie
+  POST /leads                             POST /quote/preview {…}  → lines + total (+ distance)
+  POST /enquiries {draft}   → order id    GET  /me/order
+  GET  /me/proofs           → signed URLs PUT  /me/selection {ids[]}   POST /me/selection/submit
+  PUT  /me/album {spec}                   POST /me/review {rating, text}
+  Admin: GET /orders?status&district&q · GET/PATCH /orders/:id · POST /orders/:id/status
+         POST /orders/:id/payments · DELETE /payments/:id · POST /orders/:id/assignments
+         CRUD /workers · GET/PUT /cms/:key · CRUD /gallery · GET /messages · GET /leads
+  Webhooks: POST /webhooks/whatsapp
+
+## 11. Front-end implementation (done)
+
+- src/lib/store.ts is a persisted mock of the backend (orders, workers, leads, outbox, CMS). Each
+  action is commented with the endpoint that replaces it; swapping to the API is a data-layer change.
+- Demo access: client login 98765 43210 with any 4-digit OTP; admin login with PIN 2026.
+- Images are free Unsplash placeholders (src/lib/images.ts) until the studio uploads its own via CMS.
+
+## 12. Security & privacy
+
+- OTP login (rate-limited, 5-minute codes); httpOnly session cookies; admin accounts with 2FA.
+- Role checks on every admin route; clients can only read their own order.
+- Raw photos never public; proofs via signed URLs (≤ 15 min); watermark rendered server-side.
+- Meta / Google keys stay server-side; webhooks verified by signature.
+- PII: phone and address encrypted at rest; data export/deletion on request; retention per Privacy page.
+
+## 13. Non-functional
+
+- Mobile-first (most clients are on phones): LCP < 2.5 s on 4G, images responsive (srcset) and lazy.
+- Accessibility: WCAG 2.1 AA — contrast, focus states, keyboard lightbox, reduced-motion support.
+- SEO: pre-render public routes (or move them to SSR later) with per-language titles and hreflang.
+- Analytics: funnel district → event → venue → package → submit; lead popup conversion.
+
+## 14. Delivery phases
+
+  1. Front end complete on mock data                                   ✔ done
+  2. Backend core: auth (OTP), enquiries, quote engine, orders, admin status/payments, Prisma schema
+  3. Integrations: WhatsApp templates + webhooks, Distance Matrix; in-house billing area
+  4. GCS proofs pipeline (upload, watermark, signed URLs), CMS uploads
+  5. Gemini voice (TTS + intent API), Google reviews, analytics, SEO pre-render
+  6. Hardening: rate limits, audit log, backups, load test, launch
+
+## 15. Open questions for the studio
+
+- Advance amount and cancellation policy (Terms page assumes ₹5,000 advance).
+- Proof selection quota per package, and the selection window length.
+- Final per-km travel rate, and whether hubs exist outside Madurai.
+- WhatsApp template wording in Tamil must be pre-approved by Meta — who signs off?
