@@ -1,0 +1,10 @@
+{
+  "description": "Streamline event planning with a user-friendly platform that manages inquiries, bookings, and custom album creation for seamless event experiences.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
