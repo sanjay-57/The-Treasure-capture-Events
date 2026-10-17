@@ -77,7 +77,7 @@ export function LeadPopup() {
           <LangImg pair={{ en: 'm_bride_bokeh', ta: 't_jasmine_garland' }} w={700} className="absolute inset-0" sizes="400px" />
           <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/10 to-transparent" />
           <div className="absolute inset-x-5 bottom-5">
-            <div className="glass-dark rounded-2xl p-4">
+            <div className="glass-ruby-dark rounded-2xl p-4">
               <p className="font-display text-xl italic-accent text-white">{lang === 'ta' ? '“ஒவ்வொரு சடங்கும் பொக்கிஷம்.”' : '“Every ritual, a treasure.”'}</p>
               <p className="mt-1 text-xs text-white/60">1,400+ {lang === 'ta' ? 'நிகழ்வுகள் · 8 மாவட்டங்கள்' : 'events · 8 districts'}</p>
             </div>

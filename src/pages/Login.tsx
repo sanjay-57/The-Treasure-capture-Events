@@ -133,7 +133,7 @@ export default function Login() {
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-ink/70 via-ink/45 to-ink/90 lg:bg-gradient-to-r lg:from-ink/85 lg:via-ink/55 lg:to-ink/30" aria-hidden="true" />
       <div className="absolute inset-x-0 bottom-0 -z-10 h-48 bg-gradient-to-t from-ink to-transparent" aria-hidden="true" />
       <TamilOnly>
-        <GopuramSkyline className="pointer-events-none absolute inset-x-0 bottom-0 -z-10" color="#c0163c" opacity={0.28} />
+        <GopuramSkyline className="pointer-events-none absolute inset-x-0 bottom-0 -z-10" color="var(--color-ruby)" opacity={0.28} />
       </TamilOnly>
 
       <Container wide className="grid min-h-[100svh] items-center gap-8 pb-[calc(2.5rem+env(safe-area-inset-bottom))] pt-28 sm:pt-36 md:gap-10 md:pb-16 md:pt-44 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)] lg:gap-16 lg:px-16 lg:pb-24">
@@ -194,7 +194,7 @@ export default function Login() {
             </span>
             <span className="flex gap-1.5" aria-hidden="true">
               {[1, 2].map(i => (
-                <motion.span key={i} className="h-1.5 rounded-full" animate={{ width: step === i ? 22 : 6, backgroundColor: step >= i ? '#c0163c' : 'rgba(10,10,11,0.15)' }} transition={{ duration: 0.5, ease: EASE }} />
+                <motion.span key={i} className="h-1.5 rounded-full" animate={{ width: step === i ? 22 : 6, backgroundColor: step >= i ? '#9b111e' : 'rgba(10,10,11,0.15)' }} transition={{ duration: 0.5, ease: EASE }} />
               ))}
             </span>
           </div>
@@ -202,7 +202,7 @@ export default function Login() {
           <AnimatePresence mode="wait" initial={false}>
             {noOrder ? (
               <Pane key="none">
-                <span className="mt-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-ruby-soft text-ruby sm:mt-8">
+                <span className="mt-6 flex h-12 w-12 items-center justify-center rounded-2xl glass-ruby-tint text-ruby sm:mt-8">
                   <Icon name="info" size={22} />
                 </span>
                 <h2 className="t-3 mt-5 text-balance">{t.noOrderTitle}</h2>

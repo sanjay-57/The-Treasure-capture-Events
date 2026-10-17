@@ -5,15 +5,16 @@ import { Icon } from '../../components/Icon'
 import { BackLink, Button, EmptyState, Img, Modal, Segmented } from '../../components/ui'
 import { EASE } from '../../components/motion'
 import {
-  ALBUM, CROWDS, PACKAGES, ROLES, STATUS_META, STATUS_ORDER, VENUES, districtName, eventByKey, statusName,
+  ALBUM, CROWDS, ROLES, STATUS_META, STATUS_ORDER, VENUES, districtName, eventByKey, statusName,
   type OrderStatus, type Worker,
 } from '../../lib/data'
+import { cartLabel } from '../../lib/catalogue'
 import { formatDate, formatDateTime, formatINR, useLang, useT, useTx } from '../../lib/i18n'
 import type { ImgKey } from '../../lib/images'
 import { toast, useTitle } from '../../lib/ui'
 import { CoverMasthead } from '../dashboard/Photos'
 import { proofFile, resolveCover, useProofs } from '../dashboard/shared'
-import { balanceDue, paidTotal, useStore, type Order, type OutboxMessage, type Payment, statusMessage } from '../../lib/store'
+import { balanceDue, invoiceState, paidTotal, useStore, type Order, type OutboxMessage, type Payment, statusMessage } from '../../lib/store'
 import {
   AC, Avatar, ConfirmModal, CopyButton, MODE_LABEL, Meta, PageHeader, Panel, Progress, StatusPill, Stars, TextInput, WaBubble, WaFrame,
   daysUntil, inDays, nextStatus, relTime, stageIndex, telHref, waHref,
@@ -64,14 +65,28 @@ const copy = {
   package: { en: 'Package', ta: 'தொகுப்பு' },
   notes: { en: 'Client notes', ta: 'வாடிக்கையாளர் குறிப்புகள்' },
   quote: { en: 'Quote', ta: 'கட்டண மதிப்பீடு' },
-  quoteSub: { en: 'Line items on the invoice', ta: 'ரசீதில் உள்ள விவரங்கள்' },
-  subtotal: { en: 'Calculated', ta: 'கணக்கிட்டது' },
-  adjustment: { en: 'Adjustment', ta: 'சரிசெய்தல்' },
-  finalTotal: { en: 'Final total', ta: 'இறுதித் தொகை' },
-  adjust: { en: 'Adjust final total', ta: 'இறுதித் தொகையை மாற்று' },
-  saveTotal: { en: 'Update total', ta: 'தொகையைப் புதுப்பி' },
-  totalSaved: { en: 'Final total updated · invoice revised', ta: 'இறுதித் தொகை புதுப்பிக்கப்பட்டது · ரசீது திருத்தப்பட்டது' },
-  resetCalc: { en: 'Use calculated', ta: 'கணக்கிட்டதைப் பயன்படுத்து' },
+  quoteSub: { en: 'Frozen at enquiry · re-quote from the billing screen', ta: 'விசாரணையின்போது உறைந்தது · கட்டணப் பக்கத்தில் மறு மதிப்பீடு' },
+  subtotal: { en: 'Subtotal', ta: 'கூட்டுத்தொகை' },
+  adjustment: { en: 'Adjustments', ta: 'சரிசெய்தல்கள்' },
+  finalTotal: { en: 'Total', ta: 'மொத்தம்' },
+  editItems: { en: 'Edit items', ta: 'பொருட்களைத் திருத்து' },
+  addDiscount: { en: 'Add discount / extra', ta: 'தள்ளுபடி / கூடுதல் சேர்' },
+  discount: { en: 'Discount', ta: 'தள்ளுபடி' },
+  extra: { en: 'Extra charge', ta: 'கூடுதல் கட்டணம்' },
+  reason: { en: 'Reason shown on the invoice', ta: 'ரசீதில் காட்டப்படும் காரணம்' },
+  reasonPh: { en: 'e.g. Season discount, extra travel day', ta: 'எ.கா. சீசன் தள்ளுபடி, கூடுதல் பயண நாள்' },
+  apply: { en: 'Apply', ta: 'பயன்படுத்து' },
+  applied: { en: 'Invoice revised', ta: 'ரசீது திருத்தப்பட்டது' },
+  needReason: { en: 'Add a reason and an amount', ta: 'காரணமும் தொகையும் தேவை' },
+  gst: { en: 'GST', ta: 'GST' },
+  noGst: { en: 'Not charged', ta: 'வசூலிக்கப்படவில்லை' },
+  sessions: { en: 'sessions', ta: 'அமர்வுகள்' },
+  sendQuote: { en: 'Send quote on WhatsApp', ta: 'WhatsApp-ல் மதிப்பீடு அனுப்பு' },
+  resendQuote: { en: 'Re-send quote', ta: 'மதிப்பீட்டை மீண்டும் அனுப்பு' },
+  quoteSent: { en: 'Quote sent to the client on WhatsApp', ta: 'மதிப்பீடு வாடிக்கையாளருக்கு WhatsApp-ல் அனுப்பப்பட்டது' },
+  sentOn: { en: 'Sent', ta: 'அனுப்பியது' },
+  revised: { en: 'Revised', ta: 'திருத்தியது' },
+  sent: { en: 'Sent', ta: 'அனுப்பப்பட்டது' },
   payments: { en: 'Payments', ta: 'கட்டணங்கள்' },
   paymentsSub: { en: 'Offline payments · amount paid & pending', ta: 'நேரடி கட்டணங்கள் · செலுத்தியது & நிலுவை' },
   paid: { en: 'Paid', ta: 'செலுத்தியது' },
@@ -306,7 +321,6 @@ function DetailsPanel({ o }: { o: Order }) {
   const tx = useTx()
   const crowd = CROWDS.find(c => c.key === o.crowd)
   const venue = VENUES.find(v => v.key === o.venueType)
-  const pkg = PACKAGES.find(p => p.key === o.packageId)
   return (
     <Panel title={t.details} icon="users">
       <dl className="grid grid-cols-2 gap-x-4 gap-y-5 md:grid-cols-3 md:gap-x-6">
@@ -331,7 +345,7 @@ function DetailsPanel({ o }: { o: Order }) {
         </Meta>
         <Meta label={t.crowd}>{crowd ? `${tx(crowd.name)} · ${crowd.range}` : '—'}</Meta>
         <Meta label={t.duration}>{o.durationHours} {t.hours}</Meta>
-        <Meta label={t.package}>{pkg ? tx(pkg.name) : '—'}</Meta>
+        <Meta label={t.package}>{tx(cartLabel(o.cart))}</Meta>
         {o.notes && (
           <Meta label={t.notes} className="col-span-2 md:col-span-3">
             <span className="block rounded-2xl bg-ink/[0.03] px-4 py-3 text-[13.5px] font-normal leading-relaxed text-ink/70">{o.notes}</span>
@@ -348,19 +362,31 @@ function QuotePanel({ o }: { o: Order }) {
   const t = useT(copy)
   const tx = useTx()
   const lang = useLang()
-  const update = useStore(s => s.updateOrderQuoteTotal)
-  const calc = o.quote.lines.reduce((s, l) => s + l.amount, 0)
-  const diff = o.quote.total - calc
-  const [editing, setEditing] = useState(false)
-  const [val, setVal] = useState(String(o.quote.total))
-  useEffect(() => setVal(String(o.quote.total)), [o.quote.total])
+  const addAdjustment = useStore(s => s.addAdjustment)
+  const removeAdjustment = useStore(s => s.removeAdjustment)
+  const setInvoiceMeta = useStore(s => s.setInvoiceMeta)
+  const sendInvoice = useStore(s => s.sendInvoice)
+  const [adding, setAdding] = useState(false)
+  const [kind, setKind] = useState<'discount' | 'extra'>('discount')
+  const [label, setLabel] = useState('')
+  const [amount, setAmount] = useState('')
+  const [err, setErr] = useState('')
+  const q = o.quote
+  const itemSections = q.sections.filter(s => !['adjustment', 'tax'].includes(s.key))
 
-  const save = () => {
-    const n = Math.round(Number(val))
-    if (!Number.isFinite(n) || n <= 0) return
-    update(o.id, n)
-    setEditing(false)
-    toast(t.totalSaved)
+  const apply = () => {
+    const n = Math.round(Number(amount))
+    if (!label.trim() || !n) return setErr(t.needReason)
+    addAdjustment(o.id, label.trim(), kind === 'discount' ? -Math.abs(n) : Math.abs(n))
+    setAdding(false)
+    setLabel('')
+    setAmount('')
+    setErr('')
+    toast(t.applied)
+  }
+  const send = () => {
+    sendInvoice(o.id)
+    toast(t.quoteSent)
   }
 
   return (
@@ -368,41 +394,96 @@ function QuotePanel({ o }: { o: Order }) {
       title={t.quote}
       subtitle={t.quoteSub}
       icon="receipt"
-      action={!editing && <Button variant="ghost" size="sm" iconLeft="edit" onClick={() => setEditing(true)}>{t.adjust}</Button>}
+      action={
+        <Link to={`/admin/billing/${o.id}`} className="inline-flex h-9 items-center gap-1.5 rounded-full border border-ink/10 px-3 text-[12px] font-medium text-ink/65 transition hover:border-ink/30 hover:text-ink md:h-8">
+          <Icon name="edit" size={13} />
+          {t.editItems}
+        </Link>
+      }
       bodyClass="p-0"
     >
-      <ul className="divide-y divide-ink/[0.06]">
-        {o.quote.lines.map((l, i) => (
-          <li key={i} className="flex items-start justify-between gap-3 px-5 py-3.5 md:gap-4 md:px-6">
-            <div className="min-w-0">
-              <p className="text-[14px] font-medium text-ink">{tx(l.label)}</p>
-              {l.detail && <p className="mt-0.5 text-[12.5px] text-ink/45">{tx(l.detail)}</p>}
+      <div className="divide-y divide-ink/[0.06]">
+        {itemSections.map(sec => (
+          <div key={sec.key} className="px-5 py-3.5 md:px-6">
+            <div className="flex items-center justify-between gap-3">
+              <p className="t-label text-ink/45">{tx(sec.name)}{sec.key === 'crew' ? ` · ${o.cart.sessions} ${t.sessions}` : ''}</p>
+              <p className="text-[13px] font-semibold tabular-nums text-ink">{formatINR(sec.amount)}</p>
             </div>
-            <p className={`shrink-0 text-[14px] tabular-nums ${l.amount ? 'text-ink' : 'text-ink/35'}`}>{formatINR(l.amount)}</p>
-          </li>
+            <ul className="mt-2 space-y-1.5">
+              {sec.lines.map((l, i) => (
+                <li key={i} className="flex items-start justify-between gap-3 text-[13.5px]">
+                  <span className="min-w-0 text-ink/80">
+                    {tx(l.label)}
+                    {l.detail && <span className="ml-1.5 text-[12px] text-ink/40">{tx(l.detail)}</span>}
+                  </span>
+                  <span className={`shrink-0 tabular-nums ${l.amount ? 'text-ink/70' : 'text-ink/30'}`}>{formatINR(l.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         ))}
-      </ul>
-      <div className="rounded-b-[26px] border-t hairline bg-ink/[0.02] px-5 py-4 md:px-6">
-        {diff !== 0 && (
-          <>
-            <Row label={t.subtotal} value={formatINR(calc)} muted />
-            <Row label={t.adjustment} value={`${diff > 0 ? '+' : '−'}${formatINR(Math.abs(diff))}`} ruby />
-          </>
-        )}
+      </div>
+
+      <div className="border-t hairline bg-ink/[0.02] px-5 py-4 md:px-6">
+        <Row label={t.subtotal} value={formatINR(q.subtotal)} muted />
+        {o.adjustments.map(a => (
+          <div key={a.id} className="flex items-center justify-between gap-2 py-1 text-[13px]">
+            <span className="min-w-0 truncate text-ink/60">{a.label}</span>
+            <span className="flex shrink-0 items-center gap-1">
+              <span className={`tabular-nums font-semibold ${a.amount < 0 ? 'text-ruby' : 'text-ink'}`}>{a.amount < 0 ? '−' : '+'}{formatINR(Math.abs(a.amount))}</span>
+              <button type="button" onClick={() => removeAdjustment(o.id, a.id)} aria-label={t.remove} className="flex h-7 w-7 items-center justify-center rounded-full text-ink/35 transition hover:bg-ink/[0.06] hover:text-ruby cursor-pointer">
+                <Icon name="x" size={13} />
+              </button>
+            </span>
+          </div>
+        ))}
+        <div className="flex items-center justify-between gap-2 py-1 text-[13px]">
+          <span className="text-ink/50">{t.gst}</span>
+          <span className="flex items-center gap-2">
+            <select
+              value={o.invoice.gstPct}
+              onChange={e => setInvoiceMeta(o.id, { gstPct: Number(e.target.value) })}
+              aria-label={t.gst}
+              className="h-7 rounded-full border border-ink/10 bg-white px-2 text-[12px] text-ink/70 outline-none focus:border-ruby cursor-pointer"
+            >
+              <option value={0}>{t.noGst}</option>
+              <option value={5}>5%</option>
+              <option value={12}>12%</option>
+              <option value={18}>18%</option>
+            </select>
+            {q.tax > 0 && <span className="tabular-nums text-ink/70">{formatINR(q.tax)}</span>}
+          </span>
+        </div>
+
         <AnimatePresence mode="wait" initial={false}>
-          {editing ? (
-            <motion.div key="edit" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.3, ease: EASE }} className="mt-1 flex flex-col gap-3 sm:flex-row sm:items-end">
-              <TextInput label={t.finalTotal} value={val} onChange={v => setVal(v.replace(/[^\d]/g, ''))} inputMode="numeric" prefix="₹" autoFocus className="flex-1" />
-              <div className="grid grid-cols-2 gap-2 sm:flex">
-                <Button variant="ghost" size="sm" onClick={() => { setVal(String(calc)) }}>{t.resetCalc}</Button>
-                <Button variant="ghost" size="sm" onClick={() => { setEditing(false); setVal(String(o.quote.total)) }}>{AC.cancel[lang]}</Button>
-                <Button variant="ink" size="sm" onClick={save} className="col-span-2 max-sm:!h-11">{t.saveTotal}</Button>
+          {adding ? (
+            <motion.div key="add" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.3, ease: EASE }} className="mt-3 space-y-3 rounded-2xl border hairline bg-white p-3.5">
+              <Segmented<'discount' | 'extra'> value={kind} onChange={setKind} size="sm" options={[{ value: 'discount', label: t.discount }, { value: 'extra', label: t.extra }]} />
+              <TextInput label={t.reason} value={label} onChange={v => { setLabel(v); setErr('') }} placeholder={t.reasonPh} autoFocus />
+              <TextInput label={t.amount} value={amount} onChange={v => { setAmount(v.replace(/[^\d]/g, '')); setErr('') }} inputMode="numeric" prefix="₹" placeholder="0" />
+              {err && <p className="text-[12px] text-ruby">{err}</p>}
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" size="sm" onClick={() => { setAdding(false); setErr('') }}>{AC.cancel[lang]}</Button>
+                <Button variant="ink" size="sm" onClick={apply}>{t.apply}</Button>
               </div>
             </motion.div>
           ) : (
-            <motion.div key="view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-baseline justify-between gap-3 pt-1">
-              <span className="text-[14px] font-semibold text-ink">{t.finalTotal}</span>
-              <span className="whitespace-nowrap font-display text-[26px] font-medium leading-none tracking-tight text-ink sm:text-[30px]">{formatINR(o.quote.total)}</span>
+            <motion.div key="view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className="mt-2 flex items-baseline justify-between gap-3 border-t hairline pt-3">
+                <span className="text-[14px] font-semibold text-ink">{t.finalTotal}</span>
+                <span className="whitespace-nowrap font-display text-[26px] font-medium leading-none tracking-tight text-ink sm:text-[30px]">{formatINR(q.total)}</span>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                <Button variant="ghost" size="sm" iconLeft="plus" onClick={() => setAdding(true)}>{t.addDiscount}</Button>
+                <Button variant="ink" size="sm" iconLeft="whatsapp" onClick={send}>{o.invoice.sentAt ? t.resendQuote : t.sendQuote}</Button>
+              </div>
+              {(o.invoice.sentAt || o.invoice.revisedAt) && (
+                <p className="mt-2 text-[11.5px] text-ink/40">
+                  {o.invoice.sentAt && `${t.sentOn} ${formatDateTime(o.invoice.sentAt, lang)}`}
+                  {o.invoice.sentAt && o.invoice.revisedAt && ' · '}
+                  {o.invoice.revisedAt && `${t.revised} ${formatDateTime(o.invoice.revisedAt, lang)}`}
+                </p>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -536,16 +617,15 @@ function QuickFill({ label, onClick }: { label: string; onClick: () => void }) {
 
 function InvoicePanel({ o }: { o: Order }) {
   const t = useT(copy)
-  const paid = paidTotal(o)
-  const state = paid <= 0 ? 'draft' : paid < o.quote.total ? 'partial' : 'paid'
-  const stateLabel = state === 'draft' ? t.draft : state === 'partial' ? t.partial : t.paidFull
+  const state = invoiceState(o)
+  const stateLabel = state === 'draft' ? t.draft : state === 'sent' ? t.sent : state === 'partial' ? t.partial : t.paidFull
   return (
     <Panel
       title={t.invoiceTitle}
       subtitle={t.invoiceSub}
       icon="receipt"
       action={
-        <Link to="/admin/billing" className="inline-flex h-9 items-center gap-1.5 rounded-full border border-ink/10 px-3 text-[12px] md:h-8 font-medium text-ink/65 transition hover:border-ink/30 hover:text-ink">
+        <Link to={`/admin/billing/${o.id}`} className="inline-flex h-9 items-center gap-1.5 rounded-full border border-ink/10 px-3 text-[12px] md:h-8 font-medium text-ink/65 transition hover:border-ink/30 hover:text-ink">
           <Icon name="receipt" size={13} />
           {t.openBilling}
         </Link>
@@ -555,8 +635,8 @@ function InvoicePanel({ o }: { o: Order }) {
         <ZRow label={t.customer}><span className="font-mono">{o.customerId}</span><CopyButton text={o.customerId} label={t.copy} /></ZRow>
         <ZRow label={t.invoice}><span className="font-mono">{o.invoiceId}</span><CopyButton text={o.invoiceId} label={t.copy} /></ZRow>
         <ZRow label={t.state}>
-          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold ${state === 'paid' ? 'bg-ink text-white' : state === 'partial' ? 'bg-ruby-soft text-ruby-deep' : 'border border-ink/15 text-ink/60'}`}>
-            {state === 'paid' ? <Icon name="check" size={12} strokeWidth={2.4} /> : <span className={`h-1.5 w-1.5 rounded-full ${state === 'partial' ? 'bg-ruby' : 'bg-ink/30'}`} />}
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold ${state === 'paid' ? 'bg-ink text-white' : state === 'partial' || state === 'sent' ? 'bg-ruby-soft text-ruby-deep' : 'border border-ink/15 text-ink/60'}`}>
+            {state === 'paid' ? <Icon name="check" size={12} strokeWidth={2.4} /> : <span className={`h-1.5 w-1.5 rounded-full ${state === 'partial' || state === 'sent' ? 'bg-ruby' : 'bg-ink/30'}`} />}
             {stateLabel}
           </span>
         </ZRow>

@@ -368,7 +368,7 @@ export function ConfirmModal({
   return (
     <Modal open={open} onClose={onClose} label={title}>
       <div className="p-6 pt-7 md:p-8">
-        <span className={`mb-5 flex h-11 w-11 items-center justify-center rounded-2xl ${tone === 'ruby' ? 'bg-ruby-soft text-ruby' : 'bg-ink/[0.06] text-ink'}`}>
+        <span className={`mb-5 flex h-11 w-11 items-center justify-center rounded-2xl ${tone === 'ruby' ? 'glass-ruby-tint text-ruby' : 'bg-ink/[0.06] text-ink'}`}>
           <Icon name={icon} size={20} />
         </span>
         <h2 className="pr-10 text-[20px] font-semibold tracking-tight text-ink">{title}</h2>
@@ -402,7 +402,7 @@ export function SaveBar({ show, onSave, onDiscard }: { show: boolean; onSave: ()
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.97 }}
           transition={{ duration: 0.45, ease: EASE }}
-          className="glass-dark fixed bottom-[calc(76px+env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[calc(100%-24px)] max-w-md -translate-x-1/2 items-center gap-2 rounded-full py-1.5 pl-4 pr-1.5 md:bottom-5 md:gap-3 md:py-2 md:pl-5 md:pr-2 lg:left-[calc(50%+136px)]"
+          className="glass-ruby-dark fixed bottom-[calc(76px+env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[calc(100%-24px)] max-w-md -translate-x-1/2 items-center gap-2 rounded-full py-1.5 pl-4 pr-1.5 md:bottom-5 md:gap-3 md:py-2 md:pl-5 md:pr-2 lg:left-[calc(50%+136px)]"
         >
           <span className="relative flex h-2 w-2 shrink-0">
             <span className="absolute inset-0 rounded-full bg-ruby-bright animate-pulse-ring" />

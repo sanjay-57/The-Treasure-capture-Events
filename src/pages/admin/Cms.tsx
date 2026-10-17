@@ -8,7 +8,9 @@ import { GALLERY, GALLERY_CATS, type GalleryCat, type Tone } from '../../lib/gal
 import { IMG, type ImgKey } from '../../lib/images'
 import { COMMON, useLang, useT, type Lang } from '../../lib/i18n'
 import { toast, useTitle } from '../../lib/ui'
-import { useStore, type CmsState } from '../../lib/store'
+import { usePrices, useStore, type CmsState } from '../../lib/store'
+import { CATALOGUE, DEFAULT_PRICES, SECTION_META, type CatalogueId, type Section } from '../../lib/catalogue'
+import { formatINR } from '../../lib/i18n'
 import { AC, FormSelect, PageHeader, Panel, SaveBar, SearchInput, Switch, Tabs, TextInput } from './kit'
 
 const copy = {
@@ -19,6 +21,29 @@ const copy = {
   tabHero: { en: 'Homepage hero', ta: 'முகப்புப் படங்கள்' },
   tabGallery: { en: 'Portfolio', ta: 'காட்சியகம்' },
   tabStudio: { en: 'Studio info', ta: 'ஸ்டுடியோ விவரம்' },
+  tabCatalogue: { en: 'Rate card', ta: 'விலைப் பட்டியல்' },
+  rateCard: { en: 'Catalogue prices', ta: 'பட்டியல் விலைகள்' },
+  rateCardSub: { en: 'Edits apply to new quotes immediately. Existing orders keep the prices they were quoted at until you re-quote them.', ta: 'மாற்றங்கள் புதிய மதிப்பீடுகளுக்கு உடனே பொருந்தும். ஏற்கனவே உள்ள ஆர்டர்கள் மறு மதிப்பீடு வரை பழைய விலையில் இருக்கும்.' },
+  perSession: { en: 'per session', ta: 'ஒரு அமர்வுக்கு' },
+  perItem: { en: 'each', ta: 'ஒன்றுக்கு' },
+  perShoot: { en: 'per shoot', ta: 'ஒரு படப்பிடிப்புக்கு' },
+  includedUnit: { en: 'included', ta: 'அடங்கும்' },
+  listPrice: { en: 'Sheet price', ta: 'தாள் விலை' },
+  overridden: { en: 'Edited', ta: 'மாற்றியது' },
+  pendingPrice: { en: 'To confirm', ta: 'உறுதி செய்ய' },
+  resetPrice: { en: 'Reset to sheet price', ta: 'தாள் விலைக்கு மீட்டமை' },
+  priceSaved: { en: 'Price updated — live for new quotes', ta: 'விலை புதுப்பிக்கப்பட்டது — புதிய மதிப்பீடுகளுக்கு' },
+  gstDefault: { en: 'Default GST on new quotes', ta: 'புதிய மதிப்பீடுகளில் இயல்பு GST' },
+  gstNone: { en: 'Not charged', ta: 'வசூலிக்கப்படவில்லை' },
+  bank: { en: 'Bank details on invoices', ta: 'ரசீதுகளில் வங்கி விவரம்' },
+  bankSub: { en: 'Printed on every quote and invoice, and shown on the client’s billing page', ta: 'ஒவ்வொரு மதிப்பீடு, ரசீதிலும் அச்சிடப்பட்டு வாடிக்கையாளர் கட்டணப் பக்கத்திலும் காட்டப்படும்' },
+  upi: { en: 'UPI ID', ta: 'UPI முகவரி' },
+  accName: { en: 'Account name', ta: 'கணக்குப் பெயர்' },
+  accNo: { en: 'Account number', ta: 'கணக்கு எண்' },
+  ifsc: { en: 'IFSC', ta: 'IFSC' },
+  branchEn: { en: 'Branch · English', ta: 'கிளை · ஆங்கிலம்' },
+  branchTa: { en: 'Branch · Tamil', ta: 'கிளை · தமிழ்' },
+  saveBank: { en: 'Save bank details', ta: 'வங்கி விவரத்தைச் சேமி' },
   openSite: { en: 'Open website', ta: 'இணையதளம் திற' },
   // banner
   banner: { en: 'Announcement strip', ta: 'அறிவிப்புப் பட்டை' },
@@ -90,7 +115,7 @@ const copy = {
   visitUs: { en: 'Visit the studio', ta: 'ஸ்டுடியோவுக்கு வாருங்கள்' },
 }
 
-type Tab = 'banner' | 'hero' | 'gallery' | 'studio'
+type Tab = 'banner' | 'hero' | 'gallery' | 'catalogue' | 'studio'
 const isUrl = (s: string) => /^https?:\/\/\S+\.\S+/.test(s.trim())
 const isKey = (s: string): s is ImgKey => s in IMG
 
@@ -125,6 +150,7 @@ export default function Cms() {
           { value: 'banner', label: t.tabBanner, icon: 'sparkle' },
           { value: 'hero', label: t.tabHero, icon: 'image' },
           { value: 'gallery', label: t.tabGallery, icon: 'grid', count: GALLERY.length + cms.extraGallery.length - cms.hiddenGallery.length },
+          { value: 'catalogue', label: t.tabCatalogue, icon: 'rupee', count: Object.keys(cms.catalogue.prices).length || undefined },
           { value: 'studio', label: t.tabStudio, icon: 'building' },
         ]}
       />
@@ -133,6 +159,7 @@ export default function Cms() {
           {tab === 'banner' && <BannerEditor value={banner} onChange={setBanner} />}
           {tab === 'hero' && <HeroEditor />}
           {tab === 'gallery' && <GalleryManager />}
+          {tab === 'catalogue' && <RateCardEditor />}
           {tab === 'studio' && <StudioEditor value={studio} onChange={setStudio} />}
         </motion.div>
       </AnimatePresence>
@@ -526,5 +553,115 @@ function StudioEditor({ value, onChange }: { value: CmsState['studio']; onChange
         </div>
       </Panel>
     </div>
+  )
+}
+
+// ─── Rate card ───────────────────────────────────────────────────────────────
+
+const SECTIONS: Section[] = ['crew', 'addon', 'deliverable', 'special']
+const UNIT_KEY = { session: 'perSession', each: 'perItem', shoot: 'perShoot', included: 'includedUnit' } as const
+
+function RateCardEditor() {
+  const t = useT(copy)
+  const lang = useLang()
+  const prices = usePrices()
+  const overrides = useStore(s => s.cms.catalogue.prices)
+  const gstPct = useStore(s => s.cms.catalogue.gstPct)
+  const bank = useStore(s => s.cms.bank)
+  const setCataloguePrice = useStore(s => s.setCataloguePrice)
+  const updateCms = useStore(s => s.updateCms)
+  const [bankDraft, setBankDraft] = useState(bank)
+  const bankDirty = JSON.stringify(bankDraft) !== JSON.stringify(bank)
+
+  return (
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <Panel title={t.rateCard} subtitle={t.rateCardSub} icon="rupee" bodyClass="p-0">
+        {SECTIONS.map(sec => (
+          <div key={sec} className="border-b hairline last:border-b-0">
+            <div className="flex items-center gap-2.5 bg-ink/[0.025] px-5 py-2.5 md:px-6">
+              <Icon name={SECTION_META[sec].icon} size={14} className="text-ruby" />
+              <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-ink/55">{SECTION_META[sec].name[lang]}</p>
+              <p className="hidden text-[12px] text-ink/40 sm:block">· {SECTION_META[sec].blurb[lang]}</p>
+            </div>
+            <ul className="divide-y divide-ink/[0.05]">
+              {CATALOGUE.filter(i => i.section === sec).map(item => (
+                <PriceRow key={item.id} id={item.id} name={item.name[lang]} unit={t[UNIT_KEY[item.unit]]} pending={!!item.pending} included={item.unit === 'included'} value={prices[item.id]} edited={item.id in overrides} onChange={v => { setCataloguePrice(item.id, v); if (v !== null) toast(t.priceSaved) }} />
+              ))}
+            </ul>
+          </div>
+        ))}
+      </Panel>
+
+      <div className="space-y-5">
+        <Panel title={t.gstDefault} icon="receipt">
+          <div className="flex flex-wrap gap-2">
+            {[0, 5, 12, 18].map(p => (
+              <button key={p} type="button" onClick={() => updateCms({ catalogue: { prices: overrides, gstPct: p } })} className={`h-10 rounded-full px-4 text-[13px] font-medium transition cursor-pointer ${gstPct === p ? 'bg-ink text-white' : 'border border-ink/10 bg-white text-ink/60 hover:border-ink/30'}`}>
+                {p === 0 ? t.gstNone : `${p}%`}
+              </button>
+            ))}
+          </div>
+        </Panel>
+        <Panel title={t.bank} subtitle={t.bankSub} icon="building">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextInput label={t.upi} value={bankDraft.upi} onChange={v => setBankDraft({ ...bankDraft, upi: v })} className="sm:col-span-2" />
+            <TextInput label={t.accName} value={bankDraft.name} onChange={v => setBankDraft({ ...bankDraft, name: v })} className="sm:col-span-2" />
+            <TextInput label={t.accNo} value={bankDraft.acc} onChange={v => setBankDraft({ ...bankDraft, acc: v })} />
+            <TextInput label={t.ifsc} value={bankDraft.ifsc} onChange={v => setBankDraft({ ...bankDraft, ifsc: v })} />
+            <TextInput label={t.branchEn} value={bankDraft.branchEn} onChange={v => setBankDraft({ ...bankDraft, branchEn: v })} />
+            <TextInput label={t.branchTa} value={bankDraft.branchTa} onChange={v => setBankDraft({ ...bankDraft, branchTa: v })} lang="ta" />
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button variant="ink" size="sm" disabled={!bankDirty} onClick={() => { updateCms({ bank: bankDraft }); toast(AC.saved[lang]) }}>{t.saveBank}</Button>
+          </div>
+        </Panel>
+      </div>
+    </div>
+  )
+}
+
+function PriceRow({ id, name, unit, pending, included, value, edited, onChange }: { id: CatalogueId; name: string; unit: string; pending: boolean; included: boolean; value: number; edited: boolean; onChange: (v: number | null) => void }) {
+  const t = useT(copy)
+  const [draft, setDraft] = useState(String(value))
+  const [focus, setFocus] = useState(false)
+  const shown = focus ? draft : String(value)
+  const commit = () => {
+    setFocus(false)
+    const n = Math.round(Number(draft))
+    if (Number.isFinite(n) && n >= 0 && n !== value) onChange(n)
+  }
+  return (
+    <li className="flex items-center gap-3 px-5 py-2.5 md:px-6">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[14px] font-medium text-ink">{name}</p>
+        <p className="flex flex-wrap items-center gap-x-2 text-[11.5px] text-ink/45">
+          <span>{unit}</span>
+          {edited && <span className="rounded-full bg-ruby-soft px-1.5 py-px text-[10.5px] font-semibold text-ruby-deep">{t.overridden} · {t.listPrice} {formatINR(DEFAULT_PRICES[id])}</span>}
+          {pending && <span className="rounded-full bg-amber-100 px-1.5 py-px text-[10.5px] font-semibold text-amber-800">{t.pendingPrice}</span>}
+        </p>
+      </div>
+      {included ? (
+        <span className="text-[13px] text-ink/40">{formatINR(0)}</span>
+      ) : (
+        <>
+          <label className={`flex h-10 w-32 items-center gap-1 rounded-xl border bg-white px-3 transition ${focus ? 'border-ruby' : 'border-ink/10'}`}>
+            <span className="text-ink/40">₹</span>
+            <input
+              value={shown}
+              inputMode="numeric"
+              onFocus={() => { setDraft(String(value)); setFocus(true) }}
+              onChange={e => setDraft(e.target.value.replace(/[^\d]/g, ''))}
+              onBlur={commit}
+              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+              aria-label={name}
+              className="w-full bg-transparent text-right text-[14px] font-semibold tabular-nums text-ink outline-none"
+            />
+          </label>
+          <button type="button" onClick={() => onChange(null)} disabled={!edited} aria-label={t.resetPrice} title={t.resetPrice} className="flex h-9 w-9 items-center justify-center rounded-full text-ink/35 transition hover:bg-ink/[0.06] hover:text-ruby disabled:opacity-0 cursor-pointer">
+            <Icon name="refresh" size={14} />
+          </button>
+        </>
+      )}
+    </li>
   )
 }

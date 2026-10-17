@@ -321,7 +321,7 @@ function FeaturedStory() {
             </div>
 
             <div className="absolute inset-x-3 bottom-3 flex flex-col gap-4 md:inset-x-8 md:bottom-8 md:flex-row md:items-end md:justify-between">
-              <Reveal className="glass-dark max-w-xl rounded-[22px] p-5 md:rounded-[26px] md:p-8">
+              <Reveal className="glass-ruby-dark max-w-xl rounded-[22px] p-5 md:rounded-[26px] md:p-8">
                 <p className="text-[13px] text-white/55">{story.event[lang]} · {story.venue[lang]}</p>
                 <p className="t-2 mt-2 text-white">{story.title[lang]}</p>
                 <p className="mt-2 font-accent text-xl italic-accent text-white/75">{story.names[lang]}</p>
@@ -468,7 +468,7 @@ function FilterBar({
       {/* District chips on small screens */}
       <div className="no-scrollbar -mx-5 mt-2 flex gap-1.5 overflow-x-auto px-5 md:hidden" data-lenis-prevent>
         {[{ key: 'all', name: { en: labels.all, ta: labels.all } }, ...DISTRICTS].map(d => (
-          <button key={d.key} type="button" onClick={() => onDistrict(d.key)} className={`h-9 shrink-0 rounded-full px-3.5 text-[12.5px] font-medium transition cursor-pointer ${district === d.key ? 'bg-white text-ink' : 'glass-dark text-white/70'}`}>
+          <button key={d.key} type="button" onClick={() => onDistrict(d.key)} className={`h-9 shrink-0 rounded-full px-3.5 text-[12.5px] font-medium transition cursor-pointer ${district === d.key ? 'glass-ruby text-white' : 'glass-dark text-white/70'}`}>
             {d.name[lang]}
           </button>
         ))}
@@ -630,7 +630,7 @@ function MoodboardBar() {
           transition={{ duration: 0.6, ease: EASE }}
           className="fixed inset-x-0 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 flex justify-center px-3 sm:bottom-4"
         >
-          <div className="glass-dark flex w-full max-w-md items-center gap-3 rounded-full py-2 pl-2 pr-2 shadow-2xl sm:w-auto sm:max-w-none">
+          <div className="glass-ruby-dark flex w-full max-w-md items-center gap-3 rounded-full py-2 pl-2 pr-2 shadow-2xl sm:w-auto sm:max-w-none">
             <div className="flex shrink-0 -space-x-3">
               <AnimatePresence initial={false}>
                 {saved.slice(-4).map((s, i, arr) => (

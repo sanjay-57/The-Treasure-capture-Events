@@ -3,16 +3,23 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import type { Lang } from './i18n'
 import {
   DEFAULT_ALBUM, PROOF_SETS, SEED_WORKERS, STATUS_META, STATUS_ORDER, eventByKey,
-  type AddonKey, type AlbumSpec, type CrowdKey, type DistrictKey, type EventKey, type GalleryCover, type OrderStatus,
-  type PackageKey, type VenueType, type Worker,
+  type AlbumSpec, type CrowdKey, type DistrictKey, type EventKey, type GalleryCover, type OrderStatus, type VenueType, type Worker,
 } from './data'
-import { computeQuote, type Quote } from './pricing'
+import {
+  EMPTY_CART, MAX_SESSIONS, MIN_SESSIONS, resolvePrices, setCartQty, tierCart,
+  type Cart, type CatalogueId, type FixedTier, type PriceMap,
+} from './catalogue'
+import { computeQuote, type Adjustment, type Quote } from './pricing'
 import type { GalleryCat } from './gallery'
 
 /*
  * Front-end mock of the backend. Everything persists to localStorage so the
  * admin and client views stay in sync across reloads and tabs. Each action
- * notes the API call that will replace it once the Fastify backend exists.
+ * notes the API call that will replace it once the backend exists.
+ *
+ * Billing is the studio's own: quotes are computed from the catalogue, frozen
+ * into the order, and adjusted / re-quoted by the admin. No third-party
+ * invoicing service.
  */
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -29,8 +36,7 @@ export interface BookingDraft {
   date: string
   time: string
   dateCertainty: 'exact' | 'tentative'
-  packageId: PackageKey
-  addons: AddonKey[]
+  cart: Cart
   name: string
   contact: string
   email: string
@@ -49,8 +55,7 @@ export const EMPTY_DRAFT: BookingDraft = {
   date: '',
   time: '',
   dateCertainty: 'exact',
-  packageId: 'signature',
-  addons: [],
+  cart: EMPTY_CART,
   name: '',
   contact: '',
   email: '',
@@ -63,6 +68,37 @@ export interface Payment {
   mode: 'upi' | 'cash' | 'bank'
   at: string
   note?: string
+}
+
+export type MilestoneKey = 'advance' | 'event' | 'delivery'
+export interface Milestone {
+  key: MilestoneKey
+  /** Share of the invoice total, in percent. The three add up to 100. */
+  pct: number
+}
+
+export const DEFAULT_SCHEDULE: Milestone[] = [
+  { key: 'advance', pct: 20 },
+  { key: 'event', pct: 50 },
+  { key: 'delivery', pct: 30 },
+]
+
+export interface InvoiceMeta {
+  /** When the quote was first issued (enquiry time) — re-quotes keep the number, bump `revisedAt`. */
+  issuedAt: string
+  revisedAt?: string
+  /** Set when the studio marks the invoice as sent to the client. */
+  sentAt?: string
+  gstPct: number
+  schedule: Milestone[]
+  /** Free-text note printed under the totals. */
+  note: string
+}
+
+export interface QuoteRevision {
+  at: string
+  total: number
+  note: string
 }
 
 export interface Order {
@@ -80,10 +116,15 @@ export interface Order {
   date: string
   time: string
   dateCertainty: 'exact' | 'tentative'
-  packageId: PackageKey
-  addons: AddonKey[]
+  /** What the client configured (or the studio re-quoted). */
+  cart: Cart
+  /** Discounts and extras added by the studio after the consultation. */
+  adjustments: Adjustment[]
   notes: string
+  /** Snapshot: catalogue lines + travel + adjustments + tax. `total` is the billed amount. */
   quote: Quote
+  invoice: InvoiceMeta
+  quoteHistory: QuoteRevision[]
   status: OrderStatus
   history: { status: OrderStatus; at: string }[]
   payments: Payment[]
@@ -133,6 +174,10 @@ export interface CmsState {
   extraGallery: { id: string; url: string; cat: GalleryCat; titleEn: string; titleTa: string; district: DistrictKey; tone: 'modern' | 'traditional' | 'both' }[]
   /** Studio contact info shown in the footer / contact page. */
   studio: { phone: string; whatsapp: string; email: string; addressEn: string; addressTa: string; googleReviewUrl: string }
+  /** Rate card edits: price overrides per catalogue item and the default GST. */
+  catalogue: { prices: Partial<Record<CatalogueId, number>>; gstPct: number }
+  /** Bank details printed on invoices. */
+  bank: { upi: string; name: string; acc: string; ifsc: string; branchEn: string; branchTa: string }
 }
 
 export type Session =
@@ -162,9 +207,14 @@ interface Actions {
   captureLead: (name: string, contact: string, source?: string) => void
   dismissLeadPrompt: () => void
 
+  /** Patches the draft; changing the event re-expands a fixed tier for that event. */
   updateDraft: (patch: Partial<BookingDraft>) => void
   resetDraft: () => void
-  /** POST /enquiries → creates Order, customer + draft invoice, WhatsApp ack. Returns the order id. */
+  /** Picks a fixed tier (expands to its preset cart) or switches to custom keeping the current items. */
+  setTier: (tier: FixedTier | 'custom') => void
+  setCartItem: (id: CatalogueId, qty: number) => void
+  setSessions: (n: number) => void
+  /** POST /enquiries → creates Order + draft invoice, WhatsApp ack. Returns the order id. */
   submitEnquiry: () => string | null
 
   /** Client OTP login (mocked: any 4-digit code). Returns false when no order matches the number. */
@@ -181,7 +231,17 @@ interface Actions {
   assignWorker: (orderId: string, workerId: string) => void
   unassignWorker: (orderId: string, workerId: string) => void
   setDelivery: (orderId: string, courier: string, tracking: string) => void
-  updateOrderQuoteTotal: (orderId: string, total: number) => void
+
+  // Billing — PATCH /orders/:id/quote …
+  /** Re-prices the order from a new cart at today's catalogue prices; keeps a revision entry. */
+  updateOrderCart: (orderId: string, cart: Cart, note?: string) => void
+  addAdjustment: (orderId: string, label: string, amount: number) => void
+  removeAdjustment: (orderId: string, adjustmentId: string) => void
+  setInvoiceMeta: (orderId: string, patch: Partial<InvoiceMeta>) => void
+  /** Marks the invoice sent and queues the WhatsApp message with the quote summary. */
+  sendInvoice: (orderId: string) => void
+  /** Admin rate-card edit. Only new quotes pick it up; existing orders keep their snapshot. */
+  setCataloguePrice: (id: CatalogueId, price: number | null) => void
 
   toggleSelection: (orderId: string, photoId: string) => void
   submitSelection: (orderId: string) => void
@@ -211,17 +271,51 @@ export const paidTotal = (o: Order) => o.payments.reduce((s, p) => s + p.amount,
 export const balanceDue = (o: Order) => Math.max(0, o.quote.total - paidTotal(o))
 export const normalizePhone = (s: string) => s.replace(/\D/g, '').slice(-10)
 
+/** Payment milestones with rupee amounts and how much of each is already covered. */
+export function milestones(o: Order): { key: MilestoneKey; pct: number; amount: number; paid: number; done: boolean }[] {
+  let remaining = paidTotal(o)
+  return o.invoice.schedule.map((m, i, all) => {
+    const amount = i === all.length - 1 ? o.quote.total - all.slice(0, -1).reduce((s, x) => s + Math.round((o.quote.total * x.pct) / 100), 0) : Math.round((o.quote.total * m.pct) / 100)
+    const paid = Math.min(amount, Math.max(0, remaining))
+    remaining -= paid
+    return { key: m.key, pct: m.pct, amount, paid, done: amount > 0 && paid >= amount }
+  })
+}
+
+export type InvoiceState = 'draft' | 'sent' | 'partial' | 'paid'
+export function invoiceState(o: Order): InvoiceState {
+  const paid = paidTotal(o)
+  if (o.quote.total > 0 && paid >= o.quote.total) return 'paid'
+  if (paid > 0) return 'partial'
+  return o.invoice.sentAt ? 'sent' : 'draft'
+}
+
+/** Re-computes an order's quote from its cart, adjustments and tax at the given prices. */
+export function requote(o: Pick<Order, 'eventType' | 'cart' | 'distanceKm' | 'adjustments' | 'invoice'>, prices: PriceMap): Quote {
+  return computeQuote({ eventType: o.eventType, cart: o.cart, distanceKm: o.distanceKm, adjustments: o.adjustments, gstPct: o.invoice.gstPct }, prices)
+}
+
 function historyUpTo(status: OrderStatus, startDaysAgo: number) {
   const idx = STATUS_ORDER.indexOf(status)
   return STATUS_ORDER.slice(0, idx + 1).map((s, i) => ({ status: s, at: daysAgo(Math.max(0, startDaysAgo - i * 6)) }))
 }
 
+const invoiceNumber = (seq: number, year = new Date().getFullYear()) => `TTCS-${year}-${String(seq).padStart(4, '0')}`
+
 function seedOrder(p: {
   id: string; name: string; contact: string; email?: string; district: DistrictKey; eventType: EventKey; hours: number
   crowd: CrowdKey; venueType: VenueType; venueName: string; venueAddress: string; km: number; date: string; time: string
-  pkg: PackageKey; addons: AddonKey[]; status: OrderStatus; created: number; paid: number[]; workers: string[]; selection?: string[]
+  tier: FixedTier; extras?: Partial<Record<CatalogueId, number>>; sessions?: number; discount?: number
+  status: OrderStatus; created: number; paid: number[]; workers: string[]; selection?: string[]
 }): Order {
-  const quote = computeQuote({ eventType: p.eventType, durationHours: p.hours, crowd: p.crowd, venueType: p.venueType, distanceKm: p.km, packageId: p.pkg, addons: p.addons })
+  const ev = eventByKey(p.eventType)!
+  let cart = tierCart(ev.tiers, p.tier, p.sessions ?? 1)
+  for (const [id, qty] of Object.entries(p.extras ?? {})) cart = { ...setCartQty(cart, id as CatalogueId, qty as number), tier: cart.tier }
+  if (p.extras) cart = { ...cart, tier: 'custom' }
+  const adjustments: Adjustment[] = p.discount ? [{ id: uid(), label: 'Season discount', amount: -p.discount, at: daysAgo(p.created - 1) }] : []
+  const invoice: InvoiceMeta = { issuedAt: daysAgo(p.created), sentAt: p.status === 'ENQUIRY' ? undefined : daysAgo(p.created - 1), gstPct: 0, schedule: DEFAULT_SCHEDULE, note: '' }
+  const base = { eventType: p.eventType, cart, distanceKm: p.km, adjustments, invoice }
+  const quote = requote(base, resolvePrices())
   return {
     id: p.id,
     createdAt: daysAgo(p.created),
@@ -237,15 +331,17 @@ function seedOrder(p: {
     date: p.date,
     time: p.time,
     dateCertainty: 'exact',
-    packageId: p.pkg,
-    addons: p.addons,
+    cart,
+    adjustments,
     notes: '',
     quote,
+    invoice,
+    quoteHistory: [{ at: daysAgo(p.created), total: quote.total, note: 'Quote generated from enquiry' }],
     status: p.status,
     history: historyUpTo(p.status, p.created),
     payments: p.paid.map((amount, i) => ({ id: uid(), amount, mode: i === 0 ? 'upi' : 'bank', at: daysAgo(p.created - 2 - i * 10) })),
     customerId: 'CU-' + p.id.slice(-4),
-    invoiceId: 'INV-' + p.id.slice(-4),
+    invoiceId: invoiceNumber(Number(p.id.slice(-4))),
     workerIds: p.workers,
     selection: p.selection ?? [],
   }
@@ -256,13 +352,14 @@ export const DEMO_CLIENT_PHONE = '9876543210'
 
 function seedOrders(): Order[] {
   return [
-    seedOrder({ id: 'TTC-2026-0142', name: 'Priya & Karthik', contact: '+91 98765 43210', email: 'priya.k@example.com', district: 'madurai', eventType: 'wedding', hours: 10, crowd: 'grand', venueType: 'mahal', venueName: 'Sri Meenakshi Mahal', venueAddress: 'Anna Nagar, Madurai', km: 8, date: daysAhead(-24), time: '06:00', pkg: 'heirloom', addons: ['drone', 'sameday'], status: 'SELECT_PHOTOS', created: 70, paid: [40000, 35000], workers: ['w1', 'w6'], selection: ['t_couple_garland', 't_bride_silk', 't_ritual_fire'] }),
-    seedOrder({ id: 'TTC-2026-0151', name: 'Aishwarya Menon', contact: '+91 91234 56780', district: 'chennai', eventType: 'reception', hours: 6, crowd: 'large', venueType: 'mahal', venueName: 'ECR Beach Resort', venueAddress: 'East Coast Road, Chennai', km: 34, date: daysAhead(18), time: '18:30', pkg: 'signature', addons: ['ledwall'], status: 'TEAM_MEETING', created: 12, paid: [15000], workers: ['w2'] }),
-    seedOrder({ id: 'TTC-2026-0156', name: 'Lakshmi Narayanan', contact: '+91 99401 22110', district: 'thanjavur', eventType: 'puberty', hours: 4, crowd: 'medium', venueType: 'home', venueName: '', venueAddress: 'Medical College Road, Thanjavur', km: 5, date: daysAhead(9), time: '09:00', pkg: 'essential', addons: [], status: 'BRIDE_GROOM_MEETING', created: 8, paid: [5000], workers: ['w5'] }),
-    seedOrder({ id: 'TTC-2026-0160', name: 'Divya & Arjun', contact: '+91 90031 45566', district: 'dindigul', eventType: 'outdoor', hours: 6, crowd: 'intimate', venueType: 'home', venueName: 'Kodaikanal lake', venueAddress: 'Kodaikanal, Dindigul', km: 42, date: daysAhead(32), time: '05:30', pkg: 'signature', addons: ['drone'], status: 'ENQUIRY', created: 1, paid: [], workers: [] }),
-    seedOrder({ id: 'TTC-2026-0128', name: 'Sneha & Vikram', contact: '+91 97877 66554', district: 'coimbatore', eventType: 'wedding', hours: 12, crowd: 'grand', venueType: 'mahal', venueName: 'Codissia Convention Hall', venueAddress: 'Avinashi Road, Coimbatore', km: 12, date: daysAhead(-60), time: '07:30', pkg: 'heirloom', addons: ['extraalbum'], status: 'ALBUM_CUSTOMIZATION', created: 110, paid: [50000, 30000], workers: ['w3', 'w1'] }),
-    seedOrder({ id: 'TTC-2026-0117', name: 'Deepa & Senthil', contact: '+91 98945 33221', district: 'tirunelveli', eventType: 'engagement', hours: 5, crowd: 'large', venueType: 'mahal', venueName: 'Temple mandapam', venueAddress: 'Town, Tirunelveli', km: 3, date: daysAhead(-90), time: '17:00', pkg: 'signature', addons: [], status: 'DELIVERED', created: 140, paid: [20000, 25500], workers: ['w7'] }),
-    seedOrder({ id: 'TTC-2026-0133', name: 'Ravi Shankar', contact: '+91 93456 78123', district: 'salem', eventType: 'birthday', hours: 3, crowd: 'medium', venueType: 'home', venueName: '', venueAddress: 'Fairlands, Salem', km: 4, date: daysAhead(-40), time: '17:00', pkg: 'essential', addons: ['booth'], status: 'BILLED', created: 55, paid: [10000], workers: ['w4'] }),
+    seedOrder({ id: 'TTC-2026-0142', name: 'Priya & Karthik', contact: '+91 98765 43210', email: 'priya.k@example.com', district: 'madurai', eventType: 'wedding', hours: 10, crowd: 'grand', venueType: 'mahal', venueName: 'Sri Meenakshi Mahal', venueAddress: 'Anna Nagar, Madurai', km: 8, date: daysAhead(-24), time: '06:00', tier: 'premium', sessions: 2, extras: { ledwall: 1 }, discount: 5000, status: 'SELECT_PHOTOS', created: 70, paid: [40000, 60000], workers: ['w1', 'w6'], selection: ['t_couple_garland', 't_bride_silk', 't_ritual_fire'] }),
+    seedOrder({ id: 'TTC-2026-0151', name: 'Aishwarya Menon', contact: '+91 91234 56780', district: 'chennai', eventType: 'reception', hours: 6, crowd: 'large', venueType: 'mahal', venueName: 'ECR Beach Resort', venueAddress: 'East Coast Road, Chennai', km: 34, date: daysAhead(18), time: '18:30', tier: 'standard', extras: { ledwall: 1 }, status: 'TEAM_MEETING', created: 12, paid: [15000], workers: ['w2'] }),
+    seedOrder({ id: 'TTC-2026-0156', name: 'Lakshmi Narayanan', contact: '+91 99401 22110', district: 'thanjavur', eventType: 'puberty', hours: 4, crowd: 'medium', venueType: 'home', venueName: '', venueAddress: 'Medical College Road, Thanjavur', km: 5, date: daysAhead(9), time: '09:00', tier: 'basic', status: 'BRIDE_GROOM_MEETING', created: 8, paid: [5000], workers: ['w5'] }),
+    seedOrder({ id: 'TTC-2026-0160', name: 'Divya & Arjun', contact: '+91 90031 45566', district: 'dindigul', eventType: 'prewedding', hours: 6, crowd: 'intimate', venueType: 'home', venueName: 'Kodaikanal lake', venueAddress: 'Kodaikanal, Dindigul', km: 42, date: daysAhead(32), time: '05:30', tier: 'standard', status: 'ENQUIRY', created: 1, paid: [], workers: [] }),
+    seedOrder({ id: 'TTC-2026-0128', name: 'Sneha & Vikram', contact: '+91 97877 66554', district: 'coimbatore', eventType: 'wedding', hours: 12, crowd: 'grand', venueType: 'mahal', venueName: 'Codissia Convention Hall', venueAddress: 'Avinashi Road, Coimbatore', km: 12, date: daysAhead(-60), time: '07:30', tier: 'premium', sessions: 2, extras: { minibook: 2 }, status: 'ALBUM_CUSTOMIZATION', created: 110, paid: [50000, 60000], workers: ['w3', 'w1'] }),
+    seedOrder({ id: 'TTC-2026-0117', name: 'Deepa & Senthil', contact: '+91 98945 33221', district: 'tirunelveli', eventType: 'engagement', hours: 5, crowd: 'large', venueType: 'mahal', venueName: 'Temple mandapam', venueAddress: 'Town, Tirunelveli', km: 3, date: daysAhead(-90), time: '17:00', tier: 'standard', status: 'DELIVERED', created: 140, paid: [20000, 32200], workers: ['w7'] }),
+    seedOrder({ id: 'TTC-2026-0133', name: 'Ravi Shankar', contact: '+91 93456 78123', district: 'salem', eventType: 'birthday', hours: 3, crowd: 'medium', venueType: 'home', venueName: '', venueAddress: 'Fairlands, Salem', km: 4, date: daysAhead(-40), time: '17:00', tier: 'basic', extras: { photobooth: 1 }, status: 'BILLED', created: 55, paid: [10000], workers: ['w4'] }),
+    seedOrder({ id: 'TTC-2026-0162', name: 'Meera Raghavan', contact: '+91 98400 11223', district: 'chennai', eventType: 'babyshower', hours: 3, crowd: 'intimate', venueType: 'home', venueName: '', venueAddress: 'Adyar, Chennai', km: 9, date: daysAhead(21), time: '10:00', tier: 'standard', status: 'ENQUIRY', created: 0, paid: [], workers: [] }),
   ].map(o => o.id === 'TTC-2026-0117' ? { ...o, review: { rating: 5, text: 'Wonderful team.', at: daysAgo(70) }, delivery: { courier: 'Blue Dart', tracking: 'BD7784112', dispatchedAt: daysAgo(80) } } : o)
 }
 
@@ -286,6 +383,15 @@ const SEED_CMS: CmsState = {
     addressEn: '14, West Masi Street, Madurai 625001',
     addressTa: '14, மேற்கு மாசி வீதி, மதுரை 625001',
     googleReviewUrl: 'https://g.page/r/treasure-captures/review',
+  },
+  catalogue: { prices: {}, gstPct: 0 },
+  bank: {
+    upi: 'treasurecaptureevents@hdfcbank',
+    name: 'The Treasure Capture Events',
+    acc: '5010 0234 5678 91',
+    ifsc: 'HDFC0001234',
+    branchEn: 'West Masi Street, Madurai',
+    branchTa: 'மேற்கு மாசி வீதி, மதுரை',
   },
 }
 
@@ -313,6 +419,18 @@ export function statusMessage(order: Order, status: OrderStatus): string {
   return `வணக்கம் ${first}! ${meta.name.ta} / ${meta.name.en}.\n${meta.desc.en}${meta.cta ? `\n→ treasurecaptureevents.in${meta.cta.to}` : ''}\nRef: ${order.id}`
 }
 
+/** WhatsApp body carrying the quote — what the customer receives on submit and when the studio re-sends. */
+export function quoteMessage(order: Order): string {
+  const ev = eventByKey(order.eventType)
+  const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`
+  const lines = order.quote.sections
+    .filter(s => s.key !== 'travel' || s.amount > 0)
+    .map(s => `• ${s.name.en}: ${inr(s.amount)}`)
+    .join('\n')
+  const first = order.client.name.split(/[ &]/)[0]
+  return `வணக்கம் ${first}! Here is your estimate for the ${ev?.name.en ?? order.eventType}${order.date ? ` on ${order.date}` : ''}.\n${lines}\nTotal: ${inr(order.quote.total)}\nQuote ${order.invoiceId} · Ref ${order.id}\nWe will call to confirm the date before anything is paid. — The Treasure Capture Events`
+}
+
 // ─── Store ───────────────────────────────────────────────────────────────────
 
 export const useStore = create<State & Actions>()(
@@ -323,6 +441,22 @@ export const useStore = create<State & Actions>()(
 
       const pushMessage = (msg: Omit<OutboxMessage, 'id' | 'at' | 'channel'>) =>
         set(s => ({ outbox: [{ ...msg, id: uid(), at: now(), channel: 'whatsapp' as const }, ...s.outbox].slice(0, 200) }))
+
+      const prices = () => resolvePrices(get().cms.catalogue.prices)
+
+      /** Rebuilds an order's quote snapshot after a billing change. */
+      const rebill = (id: string, fn: (o: Order) => Order, note?: string) =>
+        patchOrder(id, o => {
+          const next = fn(o)
+          const quote = requote(next, prices())
+          const changed = quote.total !== o.quote.total
+          return {
+            ...next,
+            quote,
+            invoice: { ...next.invoice, revisedAt: changed ? now() : next.invoice.revisedAt },
+            quoteHistory: changed || note ? [...next.quoteHistory, { at: now(), total: quote.total, note: note ?? 'Quote updated' }] : next.quoteHistory,
+          }
+        })
 
       return {
         ...initialData(),
@@ -338,15 +472,35 @@ export const useStore = create<State & Actions>()(
         },
         dismissLeadPrompt: () => set({ leadPromptDone: true }),
 
-        updateDraft: patch => set(s => ({ draft: { ...s.draft, ...patch } })),
+        updateDraft: patch =>
+          set(s => {
+            const draft = { ...s.draft, ...patch }
+            const eventChanged = patch.eventType !== undefined && patch.eventType !== s.draft.eventType
+            const ev = draft.eventType ? eventByKey(draft.eventType) : undefined
+            if (ev && (eventChanged || !Object.keys(draft.cart.items).length)) {
+              const tier = draft.cart.tier === 'custom' ? 'standard' : draft.cart.tier
+              draft.cart = tierCart(ev.tiers, tier, draft.cart.sessions)
+            }
+            return { draft }
+          }),
         resetDraft: () => set(s => ({ draft: { ...EMPTY_DRAFT, name: s.lead?.name ?? '', contact: s.lead?.contact ?? '' } })),
+        setTier: tier =>
+          set(s => {
+            const ev = s.draft.eventType ? eventByKey(s.draft.eventType) : undefined
+            if (tier === 'custom' || !ev) return { draft: { ...s.draft, cart: { ...s.draft.cart, tier: 'custom' } } }
+            return { draft: { ...s.draft, cart: tierCart(ev.tiers, tier, s.draft.cart.sessions) } }
+          }),
+        setCartItem: (id, qty) => set(s => ({ draft: { ...s.draft, cart: setCartQty(s.draft.cart, id, qty) } })),
+        setSessions: n => set(s => ({ draft: { ...s.draft, cart: { ...s.draft.cart, sessions: Math.min(MAX_SESSIONS, Math.max(MIN_SESSIONS, Math.round(n))) } } })),
 
         submitEnquiry: () => {
           const d = get().draft
           if (!d.district || !d.eventType || !d.name || !d.contact) return null
-          const quote = computeQuote({ eventType: d.eventType, durationHours: d.durationHours, crowd: d.crowd, venueType: d.venueType, distanceKm: d.distanceKm, packageId: d.packageId, addons: d.addons })
           const seq = 170 + get().orders.length
           const id = `TTC-${new Date().getFullYear()}-${String(seq).padStart(4, '0')}`
+          const invoice: InvoiceMeta = { issuedAt: now(), gstPct: get().cms.catalogue.gstPct, schedule: DEFAULT_SCHEDULE, note: '' }
+          const base = { eventType: d.eventType, cart: d.cart, distanceKm: d.distanceKm, adjustments: [], invoice }
+          const quote = requote(base, prices())
           const order: Order = {
             id,
             createdAt: now(),
@@ -362,15 +516,17 @@ export const useStore = create<State & Actions>()(
             date: d.date,
             time: d.time,
             dateCertainty: d.dateCertainty,
-            packageId: d.packageId,
-            addons: d.addons,
+            cart: d.cart,
+            adjustments: [],
             notes: d.notes,
             quote,
+            invoice,
+            quoteHistory: [{ at: now(), total: quote.total, note: 'Quote generated from enquiry' }],
             status: 'ENQUIRY',
             history: [{ status: 'ENQUIRY', at: now() }],
             payments: [],
             customerId: 'CU-' + uid().slice(0, 5).toUpperCase(),
-            invoiceId: 'INV-' + String(seq).padStart(4, '0'),
+            invoiceId: invoiceNumber(seq),
             workerIds: [],
             selection: [],
           }
@@ -379,7 +535,7 @@ export const useStore = create<State & Actions>()(
             session: { role: 'client', orderId: id, name: d.name, contact: d.contact },
             draft: { ...EMPTY_DRAFT, name: d.name, contact: d.contact },
           }))
-          pushMessage({ audience: 'client', to: d.contact, toName: d.name, template: 'enquiry_received', body: statusMessage(order, 'ENQUIRY'), orderId: id })
+          pushMessage({ audience: 'client', to: d.contact, toName: d.name, template: 'quote_sent', body: quoteMessage(order), orderId: id })
           return id
         },
 
@@ -427,7 +583,24 @@ export const useStore = create<State & Actions>()(
         unassignWorker: (orderId, workerId) => patchOrder(orderId, o => ({ ...o, workerIds: o.workerIds.filter(w => w !== workerId) })),
 
         setDelivery: (orderId, courier, tracking) => patchOrder(orderId, o => ({ ...o, delivery: { courier, tracking, dispatchedAt: now() } })),
-        updateOrderQuoteTotal: (orderId, total) => patchOrder(orderId, o => ({ ...o, quote: { ...o.quote, total } })),
+
+        updateOrderCart: (orderId, cart, note) => rebill(orderId, o => ({ ...o, cart }), note ?? 'Items re-quoted by the studio'),
+        addAdjustment: (orderId, label, amount) =>
+          rebill(orderId, o => ({ ...o, adjustments: [...o.adjustments, { id: uid(), label, amount, at: now() }] }), `${amount < 0 ? 'Discount' : 'Extra'}: ${label}`),
+        removeAdjustment: (orderId, adjustmentId) => rebill(orderId, o => ({ ...o, adjustments: o.adjustments.filter(a => a.id !== adjustmentId) }), 'Adjustment removed'),
+        setInvoiceMeta: (orderId, patch) => rebill(orderId, o => ({ ...o, invoice: { ...o.invoice, ...patch } })),
+        sendInvoice: orderId => {
+          patchOrder(orderId, o => ({ ...o, invoice: { ...o.invoice, sentAt: now() } }))
+          const o = get().orders.find(x => x.id === orderId)
+          if (o) pushMessage({ audience: 'client', to: o.client.contact, toName: o.client.name, template: 'quote_sent', body: quoteMessage(o), orderId })
+        },
+        setCataloguePrice: (id, price) =>
+          set(s => {
+            const next = { ...s.cms.catalogue.prices }
+            if (price === null) delete next[id]
+            else next[id] = Math.max(0, Math.round(price))
+            return { cms: { ...s.cms, catalogue: { ...s.cms.catalogue, prices: next } } }
+          }),
 
         toggleSelection: (orderId, photoId) =>
           patchOrder(orderId, o => ({ ...o, selection: o.selection.includes(photoId) ? o.selection.filter(p => p !== photoId) : [...o.selection, photoId] })),
@@ -477,22 +650,20 @@ export const useStore = create<State & Actions>()(
     },
     {
       name: 'ttc-store-v2',
-      version: 3,
+      version: 4,
       storage: createJSONStorage(() => localStorage),
       // v1: new default hero slides (landscape frames only).
-      // v2: billing ids no longer Zoho-prefixed.
+      // v2: billing ids no longer third-party prefixed.
       // v3: hero slides without faces; warmer default banner copy.
+      // v4: catalogue-based cart and in-house billing — orders and the draft are reseeded.
       migrate: (persisted, version) => {
         const p = persisted as State
-        if (version < 3 && p?.cms) {
-          p.cms = { ...p.cms, heroSlides: SEED_CMS.heroSlides }
-          if (p.cms.banner?.en === 'Wedding season 2026–27 dates are filling fast — lock yours with a ₹5,000 advance.') p.cms.banner = { ...p.cms.banner, en: SEED_CMS.banner.en, ta: SEED_CMS.banner.ta }
-        }
-        if (version < 2 && p?.orders) {
-          p.orders = p.orders.map(o => {
-            const { zohoCustomerId, zohoInvoiceId, ...rest } = o as Order & { zohoCustomerId?: string; zohoInvoiceId?: string }
-            return { ...rest, customerId: o.customerId ?? zohoCustomerId ?? '', invoiceId: o.invoiceId ?? zohoInvoiceId ?? '' }
-          })
+        if (version < 4) {
+          const fresh = initialData()
+          p.orders = fresh.orders
+          p.draft = fresh.draft
+          p.session = p.session?.role === 'admin' ? p.session : null
+          p.cms = { ...fresh.cms, ...(p.cms ?? {}), catalogue: fresh.cms.catalogue, bank: fresh.cms.bank }
         }
         return p as State & Actions
       },
@@ -509,6 +680,14 @@ export const useStore = create<State & Actions>()(
 /** The order belonging to the logged-in client, if any. */
 export function useMyOrder(): Order | undefined {
   return useStore(s => (s.session?.role === 'client' ? s.orders.find(o => o.id === (s.session as { orderId: string }).orderId) : undefined))
+}
+
+/** Catalogue prices with the admin's overrides, memoised per override map. */
+let priceCache: { src: unknown; map: PriceMap } | null = null
+export function usePrices(): PriceMap {
+  const overrides = useStore(s => s.cms.catalogue.prices)
+  if (!priceCache || priceCache.src !== overrides) priceCache = { src: overrides, map: resolvePrices(overrides) }
+  return priceCache.map
 }
 
 export { DEFAULT_ALBUM }

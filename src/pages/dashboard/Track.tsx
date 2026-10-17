@@ -8,11 +8,17 @@ import { TamilOnly, Vilakku } from '../../components/tamil'
 import { formatDate, formatDateTime, useLang, useT, type Bi } from '../../lib/i18n'
 import { ROLES, STATUS_META, STATUS_ORDER, eventByKey, statusName, type OrderStatus } from '../../lib/data'
 import { useMyOrder, useStore, type Order } from '../../lib/store'
-import { useTitle } from '../../lib/ui'
+import { toast, useTitle } from '../../lib/ui'
 import { PageIntro, StageBar, stageIdx } from './shared'
 
 const copy = {
   eyebrow: { en: 'Order tracker', ta: 'ஆர்டர் நிலை' },
+  mock: { en: 'Demo controls', ta: 'டெமோ கட்டுப்பாடுகள்' },
+  mockNote: { en: 'Preview how this page changes as the studio moves your order along.', ta: 'ஸ்டுடியோ உங்கள் ஆர்டரை முன்னெடுக்கும்போது இந்தப் பக்கம் எப்படி மாறும் என்று பாருங்கள்.' },
+  mockNext: { en: 'Simulate next stage', ta: 'அடுத்த கட்டத்தைக் காட்டு' },
+  mockReset: { en: 'Reset to enquiry', ta: 'தொடக்கத்திற்கு மீட்டமை' },
+  mockDone: { en: 'Order is fully delivered', ta: 'ஆர்டர் முழுமையாக வழங்கப்பட்டது' },
+  mockMoved: { en: 'Moved to', ta: 'இப்போது' },
   title: { en: 'Every stage, as it happens.', ta: 'ஒவ்வொரு கட்டமும், உடனுக்குடன்.' },
   lead: {
     en: 'From the first call to the album on your shelf. We update this the moment anything moves — and send you a WhatsApp too.',
@@ -84,6 +90,7 @@ export default function Track() {
   return (
     <div>
       <PageIntro eyebrow={t.eyebrow} title={t.title} lead={t.lead} />
+      <MockControls order={order} onMoved={jump} />
       <Stepper order={order} onJump={jump} />
       <NextStep order={order} />
       <Timeline order={order} />
@@ -388,4 +395,36 @@ function StageExtra({ order, status }: { order: Order; status: OrderStatus }) {
     default:
       return null
   }
+}
+
+
+/** Demo-only: step the order through its stages so the tracker can be previewed without the admin panel. */
+function MockControls({ order, onMoved }: { order: Order; onMoved: (s: OrderStatus) => void }) {
+  const t = useT(copy)
+  const lang = useLang()
+  const setStatus = useStore(s => s.setStatus)
+  const idx = STATUS_ORDER.indexOf(order.status)
+  const next = STATUS_ORDER[idx + 1]
+  const move = (s: OrderStatus) => {
+    setStatus(order.id, s)
+    toast(`${t.mockMoved}: ${statusName(s, order.eventType, lang)}`)
+    window.setTimeout(() => onMoved(s), 350)
+  }
+  return (
+    <Reveal>
+      <div className="mb-6 flex flex-col gap-3 rounded-[22px] border border-dashed border-ruby/30 bg-ruby-soft/40 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between md:mb-8">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ruby text-white"><Icon name="sparkle" size={15} /></span>
+          <div>
+            <p className="t-label text-ruby">{t.mock}</p>
+            <p className="mt-0.5 text-[13px] leading-snug text-ink/60">{t.mockNote}</p>
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => move('ENQUIRY')} disabled={idx === 0}>{t.mockReset}</Button>
+          <Button size="sm" icon="arrowRight" onClick={() => next && move(next)} disabled={!next}>{next ? t.mockNext : t.mockDone}</Button>
+        </div>
+      </div>
+    </Reveal>
+  )
 }

@@ -9,6 +9,7 @@ import { TempleBorder, KolamCorner } from '../../components/tamil'
 import { formatDate, formatINR, useLang, useT } from '../../lib/i18n'
 import { useStore } from '../../lib/store'
 import { CROWDS, VENUES, districtName, eventByKey } from '../../lib/data'
+import { tierName } from '../../lib/catalogue'
 import { AnimatedINR, hoursLabel, useQuote, useStepAction } from './shared'
 
 const copy = {
@@ -17,9 +18,11 @@ const copy = {
   estimated: { en: 'Estimated total', ta: 'மதிப்பிடப்பட்ட மொத்தம்' },
   empty: { en: 'Choose your event to see a live price.', ta: 'நேரலை விலையைக் காண உங்கள் நிகழ்வைத் தேர்ந்தெடுங்கள்.' },
   emptyNote: { en: 'Every line is itemised — no hidden charges.', ta: 'ஒவ்வொரு கட்டணமும் தனித்தனியாகக் காட்டப்படும் — மறைமுகக் கட்டணம் இல்லை.' },
-  free: { en: 'Free', ta: 'இலவசம்' },
+  free: { en: 'Included', ta: 'அடங்கும்' },
+  session: { en: 'session', ta: 'அமர்வு' },
+  sessions: { en: 'sessions', ta: 'அமர்வுகள்' },
   noPay: { en: 'No payment now — pay offline after we confirm your date.', ta: 'இப்போது கட்டணம் இல்லை — தேதி உறுதியான பின் நேரடியாகச் செலுத்தலாம்.' },
-  gst: { en: 'Indicative, before GST. Final invoice after our call.', ta: 'தோராயமான தொகை, GST தவிர. அழைப்புக்குப் பின் இறுதி ரசீது.' },
+  gst: { en: 'Indicative estimate. We confirm the date and send the final quote on WhatsApp.', ta: 'தோராயமான மதிப்பீடு. தேதியை உறுதி செய்து இறுதி மதிப்பீட்டை WhatsApp-ல் அனுப்புவோம்.' },
   startOver: { en: 'Start over', ta: 'மீண்டும் தொடங்கு' },
   view: { en: 'View quote', ta: 'மதிப்பீடு' },
   hide: { en: 'Hide', ta: 'மூடு' },
@@ -37,6 +40,7 @@ function SummaryChips() {
   if (d.district) chips.push({ icon: 'mapPin', label: districtName(d.district, lang) })
   if (ev) chips.push({ icon: 'sparkle', label: ev.name[lang] })
   if (ev) chips.push({ icon: 'clock', label: hoursLabel(d.durationHours, lang) })
+  if (ev) chips.push({ icon: 'gem', label: tierName(d.cart.tier)[lang] })
   if (ev) chips.push({ icon: 'users', label: CROWDS.find(c => c.key === d.crowd)?.name[lang] ?? '' })
   if (d.venueAddress) chips.push({ icon: d.venueType === 'home' ? 'home' : 'building', label: VENUES.find(v => v.key === d.venueType)?.name[lang] ?? '' })
   if (d.date) chips.push({ icon: 'calendar', label: formatDate(d.date, lang, { day: 'numeric', month: 'short' }) + (d.dateCertainty === 'tentative' ? ` · ${t.tentative}` : '') })
@@ -68,6 +72,7 @@ export function SummaryBody({ compact = false }: { compact?: boolean }) {
   const lang = useLang()
   const t = useT(copy)
   const quote = useQuote()
+  const sessions = useStore(s => s.draft.cart.sessions)
   const resetDraft = useStore(s => s.resetDraft)
   const navigate = useNavigate()
 
@@ -96,11 +101,11 @@ export function SummaryBody({ compact = false }: { compact?: boolean }) {
             <p className="text-[12px] font-medium text-ink/50">{t.estimated}</p>
             <AnimatedINR value={quote.total} className="mt-1 block font-display text-[2.6rem] font-semibold leading-none tracking-tight text-ink" />
           </div>
-          <ul className="mt-5 space-y-3">
+          <div className="mt-5 space-y-4">
             <AnimatePresence initial={false}>
-              {quote.lines.map(line => (
-                <motion.li
-                  key={line.label.en}
+              {quote.sections.map(sec => (
+                <motion.section
+                  key={sec.key}
                   layout="position"
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
@@ -108,19 +113,42 @@ export function SummaryBody({ compact = false }: { compact?: boolean }) {
                   transition={{ duration: 0.45, ease: EASE }}
                   className="overflow-hidden"
                 >
-                  <div className="flex items-start justify-between gap-4 text-[13.5px]">
-                    <div className="min-w-0">
-                      <p className="font-medium leading-snug text-ink/85">{line.label[lang]}</p>
-                      {line.detail && <p className="mt-0.5 text-[12px] leading-snug text-ink/45">{line.detail[lang]}</p>}
-                    </div>
-                    <span className={`shrink-0 tabular-nums ${line.amount === 0 ? 'text-ink/40' : 'font-medium text-ink'}`}>
-                      {line.amount === 0 ? t.free : formatINR(line.amount)}
-                    </span>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ruby">
+                      {sec.name[lang]}
+                      {sec.key === 'crew' && <span className="ml-1.5 normal-case tracking-normal text-ink/45">· {sessions} {sessions > 1 ? t.sessions : t.session}</span>}
+                    </p>
+                    <span className="text-[13px] font-semibold tabular-nums text-ink">{sec.amount === 0 ? t.free : formatINR(sec.amount)}</span>
                   </div>
-                </motion.li>
+                  <ul className="mt-1.5 space-y-1.5">
+                    <AnimatePresence initial={false}>
+                      {sec.lines.map(line => (
+                        <motion.li
+                          key={line.id ?? line.label.en}
+                          layout="position"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.35, ease: EASE }}
+                          className="overflow-hidden"
+                        >
+                          <div className="flex items-start justify-between gap-4 text-[13px]">
+                            <div className="min-w-0">
+                              <p className="leading-snug text-ink/80">{line.label[lang]}</p>
+                              {line.detail && <p className="mt-0.5 text-[11.5px] leading-snug text-ink/45">{line.detail[lang]}</p>}
+                            </div>
+                            <span className={`shrink-0 tabular-nums ${line.amount === 0 ? 'text-ink/35' : 'text-ink/70'}`}>
+                              {line.amount === 0 ? t.free : formatINR(line.amount)}
+                            </span>
+                          </div>
+                        </motion.li>
+                      ))}
+                    </AnimatePresence>
+                  </ul>
+                </motion.section>
               ))}
             </AnimatePresence>
-          </ul>
+          </div>
         </>
       ) : (
         <div className="mt-6 border-t hairline pt-5">

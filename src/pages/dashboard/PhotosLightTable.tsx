@@ -8,7 +8,7 @@ import { useLang, useT } from '../../lib/i18n'
 import { IMG, photoUrl, type ImgKey } from '../../lib/images'
 import { useStore, type Order } from '../../lib/store'
 import { toast } from '../../lib/ui'
-import { FloatingBar, PHOTO_QUOTA, gcsPath, isProof, proofCategory, proofFile, resolveCover, useProofs } from './shared'
+import { FloatingBar, photoQuota, gcsPath, isProof, proofCategory, proofFile, resolveCover, useProofs } from './shared'
 import { AnimatedCount, SubmitSelectionModal, Watermark, pad2, ratioOf, useQuotaStatus } from './proofing'
 
 /**
@@ -77,7 +77,7 @@ export function LightTable({ order }: { order: Order }) {
 
   const selected = useMemo(() => new Set(order.selection.filter(isProof)), [order.selection])
   const count = selected.size
-  const quota = PHOTO_QUOTA[order.packageId]
+  const quota = photoQuota(order)
   const status = useQuotaStatus(count, quota)
 
   const byCat = useMemo(() => {
@@ -530,7 +530,7 @@ function QuotaRing({ value, over, children }: { value: number; over: boolean; ch
           cy={size / 2}
           r={r}
           fill="none"
-          stroke={over ? '#ffffff' : '#e2264f'}
+          stroke={over ? '#ffffff' : '#c41e3a'}
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={c}

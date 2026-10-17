@@ -145,7 +145,7 @@ export default function Contact() {
               <p className="t-lead max-w-md text-ink/60">{t.lead}</p>
             </Reveal>
             <Reveal delay={0.5}>
-              <span className="glass mt-5 inline-flex items-center gap-2.5 rounded-full md:mt-6 py-2 pl-3 pr-4 text-[13px] font-medium text-ink">
+              <span className="glass-ruby-tint mt-5 inline-flex items-center gap-2.5 rounded-full md:mt-6 py-2 pl-3 pr-4 text-[13px] font-medium text-ink">
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inset-0 rounded-full bg-ruby animate-pulse-ring" />
                   <span className="relative h-2 w-2 rounded-full bg-ruby" />

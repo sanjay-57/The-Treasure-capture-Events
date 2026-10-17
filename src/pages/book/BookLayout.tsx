@@ -9,6 +9,7 @@ import { useStore, type BookingDraft } from '../../lib/store'
 import { DISTRICTS, EVENTS } from '../../lib/data'
 import { STEP_LABELS, STEP_PATHS, normalizePath, stepIndexOf } from './shared'
 import { MobileQuoteBar, QuotePanel } from './Summary'
+import { VoiceGuide } from './VoiceGuide'
 
 /**
  * Chrome for the five booking steps: progress, the inner animated outlet
@@ -50,10 +51,10 @@ export default function BookLayout() {
             key="kolam"
             aria-hidden="true"
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            animate={{ opacity: 0.06 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.8 }}
-            className="kolam-bg pointer-events-none absolute inset-x-0 top-0 -z-10 h-[720px] opacity-[0.07] [mask-image:radial-gradient(70%_80%_at_50%_0%,#000,transparent)]"
+            className="kolam-bg pointer-events-none absolute inset-x-0 top-0 -z-10 h-[560px] [mask-image:linear-gradient(to_bottom,#000_0%,rgba(0,0,0,0.6)_40%,transparent_100%)]"
           />
         )}
       </AnimatePresence>
@@ -80,6 +81,7 @@ export default function BookLayout() {
           <MobileQuoteBar />
         </div>
       )}
+      <VoiceGuide />
     </div>
   )
 }

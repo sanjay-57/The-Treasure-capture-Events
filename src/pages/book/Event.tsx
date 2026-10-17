@@ -8,9 +8,13 @@ import { Stagger, StaggerItem, Reveal, EASE } from '../../components/motion'
 import { KolamCorner, Ornament } from '../../components/tamil'
 import { formatINR, useLang, useT } from '../../lib/i18n'
 import { useTitle } from '../../lib/ui'
-import { useStore } from '../../lib/store'
-import { CROWDS, EVENTS, eventByKey, type EventKey } from '../../lib/data'
-import { MAX_HOURS, MIN_HOURS } from '../../lib/pricing'
+import { usePrices, useStore } from '../../lib/store'
+import { BUCKETS, CROWDS, EVENTS, eventByKey, type EventKey } from '../../lib/data'
+import { startingPrice } from '../../lib/pricing'
+import { sessionsForHours } from '../../lib/catalogue'
+
+const MIN_HOURS = 2
+const MAX_HOURS = 14
 import { StepGuard, StepHeader, StepNav, SubHeading } from './shared'
 
 const copy = {
@@ -23,22 +27,21 @@ const copy = {
   from: { en: 'from', ta: 'தொடக்கம்' },
   duration: { en: 'Hours of coverage', ta: 'படப்பிடிப்பு நேரம்' },
   durationNote: {
-    en: 'Every booking starts with 2 hours — and even the minimum includes unlimited, fully edited digital photos.',
-    ta: 'ஒவ்வொரு பதிவும் 2 மணி நேரத்தில் தொடங்குகிறது — குறைந்தபட்ச நேரத்திலும் எல்லையற்ற, முழுமையாக எடிட் செய்த டிஜிட்டல் படங்கள் உண்டு.',
+    en: 'We quote in sessions of about five hours. Tell us roughly how long the function runs and we will size the crew to match.',
+    ta: 'சுமார் ஐந்து மணி நேர அமர்வுகளாகக் கணக்கிடுகிறோம். விழா எவ்வளவு நேரம் என்று சொல்லுங்கள், குழுவை அதற்கேற்ப அமைப்போம்.',
   },
   hours: { en: 'hours', ta: 'மணி நேரம்' },
-  included: { en: 'First 2 hours included', ta: 'முதல் 2 மணி நேரம் அடங்கும்' },
-  extra: { en: 'extended coverage', ta: 'கூடுதல் நேரம்' },
-  unlimited: { en: 'Unlimited digital photos', ta: 'எல்லையற்ற டிஜிட்டல் படங்கள்' },
-  pickFirst: { en: 'Choose an occasion to see hourly rates', ta: 'மணிநேரக் கட்டணத்தைக் காண நிகழ்வைத் தேர்ந்தெடுங்கள்' },
+  sessions: { en: 'session', ta: 'அமர்வு' },
+  sessionsPl: { en: 'sessions', ta: 'அமர்வுகள்' },
+  sessionNote: { en: 'about 5 hours each · adjust in the package step', ta: 'ஒவ்வொன்றும் சுமார் 5 மணி · தொகுப்புப் படியில் மாற்றலாம்' },
+  unlimited: { en: 'All photos delivered as soft copies', ta: 'அனைத்துப் படங்களும் சாஃப்ட் காப்பியாக' },
   slider: { en: 'Coverage duration in hours', ta: 'படப்பிடிப்பு நேரம் (மணி)' },
   crowd: { en: 'Crowd volume', ta: 'விருந்தினர் எண்ணிக்கை' },
   crowdNote: {
-    en: 'Homes usually host under 50; mahals often 100 or more. Bigger crowds need more hands on cameras.',
-    ta: 'வீடுகளில் பொதுவாக 50-க்கும் குறைவு; மண்டபங்களில் 100-க்கும் மேல். கூட்டம் பெரிதானால் கூடுதல் கலைஞர்கள் தேவை.',
+    en: 'Homes usually host under 50; mahals often 100 or more. It helps us plan the crew — it does not change the price.',
+    ta: 'வீடுகளில் பொதுவாக 50-க்கும் குறைவு; மண்டபங்களில் 100-க்கும் மேல். குழுவைத் திட்டமிட உதவும் — விலை மாறாது.',
   },
   guests: { en: 'guests', ta: 'பேர்' },
-  inc: { en: 'Included', ta: 'அடங்கும்' },
   next: { en: 'Continue to venue', ta: 'இடத்திற்குத் தொடர்க' },
   needEvent: { en: 'Choose an occasion to continue', ta: 'தொடர ஒரு நிகழ்வைத் தேர்ந்தெடுங்கள்' },
 }
@@ -64,6 +67,7 @@ function EventStep() {
   useTitle({ en: 'Book · Event', ta: 'பதிவு · நிகழ்வு' })
   const draft = useStore(s => s.draft)
   const updateDraft = useStore(s => s.updateDraft)
+  const prices = usePrices()
   const navigate = useNavigate()
   const lenis = useLenis()
   const durationRef = useRef<HTMLDivElement>(null)
@@ -86,8 +90,14 @@ function EventStep() {
       <StepHeader step={1} title={t.title} lead={t.lead} />
 
       <SubHeading index="i." title={t.occasion} />
+      {BUCKETS.map((b, bi) => (
+      <div key={b.key} className={bi ? 'mt-8 md:mt-10' : ''}>
+      <div className="mb-3 flex items-baseline gap-3">
+        <h3 className="font-display text-[1.15rem] font-semibold text-ink">{b.name[lang]}</h3>
+        <p className="hidden text-[12.5px] text-ink/45 sm:block">{b.blurb[lang]}</p>
+      </div>
       <Stagger className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4" gap={0.05}>
-        {EVENTS.map((e, i) => {
+        {EVENTS.filter(e => e.bucket === b.key).map((e, i) => {
           const active = draft.eventType === e.key
           return (
             <StaggerItem key={e.key}>
@@ -114,7 +124,7 @@ function EventStep() {
                   <p className="font-display text-[1.05rem] font-semibold leading-tight text-ink [overflow-wrap:anywhere] md:text-[1.12rem]">{e.name[lang]}</p>
                   <p className="mt-1 hidden text-[12px] leading-snug text-ink/50 sm:block">{e.blurb[lang]}</p>
                   <p className="mt-auto pt-3 text-[12px] text-ink/45">
-                    {t.from} <span className={`font-semibold tabular-nums ${active ? 'text-ruby' : 'text-ink/80'}`}>{formatINR(e.base)}</span>
+                    {t.from} <span className={`font-semibold tabular-nums ${active ? 'text-ruby' : 'text-ink/80'}`}>{formatINR(startingPrice(e.key, prices))}</span>
                   </p>
                 </div>
               </button>
@@ -122,6 +132,8 @@ function EventStep() {
           )
         })}
       </Stagger>
+      </div>
+      ))}
 
       <Ornament className="my-10 md:my-14" />
 
@@ -149,7 +161,6 @@ function EventStep() {
                   {c.range} {t.guests}
                 </p>
                 <p className="mt-2 text-[12px] leading-snug text-ink/45">{c.note[lang]}</p>
-                <p className={`mt-3 text-[12.5px] font-semibold tabular-nums ${c.add ? 'text-ink' : 'text-ink/40'}`}>{c.add ? `+${formatINR(c.add)}` : t.inc}</p>
               </ChoiceCard>
             </StaggerItem>
           )
@@ -166,12 +177,14 @@ function DurationSlider() {
   const lang = useLang()
   const t = useT(copy)
   const hours = useStore(s => s.draft.durationHours)
-  const eventType = useStore(s => s.draft.eventType)
+  const cart = useStore(s => s.draft.cart)
   const updateDraft = useStore(s => s.updateDraft)
-  const ev = eventByKey(eventType)
   const pct = (hours - MIN_HOURS) / (MAX_HOURS - MIN_HOURS)
-  const extra = Math.max(0, hours - MIN_HOURS)
-  const set = (h: number) => updateDraft({ durationHours: Math.min(MAX_HOURS, Math.max(MIN_HOURS, h)) })
+  const sessions = sessionsForHours(hours)
+  const set = (h: number) => {
+    const next = Math.min(MAX_HOURS, Math.max(MIN_HOURS, h))
+    updateDraft({ durationHours: next, cart: { ...cart, sessions: sessionsForHours(next) } })
+  }
   const [focus, setFocus] = useState(false)
   const ticks = Array.from({ length: MAX_HOURS - MIN_HOURS + 1 }, (_, i) => MIN_HOURS + i)
 
@@ -194,19 +207,9 @@ function DurationSlider() {
               <Icon name="camera" size={14} />
               {t.unlimited}
             </p>
-            {ev ? (
-              <p className="text-ink/50">
-                {t.included}
-                {extra > 0 && (
-                  <>
-                    {' · '}
-                    <span className="font-medium tabular-nums text-ink/80">+{formatINR(extra * ev.hourly)}</span> {t.extra}
-                  </>
-                )}
-              </p>
-            ) : (
-              <p className="text-ink/40">{t.pickFirst}</p>
-            )}
+            <p className="text-ink/50">
+              <span className="font-medium tabular-nums text-ink/80">{sessions}</span> {sessions > 1 ? t.sessionsPl : t.sessions} · {t.sessionNote}
+            </p>
           </div>
         </div>
 
@@ -241,7 +244,7 @@ function DurationSlider() {
           {/* Thumb */}
           <div className="pointer-events-none absolute inset-x-[14px] top-1/2" aria-hidden="true">
             <motion.div
-              className={`absolute top-0 h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_2px_6px_rgba(10,10,11,0.18),0_8px_24px_-6px_rgba(192,22,60,0.45)] ring-ruby/30 transition-[box-shadow] ${focus ? 'ring-4' : 'ring-0'}`}
+              className={`absolute top-0 h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_2px_6px_rgba(10,10,11,0.18),0_8px_24px_-6px_rgba(155,17,30,0.45)] ring-ruby/30 transition-[box-shadow] ${focus ? 'ring-4' : 'ring-0'}`}
               initial={false}
               animate={{ left: `${pct * 100}%` }}
               transition={{ type: 'spring', stiffness: 380, damping: 38 }}

@@ -117,7 +117,7 @@ export default function AdminLogin() {
                 <div className="mt-2.5 flex items-center justify-between gap-3">
                   <span className="flex gap-1.5" aria-hidden="true">
                     {[0, 1, 2, 3].map(i => (
-                      <motion.span key={i} className="h-1.5 w-1.5 rounded-full" animate={{ backgroundColor: i < pin.length ? '#e2264f' : 'rgba(255,255,255,0.18)', scale: i === pin.length - 1 ? [1, 1.5, 1] : 1 }} transition={{ duration: 0.3 }} />
+                      <motion.span key={i} className="h-1.5 w-1.5 rounded-full" animate={{ backgroundColor: i < pin.length ? '#c41e3a' : 'rgba(255,255,255,0.18)', scale: i === pin.length - 1 ? [1, 1.5, 1] : 1 }} transition={{ duration: 0.3 }} />
                     ))}
                   </span>
                   <button type="button" onClick={() => { setPin(DEMO_PIN); setError('') }} className="rounded-full bg-white/[0.06] px-3 py-2 text-[11.5px] text-white/55 sm:px-2.5 sm:py-1 transition hover:bg-white/10 hover:text-white cursor-pointer">

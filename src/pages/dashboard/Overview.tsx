@@ -4,7 +4,8 @@ import { Icon } from '../../components/Icon'
 import { Badge, Button, Card, LangImg } from '../../components/ui'
 import { EASE, Reveal, Stagger, StaggerItem } from '../../components/motion'
 import { COMMON, formatDate, formatINR, useLang, useT, type Bi } from '../../lib/i18n'
-import { ADDONS, CROWDS, PACKAGES, ROLES, STATUS_META, STATUS_ORDER, VENUES, districtName, eventByKey, statusName } from '../../lib/data'
+import { CROWDS, ROLES, STATUS_META, STATUS_ORDER, VENUES, districtName, eventByKey, statusName } from '../../lib/data'
+import { cartExtras, cartLabel, tierName } from '../../lib/catalogue'
 import { balanceDue, paidTotal, useMyOrder, useStore, type Order } from '../../lib/store'
 import { useTitle } from '../../lib/ui'
 import { Fact, ProgressRing, SECTIONS, StageBar, TamilCorners, formatTime, sectionState, stageIdx, stageSince, type SectionState } from './shared'
@@ -180,10 +181,9 @@ function DetailsCard({ order }: { order: Order }) {
   const t = useT(copy)
   const lang = useLang()
   const ev = eventByKey(order.eventType)
-  const pkg = PACKAGES.find(p => p.key === order.packageId)
   const crowd = CROWDS.find(c => c.key === order.crowd)
   const venue = VENUES.find(v => v.key === order.venueType)
-  const addons = order.addons.map(k => ADDONS.find(a => a.key === k)).filter(Boolean) as (typeof ADDONS)[number][]
+  const addons = cartExtras(order.cart)
 
   return (
     <Reveal className="lg:col-span-8">
@@ -205,17 +205,17 @@ function DetailsCard({ order }: { order: Order }) {
           />
           <Fact icon={order.venueType === 'home' ? 'home' : 'building'} label={t.venue} value={order.venueName || venue?.name[lang] || '—'} sub={order.venueAddress} />
           <Fact icon="mapPin" label={t.district} value={districtName(order.district, lang)} sub={`${order.distanceKm} ${t.kmAway}`} />
-          <Fact icon="gem" label={t.pkg} value={pkg?.name[lang] ?? order.packageId} sub={pkg?.pitch[lang]} />
+          <Fact icon="gem" label={t.pkg} value={tierName(order.cart.tier)[lang]} sub={cartLabel(order.cart)[lang]} />
           <Fact icon="users" label={t.guests} value={crowd ? `${crowd.name[lang]} · ${crowd.range}` : '—'} sub={crowd?.note[lang]} />
         </div>
         {addons.length > 0 && (
           <div className="mt-7 border-t border-ink/[0.07] pt-5">
             <p className="t-label text-ink/45">{t.addons}</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {addons.map(a => (
-                <span key={a.key} className="inline-flex items-center gap-1.5 rounded-full border border-ink/10 bg-white px-3 py-1.5 text-[13px] text-ink/75">
+              {addons.map(({ item, qty }) => (
+                <span key={item.id} className="inline-flex items-center gap-1.5 rounded-full border border-ink/10 bg-white px-3 py-1.5 text-[13px] text-ink/75">
                   <Icon name="plus" size={12} className="text-ruby" />
-                  {a.name[lang]}
+                  {item.name[lang]}{qty > 1 ? ` × ${qty}` : ''}
                 </span>
               ))}
             </div>

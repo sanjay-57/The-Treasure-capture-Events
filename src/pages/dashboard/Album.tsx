@@ -5,10 +5,11 @@ import { Button, Card, ChoiceCard, Field, Segmented } from '../../components/ui'
 import { EASE, Reveal } from '../../components/motion'
 import { formatDateTime, formatINR, useLang, useT, type Bi } from '../../lib/i18n'
 import { photoUrl, type ImgKey } from '../../lib/images'
-import { ALBUM, DEFAULT_ALBUM, PACKAGES, PROOF_SETS, type AlbumSpec } from '../../lib/data'
+import { ALBUM, DEFAULT_ALBUM, PROOF_SETS, type AlbumSpec } from '../../lib/data'
+import { tierName } from '../../lib/catalogue'
 import { useMyOrder, useStore, type Order } from '../../lib/store'
 import { toast, useTitle } from '../../lib/ui'
-import { FloatingBar, INCLUDED_SHEETS, LockedPanel, PageIntro, TamilCorners, albumEditable, albumUnlocked, isProof } from './shared'
+import { FloatingBar, includedSheets, LockedPanel, PageIntro, TamilCorners, albumEditable, albumUnlocked, isProof } from './shared'
 
 const copy = {
   eyebrow: { en: 'Album studio', ta: 'ஆல்பம் ஸ்டுடியோ' },
@@ -146,13 +147,13 @@ function Surface({ cover, hex, photo, children, mini = false }: { cover: string;
 
 function SilkLayers({ hex, mini }: { hex: string; mini: boolean }) {
   const redBase = hex === '#9e1233' || hex === '#5a0a1c'
-  const band = redBase ? '#ffffff' : '#c0163c'
+  const band = redBase ? '#ffffff' : '#9b111e'
   const motif = redBase ? '#9e1233' : '#ffffff'
   const bandH = mini ? 8 : 30
   return (
     <>
       {/* buttas across the body */}
-      <div className="pointer-events-none absolute inset-0" style={{ backgroundImage: `radial-gradient(circle, ${isLight(hex) ? 'rgba(192,22,60,0.35)' : 'rgba(255,255,255,0.28)'} 1.1px, transparent 1.6px)`, backgroundSize: mini ? '8px 8px' : '22px 22px' }} />
+      <div className="pointer-events-none absolute inset-0" style={{ backgroundImage: `radial-gradient(circle, ${isLight(hex) ? 'rgba(155,17,30,0.35)' : 'rgba(255,255,255,0.28)'} 1.1px, transparent 1.6px)`, backgroundSize: mini ? '8px 8px' : '22px 22px' }} />
       {/* moving silk sheen */}
       <motion.div
         className="pointer-events-none absolute inset-0"
@@ -212,7 +213,7 @@ export default function Album() {
 function defaultSpec(order: Order): AlbumSpec {
   const d = order.date ? new Date(order.date) : null
   const sub = d && !Number.isNaN(d.getTime()) ? `${String(d.getDate()).padStart(2, '0')} · ${String(d.getMonth() + 1).padStart(2, '0')} · ${d.getFullYear()}` : ''
-  const included = INCLUDED_SHEETS[order.packageId]
+  const included = includedSheets(order)
   return { ...DEFAULT_ALBUM, sheets: (ALBUM.sheetOptions as readonly number[]).includes(included) ? included : DEFAULT_ALBUM.sheets, title: order.client.name, subtitle: sub }
 }
 
@@ -230,9 +231,9 @@ function Studio({ order }: { order: Order }) {
   const set = <K extends keyof AlbumSpec>(k: K, v: AlbumSpec[K]) => setSpec(s => ({ ...s, [k]: v }))
 
   const dirty = !savedSpec || JSON.stringify(savedSpec) !== JSON.stringify(spec)
-  const included = INCLUDED_SHEETS[order.packageId]
+  const included = includedSheets(order)
   const extra = Math.max(0, spec.sheets - included) * ALBUM.sheetPrice
-  const pkg = PACKAGES.find(p => p.key === order.packageId)
+  const pkgName = tierName(order.cart.tier)[lang]
 
   // Client's own picks first, padded with proofs so the preview is never empty.
   const photos = useMemo(() => {
@@ -388,7 +389,7 @@ function Studio({ order }: { order: Order }) {
                 })}
               </div>
               <p className="mt-3 text-[12.5px] text-ink/50">
-                {included > 0 ? `${pkg?.name[lang]} · ${included} ${t.inPkg}` : t.noneInPkg} · {formatINR(ALBUM.sheetPrice)}/{t.s5}
+                {included > 0 ? `${pkgName} · ${included} ${t.inPkg}` : t.noneInPkg} · {formatINR(ALBUM.sheetPrice)}/{t.s5}
               </p>
             </Group>
 

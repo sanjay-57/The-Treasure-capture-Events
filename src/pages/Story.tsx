@@ -209,7 +209,7 @@ function Hero({ storySlug }: { storySlug: string }) {
                 {story.names[lang]}
               </motion.p>
             </div>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9, duration: 0.9, ease: EASE }} className="glass-dark hidden rounded-3xl px-6 py-5 text-sm md:block">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9, duration: 0.9, ease: EASE }} className="glass-ruby-dark hidden rounded-3xl px-6 py-5 text-sm md:block">
               <p className="text-white/50">{formatDate(story.date, lang, { day: 'numeric', month: 'long', year: 'numeric' })}</p>
               <p className="mt-1 font-medium">{story.venue[lang]}</p>
             </motion.div>

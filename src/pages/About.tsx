@@ -306,9 +306,9 @@ function Hero() {
         <LangImg pair={{ en: 'm_cam_silhouette', ta: 't_meenakshi' }} className="h-full w-full" w={2200} priority dark imgClassName="animate-kenburns" />
       </Parallax>
       <div className="absolute inset-0 -z-10 bg-gradient-to-t from-ink via-ink/50 to-ink/40" />
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_12%_0%,rgba(192,22,60,0.32),transparent_70%)]" />
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_12%_0%,rgba(155,17,30,0.32),transparent_70%)]" />
       <TamilOnly>
-        <GopuramSkyline className="pointer-events-none absolute inset-x-0 bottom-0 -z-10" color="#c0163c" opacity={0.3} />
+        <GopuramSkyline className="pointer-events-none absolute inset-x-0 bottom-0 -z-10" color="var(--color-ruby)" opacity={0.3} />
       </TamilOnly>
 
       <Container wide className="flex min-h-[100svh] flex-col justify-end pb-12 pt-32 md:pb-20 md:pt-44">
@@ -517,7 +517,7 @@ function Rituals() {
               <figure className="group relative aspect-[3/4] overflow-hidden rounded-[26px]">
                 <LangImg pair={r.img} className="absolute inset-0 h-full w-full" w={700} sizes="(min-width:1024px) 25vw, (min-width:640px) 50vw, 80vw" dark imgClassName="transition-transform duration-[1.4s] ease-out group-hover:scale-105" />
                 <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/15 to-transparent" />
-                <figcaption className="absolute inset-x-3 bottom-3 rounded-[20px] p-5 glass-dark">
+                <figcaption className="absolute inset-x-3 bottom-3 rounded-[20px] p-5 glass-ruby-dark">
                   <p className="t-label text-ruby-bright">0{i + 1}</p>
                   <p className="t-3 mt-1 text-white">{r.title[lang]}</p>
                   <p className="mt-2 text-[13.5px] leading-relaxed text-white/65">{r.body[lang]}</p>
@@ -719,7 +719,7 @@ function Network() {
           </div>
 
           <Reveal y={40}>
-            <div className="glass-dark relative mx-auto aspect-[4/5] w-full max-w-[560px] overflow-hidden rounded-[26px] md:rounded-[32px]">
+            <div className="glass-ruby-dark relative mx-auto aspect-[4/5] w-full max-w-[560px] overflow-hidden rounded-[26px] md:rounded-[32px]">
               {/* dot field */}
               <div
                 className="absolute inset-0 opacity-40"
@@ -727,7 +727,7 @@ function Network() {
                 aria-hidden="true"
               />
               <TamilOnly>
-                <GopuramSkyline className="pointer-events-none absolute inset-x-0 bottom-0" color="#c0163c" opacity={0.25} />
+                <GopuramSkyline className="pointer-events-none absolute inset-x-0 bottom-0" color="var(--color-ruby)" opacity={0.25} />
               </TamilOnly>
               <span className="t-label absolute right-3 top-1/2 md:right-5 origin-right -translate-y-1/2 rotate-90 whitespace-nowrap text-white/30">{t.bay}</span>
               <span className="t-label absolute left-3 top-[62%] md:left-5 origin-left -rotate-90 whitespace-nowrap text-white/25">{t.ghats}</span>
@@ -748,7 +748,7 @@ function Network() {
                         key={d.key}
                         d={`M${hq.x} ${hq.y} Q${cx} ${cy} ${p.x} ${p.y}`}
                         fill="none"
-                        stroke={on ? '#e2264f' : 'rgba(255,255,255,0.35)'}
+                        stroke={on ? 'var(--color-ruby-bright)' : 'rgba(255,255,255,0.35)'}
                         strokeWidth={on ? 2 : 1}
                         strokeDasharray={on ? undefined : '3 4'}
                         vectorEffect="non-scaling-stroke"

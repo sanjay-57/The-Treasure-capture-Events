@@ -6,8 +6,9 @@ import { Button, Eyebrow, ListenButton } from '../../components/ui'
 import type { IconName } from '../../components/Icon'
 import { RevealText, Reveal, EASE } from '../../components/motion'
 import { useLang, useT, formatINR, type Bi } from '../../lib/i18n'
-import { useStore, type BookingDraft } from '../../lib/store'
+import { usePrices, useStore, type BookingDraft } from '../../lib/store'
 import { computeQuote, type Quote } from '../../lib/pricing'
+import type { PriceMap } from '../../lib/catalogue'
 
 /*
  * Shared pieces of the booking flow: step metadata, route guards,
@@ -58,22 +59,15 @@ export function StepGuard({ step, children }: { step: number; children: ReactNod
   return <>{children}</>
 }
 
-export function quoteFor(d: BookingDraft): Quote | null {
+export function quoteFor(d: BookingDraft, prices?: PriceMap): Quote | null {
   if (!d.eventType) return null
-  return computeQuote({
-    eventType: d.eventType,
-    durationHours: d.durationHours,
-    crowd: d.crowd,
-    venueType: d.venueType,
-    distanceKm: d.distanceKm,
-    packageId: d.packageId,
-    addons: d.addons,
-  })
+  return computeQuote({ eventType: d.eventType, cart: d.cart, distanceKm: d.distanceKm }, prices)
 }
 
 export function useQuote(): Quote | null {
   const draft = useStore(s => s.draft)
-  return quoteFor(draft)
+  const prices = usePrices()
+  return quoteFor(draft, prices)
 }
 
 /** Rupee amount that rolls smoothly to each new value. */

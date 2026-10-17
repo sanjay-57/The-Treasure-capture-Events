@@ -308,7 +308,7 @@ function SidePanel() {
       <div className="relative h-full min-h-[460px] overflow-hidden rounded-[28px] bg-ink">
         <LangImg pair={{ en: 'm_couple_night', ta: 't_couple_seated' }} className="absolute inset-0" w={900} dark />
         <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/20 to-transparent" aria-hidden="true" />
-        <div className="glass-dark absolute inset-x-5 bottom-5 rounded-3xl p-6">
+        <div className="glass-ruby-dark absolute inset-x-5 bottom-5 rounded-3xl p-6">
           <Icon name="quote" size={26} className="text-ruby-bright" />
           <p className="mt-3 text-[15.5px] leading-relaxed text-white/90">{t.sideQuote}</p>
           <p className="mt-3 text-[13px] text-white/50">{t.sideSign}</p>

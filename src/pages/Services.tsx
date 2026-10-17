@@ -7,8 +7,10 @@ import { Badge, Button, Chip, Container, Eyebrow, Img, LangImg, SectionHeading }
 import { EASE, ImageReveal, Marquee, Parallax, Reveal, RevealText, Stagger, StaggerItem } from '../components/motion'
 import { GopuramSkyline, Kolam, KolamCorner, Ornament, TamilOnly, TempleBorder } from '../components/tamil'
 import { COMMON, formatINR, useLang, useT, type Bi } from '../lib/i18n'
-import { ADDONS, ALBUM, DISTRICTS, EVENTS, PACKAGES, TRAVEL_FREE_KM, TRAVEL_PER_KM, type AddonKey, type EventKey } from '../lib/data'
-import { startingPrice } from '../lib/pricing'
+import { ALBUM, DISTRICTS, EVENTS, TRAVEL_FREE_KM, TRAVEL_PER_KM, eventByKey, type EventKey } from '../lib/data'
+import { startingPrice, tierPrice } from '../lib/pricing'
+import { CATALOGUE, TIER_META, cartEntries, tierCart, tierPitch, type FixedTier } from '../lib/catalogue'
+import { usePrices } from '../lib/store'
 import { useDarkHero, useTitle } from '../lib/ui'
 import { ClosingCta, FaqList, Numeral, useMedia, type FaqItem } from './content/shared'
 
@@ -25,8 +27,8 @@ const copy = {
   },
   seePackages: { en: 'Compare packages', ta: 'தொகுப்புகளை ஒப்பிடுக' },
   factFrom: { en: 'Starting from', ta: 'தொடக்கக் கட்டணம்' },
-  factHours: { en: '2 hr minimum', ta: 'குறைந்தது 2 மணிநேரம்' },
-  factHoursSub: { en: 'Unlimited digital photos', ta: 'எல்லையற்ற டிஜிட்டல் படங்கள்' },
+  factHours: { en: '~5 hr sessions', ta: 'சுமார் 5 மணி அமர்வுகள்' },
+  factHoursSub: { en: 'All photos as soft copies', ta: 'அனைத்துப் படங்களும் சாஃப்ட் காப்பி' },
   factTravel: { en: `Free within ${TRAVEL_FREE_KM} km`, ta: `${TRAVEL_FREE_KM} கி.மீ வரை இலவசம்` },
   factTravelSub: { en: `₹${TRAVEL_PER_KM}/km beyond`, ta: `அதற்கு மேல் கி.மீக்கு ₹${TRAVEL_PER_KM}` },
   factPay: { en: 'Pay offline', ta: 'நேரடிக் கட்டணம்' },
@@ -39,7 +41,7 @@ const copy = {
     ta: 'ஒவ்வொரு விழாவுக்கும் தனி லயம் உண்டு. நாங்கள் மனப்பாடமாக அறிந்த எட்டு விழாக்களைப் பாருங்கள் — ஒவ்வொரு மதிப்பீடும் இரண்டு மணிநேரப் படப்பிடிப்பு, எல்லையற்ற எடிட் செய்த படங்களுடன் தொடங்குகிறது.',
   },
   from: { en: 'From', ta: 'தொடக்கம்' },
-  perHour: { en: 'then {x}/hr', ta: 'பிறகு மணிக்கு {x}' },
+  perHour: { en: 'Basic package · one session', ta: 'பேசிக் தொகுப்பு · ஒரு அமர்வு' },
   covered: { en: 'What’s covered', ta: 'படம்பிடிப்பவை' },
   quote: { en: 'Get a quote', ta: 'மதிப்பீடு பெறுக' },
 
@@ -51,14 +53,14 @@ const copy = {
     ta: 'உங்கள் விழாவின் அடிப்படைக் கட்டணத்துடன் ஒரு தொகுப்பைச் சேர்க்கவும். குழு கூட்டத்திற்கு முன் எப்போது வேண்டுமானாலும் மாற்றலாம்.',
   },
   included: { en: 'Included', ta: 'அடங்கியது' },
-  onTop: { en: 'added to the event base', ta: 'அடிப்படைக் கட்டணத்துடன்' },
-  baseOnly: { en: 'event base price only', ta: 'அடிப்படைக் கட்டணம் மட்டும்' },
+  onTop: { en: 'for a one-session wedding · travel extra', ta: 'ஒரு அமர்வு திருமணத்திற்கு · பயணம் தனி' },
   popular: { en: 'Most chosen', ta: 'அதிகம் தேர்ந்தது' },
   choose: { en: 'Start with {x}', ta: '{x} உடன் தொடங்கு' },
 
   adEyebrow: { en: 'Add-ons', ta: 'கூடுதல் சேவைகள்' },
   adTitle: { en: 'Little extras,\nbig moments', ta: 'சிறு சேர்க்கைகள்,\nபெரும் தருணங்கள்' },
   adLead: { en: 'Add any of these while building your quote. Prices are flat, per event.', ta: 'மதிப்பீடு செய்யும்போதே இவற்றைச் சேர்க்கலாம். ஒவ்வொரு விழாவுக்கும் நிலையான கட்டணம்.' },
+  pending: { en: 'price to confirm', ta: 'விலை உறுதி செய்ய' },
 
   prEyebrow: { en: 'How it works', ta: 'செயல்முறை' },
   prTitle: { en: 'From first call\nto the album\nat your door', ta: 'முதல் அழைப்பு முதல்\nவீடு வரும் ஆல்பம் வரை' },
@@ -200,15 +202,72 @@ const EVENT_DETAIL: Record<EventKey, { line: Bi; covers: Bi[] }> = {
       { en: 'Golden-hour & blue-hour sessions', ta: 'பொன்மாலை & நீல மாலை நேரப் படப்பிடிப்பு' },
     ],
   },
-}
-
-const ADDON_ICON: Record<AddonKey, IconName> = {
-  drone: 'drone',
-  ledwall: 'film',
-  sameday: 'play',
-  extraalbum: 'book',
-  preshoot: 'camera',
-  booth: 'image',
+  babyshower: {
+    line: {
+      en: 'Valaikappu — the bangles, the blessings, the aunties in a happy circle. We keep it warm and unhurried.',
+      ta: 'வளைகாப்பு — வளையல்கள், ஆசிகள், மகிழ்ச்சியான உறவினர் வட்டம். அன்பாகவும் அவசரமின்றியும் படம்பிடிக்கிறோம்.',
+    },
+    covers: [
+      { en: 'Bangle ceremony & aarti', ta: 'வளையல் சடங்கு & ஆரத்தி' },
+      { en: 'Mother-to-be portraits', ta: 'தாயாகப்போகிறவரின் படங்கள்' },
+      { en: 'Family group frames', ta: 'குடும்பக் குழுப் படங்கள்' },
+    ],
+  },
+  babyshoot: {
+    line: {
+      en: 'Newborn, naming-day or the first birthday — gentle light, patient hands and plenty of breaks.',
+      ta: 'பிறந்த குழந்தை, பெயர் சூட்டு நாள், முதல் பிறந்தநாள் — மென்மையான ஒளி, பொறுமையான கைகள், நிறைய இடைவெளிகள்.',
+    },
+    covers: [
+      { en: 'Newborn & milestone setups', ta: 'பிறந்த குழந்தை & மைல்கல் அமைப்புகள்' },
+      { en: 'Parents & siblings frames', ta: 'பெற்றோர் & உடன்பிறப்புப் படங்கள்' },
+      { en: 'Props & soft styling', ta: 'பொருட்கள் & மென்மையான அலங்காரம்' },
+    ],
+  },
+  prewedding: {
+    line: {
+      en: 'A couple shoot before or after the wedding — temple corridors, beaches or a hill-station morning.',
+      ta: 'திருமணத்திற்கு முன்னோ பின்னோ ஜோடி படப்பிடிப்பு — கோயில் பிரகாரம், கடற்கரை, மலை வாசஸ்தலக் காலை.',
+    },
+    covers: [
+      { en: 'Location & outfit planning', ta: 'இடம் & உடை திட்டமிடல்' },
+      { en: 'Half-day session, one location', ta: 'அரை நாள், ஒரு இடம்' },
+      { en: 'Short film option', ta: 'சிறு வீடியோ விருப்பம்' },
+    ],
+  },
+  model: {
+    line: {
+      en: 'Portfolios that get callbacks — clean studio looks, street frames and a tight edit.',
+      ta: 'அழைப்புகள் வரவைக்கும் போர்ட்ஃபோலியோ — தெளிவான ஸ்டுடியோ தோற்றம், தெருப் படங்கள், கறாரான எடிட்.',
+    },
+    covers: [
+      { en: '3–4 looks per session', ta: 'ஒரு அமர்வுக்கு 3–4 தோற்றங்கள்' },
+      { en: 'Studio & outdoor', ta: 'ஸ்டுடியோ & வெளிப்புறம்' },
+      { en: 'Retouched final set', ta: 'ரீடச் செய்த இறுதித் தொகுப்பு' },
+    ],
+  },
+  commercial: {
+    line: {
+      en: 'Products, interiors and campaigns shot for the brand, not the album — lit, styled and delivered print-ready.',
+      ta: 'பொருட்கள், உட்புறம், பிரச்சாரங்கள் — பிராண்டுக்காக, ஒளியமைத்து, அலங்கரித்து, அச்சுக்குத் தயாராக.',
+    },
+    covers: [
+      { en: 'Product & catalogue stills', ta: 'பொருள் & பட்டியல் படங்கள்' },
+      { en: 'Interiors & spaces', ta: 'உட்புறம் & இடங்கள்' },
+      { en: 'Ad films & reels', ta: 'விளம்பர வீடியோ & ரீல்ஸ்' },
+    ],
+  },
+  corporate: {
+    line: {
+      en: 'Conferences, launches and team days — discreet coverage, quick turnaround, every speaker and sponsor covered.',
+      ta: 'மாநாடுகள், அறிமுகங்கள், குழு நாட்கள் — அமைதியான படப்பிடிப்பு, விரைவான வழங்கல், ஒவ்வொரு பேச்சாளரும் ஸ்பான்சரும்.',
+    },
+    covers: [
+      { en: 'Stage, audience & networking', ta: 'மேடை, பார்வையாளர், சந்திப்பு' },
+      { en: 'Same-week delivery', ta: 'அதே வாரத்தில் வழங்கல்' },
+      { en: 'Live LED wall option', ta: 'நேரலை LED திரை விருப்பம்' },
+    ],
+  },
 }
 
 const STEPS: { icon: IconName; title: Bi; body: Bi; when: Bi }[] = [
@@ -352,7 +411,8 @@ function Hero() {
   const t = useT(copy)
   const c = useT(COMMON)
   const lenis = useLenis()
-  const minPrice = Math.min(...EVENTS.map(e => startingPrice(e.key)))
+  const prices = usePrices()
+  const minPrice = Math.min(...EVENTS.map(e => startingPrice(e.key, prices)))
   const facts = [
     { k: t.factFrom, v: formatINR(minPrice) },
     { k: t.factHoursSub, v: t.factHours },
@@ -367,7 +427,7 @@ function Hero() {
       <div className="absolute inset-0 -z-10 bg-gradient-to-t from-ink via-ink/55 to-ink/35" />
       <div className="absolute inset-0 -z-10 bg-gradient-to-r from-ink/70 via-transparent to-transparent" />
       <TamilOnly>
-        <GopuramSkyline className="pointer-events-none absolute inset-x-0 bottom-0 -z-10" color="#c0163c" opacity={0.28} />
+        <GopuramSkyline className="pointer-events-none absolute inset-x-0 bottom-0 -z-10" color="var(--color-ruby)" opacity={0.28} />
       </TamilOnly>
 
       <Container wide className="flex min-h-[100svh] flex-col justify-end pb-8 pt-32 md:pb-14 md:pt-44">
@@ -419,6 +479,7 @@ function RitualMarquee() {
 function EventsSection() {
   const t = useT(copy)
   const lang = useLang()
+  const prices = usePrices()
   const [active, setActive] = useState(0)
   const ev = EVENTS[active]
   return (
@@ -475,7 +536,7 @@ function EventsSection() {
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="t-label text-white/50">{t.from}</p>
-                      <p className="mt-1 font-display text-2xl text-white">{formatINR(startingPrice(ev.key))}</p>
+                      <p className="mt-1 font-display text-2xl text-white">{formatINR(startingPrice(ev.key, prices))}</p>
                     </div>
                   </motion.div>
                 </AnimatePresence>
@@ -498,6 +559,7 @@ function EventsSection() {
 function EventRow({ index, active, onActive }: { index: number; active: boolean; onActive: (i: number) => void }) {
   const t = useT(copy)
   const lang = useLang()
+  const prices = usePrices()
   const e = EVENTS[index]
   const detail = EVENT_DETAIL[e.key]
   const ref = useRef<HTMLDivElement>(null)
@@ -537,8 +599,8 @@ function EventRow({ index, active, onActive }: { index: number; active: boolean;
       <div className="mt-7 flex flex-wrap items-end justify-between gap-x-6 gap-y-4 sm:justify-start md:mt-9 md:items-center">
         <div>
           <p className="t-label text-ink/40">{t.from}</p>
-          <p className="mt-1 font-display text-3xl leading-none text-ink">{formatINR(startingPrice(e.key))}</p>
-          <p className="mt-1.5 text-xs text-ink/45">{t.perHour.replace('{x}', formatINR(e.hourly))}</p>
+          <p className="mt-1 font-display text-3xl leading-none text-ink">{formatINR(startingPrice(e.key, prices))}</p>
+          <p className="mt-1.5 text-xs text-ink/45">{t.perHour}</p>
         </div>
         <Button to={`/book?event=${e.key}`} variant={active ? 'ruby' : 'outline'} icon="arrowRight">{t.quote}</Button>
       </div>
@@ -548,9 +610,13 @@ function EventRow({ index, active, onActive }: { index: number; active: boolean;
 
 // ─── Packages ────────────────────────────────────────────────────────────────
 
+const TIERS: FixedTier[] = ['basic', 'standard', 'premium']
+
 function Packages() {
   const t = useT(copy)
   const lang = useLang()
+  const prices = usePrices()
+  const spec = eventByKey('wedding')!.tiers
   return (
     <section id="packages" className="relative isolate overflow-hidden bg-mist py-24 md:py-36">
       <div className="ambient absolute inset-0 -z-10" />
@@ -561,16 +627,18 @@ function Packages() {
         <SectionHeading eyebrow={t.pkEyebrow} title={t.pkTitle} lead={t.pkLead} align="center" size="t-1" />
 
         <Stagger className="mx-auto mt-12 grid max-w-6xl gap-4 md:mt-20 md:gap-5 lg:grid-cols-3 lg:items-stretch" gap={0.12}>
-          {PACKAGES.map(p => {
-            const hi = !!p.popular
+          {TIERS.map(tier => {
+            const meta = TIER_META[tier]
+            const hi = !!meta.popular
+            const includes = cartEntries(tierCart(spec, tier)).filter(e => e.item.unit !== 'included')
             return (
-              <StaggerItem key={p.key} className={hi ? 'lg:-my-4' : ''}>
+              <StaggerItem key={tier} className={hi ? 'lg:-my-4' : ''}>
                 <div
                   className={`relative flex h-full flex-col overflow-hidden rounded-[26px] p-6 transition-transform md:rounded-[30px] duration-500 hover:-translate-y-1 md:p-9 ${
-                    hi ? 'bg-ink text-white shadow-[0_40px_80px_-30px_rgba(140,13,43,0.55)]' : 'glass-strong text-ink'
+                    hi ? 'glass-ruby-dark text-white shadow-[0_40px_80px_-30px_rgba(110,11,26,0.65)]' : 'glass-strong text-ink hover:ring-ruby-glow'
                   }`}
                 >
-                  {hi && <div className="ambient-dark pointer-events-none absolute inset-0 opacity-90" />}
+                  {hi && <div className="ambient-dark pointer-events-none absolute inset-0 -z-10 opacity-70" />}
                   <TamilOnly>
                     <KolamCorner className="absolute right-3 top-3 rotate-90 opacity-80" />
                   </TamilOnly>
@@ -578,28 +646,28 @@ function Packages() {
                     <p className={`t-label ${hi ? 'text-white/55' : 'text-ink/45'}`}>{t.pkOne}</p>
                     {hi && <Badge tone="ruby">{t.popular}</Badge>}
                   </div>
-                  <h3 className="t-2 relative mt-3">{p.name[lang]}</h3>
-                  <p className={`relative mt-3 text-[15px] leading-relaxed ${hi ? 'text-white/65' : 'text-ink/60'}`}>{p.pitch[lang]}</p>
+                  <h3 className="t-2 relative mt-3">{meta.name[lang]}</h3>
+                  <p className={`relative mt-3 text-[15px] leading-relaxed ${hi ? 'text-white/65' : 'text-ink/60'}`}>{tierPitch(spec, tier)[lang]}</p>
 
                   <div className={`relative mt-6 border-t pt-5 md:mt-8 md:pt-6 ${hi ? 'border-white/10' : 'border-ink/10'}`}>
-                    <p className="font-display text-4xl leading-none md:text-5xl">{p.add ? `+ ${formatINR(p.add)}` : t.included}</p>
-                    <p className={`mt-2 text-xs ${hi ? 'text-white/45' : 'text-ink/45'}`}>{p.add ? t.onTop : t.baseOnly}</p>
+                    <p className="font-display text-4xl leading-none md:text-5xl">{formatINR(tierPrice('wedding', tier, prices))}</p>
+                    <p className={`mt-2 text-xs ${hi ? 'text-white/45' : 'text-ink/45'}`}>{t.onTop}</p>
                   </div>
 
                   <ul className="relative mt-6 flex-1 space-y-3 md:mt-8 md:space-y-3.5">
-                    {p.includes.map((inc, i) => (
-                      <li key={i} className="flex items-start gap-3 text-[15px]">
-                        <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${hi ? 'bg-ruby text-white' : 'bg-ruby-soft text-ruby'}`}>
+                    {includes.map(({ item, qty }) => (
+                      <li key={item.id} className="flex items-start gap-3 text-[15px]">
+                        <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${hi ? 'bg-ruby-bright text-white shadow-ruby' : 'glass-ruby-tint text-ruby'}`}>
                           <Icon name="check" size={12} strokeWidth={2.6} />
                         </span>
-                        <span className={i === 0 && p.key !== 'essential' ? (hi ? 'text-white/55' : 'text-ink/50') : ''}>{inc[lang]}</span>
+                        <span>{item.name[lang]}{qty > 1 ? ` × ${qty}` : ''}</span>
                       </li>
                     ))}
                   </ul>
 
                   <div className="relative mt-8 md:mt-10">
                     <Button to="/book" variant={hi ? 'ruby' : 'ink'} full icon="arrowRight">
-                      {t.choose.replace('{x}', p.name[lang])}
+                      {t.choose.replace('{x}', meta.name[lang])}
                     </Button>
                   </div>
                 </div>
@@ -617,6 +685,8 @@ function Packages() {
 function Addons() {
   const t = useT(copy)
   const lang = useLang()
+  const prices = usePrices()
+  const addons = CATALOGUE.filter(i => i.section === 'addon')
   return (
     <section className="py-24 md:py-36">
       <Container wide>
@@ -630,17 +700,17 @@ function Addons() {
             </Reveal>
           </div>
           <Stagger className="grid gap-3 sm:grid-cols-2 md:gap-4" gap={0.07}>
-            {ADDONS.map(a => (
-              <StaggerItem key={a.key}>
-                <div className="group relative flex h-full flex-col rounded-[22px] border border-ink/10 bg-white p-5 sm:rounded-[26px] sm:p-6 transition-all duration-500 hover:-translate-y-1 hover:border-ruby/30 hover:shadow-soft md:p-7">
+            {addons.map(a => (
+              <StaggerItem key={a.id}>
+                <div className="group relative flex h-full flex-col rounded-[22px] glass p-5 sm:rounded-[26px] sm:p-6 transition-all duration-500 hover:-translate-y-1 hover:ring-ruby-glow md:p-7">
                   <div className="flex items-start justify-between gap-4">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-ink text-white transition-colors duration-500 group-hover:bg-ruby">
-                      <Icon name={ADDON_ICON[a.key]} size={22} />
+                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl glass-ruby text-white transition-all duration-500 group-hover:scale-105">
+                      <Icon name={a.icon} size={22} />
                     </span>
-                    <span className="font-display text-2xl text-ink">{formatINR(a.price)}</span>
+                    <span className="font-display text-2xl text-ruby">{formatINR(prices[a.id])}</span>
                   </div>
                   <h3 className="t-3 mt-5 text-ink sm:mt-8">{a.name[lang]}</h3>
-                  <p className="mt-2 text-[15px] text-ink/55">{a.note[lang]}</p>
+                  <p className="mt-2 text-[15px] text-ink/55">{a.note?.[lang]}{a.pending ? ` · ${t.pending}` : ''}</p>
                 </div>
               </StaggerItem>
             ))}

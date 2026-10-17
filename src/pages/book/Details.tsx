@@ -5,10 +5,13 @@ import { Button, Field } from '../../components/ui'
 import { Icon, type IconName } from '../../components/Icon'
 import { Reveal, Stagger, StaggerItem, EASE } from '../../components/motion'
 import { KolamCorner, Ornament } from '../../components/tamil'
-import { formatDate, formatINR, useLang, useT } from '../../lib/i18n'
+import { formatDate, formatINR, useLang, useT, type Bi, type Lang } from '../../lib/i18n'
 import { toast, useTitle } from '../../lib/ui'
-import { useStore } from '../../lib/store'
-import { ADDONS, CROWDS, PACKAGES, VENUES, districtName, eventByKey } from '../../lib/data'
+import { useStore, type BookingDraft } from '../../lib/store'
+import { CROWDS, VENUES, districtName, eventByKey } from '../../lib/data'
+import { cartExtras, cartLabel } from '../../lib/catalogue'
+import { useRegisterVoicePage } from './voicePage'
+import { spokenINR } from './voiceScripts'
 import { AnimatedINR, StepGuard, StepHeader, SubHeading, formatTime, hoursLabel, quoteFor, useDockAction } from './shared'
 
 const copy = {
@@ -45,6 +48,7 @@ const copy = {
   edit: { en: 'Edit', ta: 'திருத்து' },
   tentative: { en: 'Tentative', ta: 'தற்காலிகம்' },
   timeTbc: { en: 'time to be confirmed', ta: 'நேரம் பின்னர் உறுதிசெய்யப்படும்' },
+  tracked: { en: 'Enquiry received. Your quote is on its way on WhatsApp — track every step here.', ta: 'விண்ணப்பம் பெறப்பட்டது. மதிப்பீடு WhatsApp-இல் வருகிறது — ஒவ்வொரு படியையும் இங்கே கண்காணியுங்கள்.' },
   noExtras: { en: 'No extras', ta: 'கூடுதல் சேவைகள் இல்லை' },
   km: { en: 'km', ta: 'கி.மீ' },
   quote: { en: 'Quote', ta: 'மதிப்பீடு' },
@@ -96,6 +100,99 @@ function DetailsStep() {
   const formRef = useRef<HTMLFormElement>(null)
   useDockAction({ onNext: () => formRef.current?.requestSubmit(), label: t.send, short: t.sendShort, icon: 'send', busy: sending })
 
+  // What the voice guide can do on this step (see VoiceGuide.tsx). Replies are spoken back.
+  useRegisterVoicePage({
+    id: 'details',
+    context: () =>
+      `Form fields — name: "${draft.name}", mobile: "${draft.contact}", email: "${draft.email}", notes: "${draft.notes}", terms accepted: ${agree}. ` +
+      spokenSummary(draft, 'en'),
+    examples: VOICE_EXAMPLES,
+    actions: [
+      {
+        name: 'set_name',
+        description: 'Fill in the visitor’s full name.',
+        params: { name: 'full name in English letters' },
+        run: a => {
+          const name = String(a.name ?? '').trim()
+          if (!name) return
+          updateDraft({ name })
+          setTouched(s => ({ ...s, name: true }))
+          return { en: `Name set to ${name}.`, ta: `பெயர்: ${name}.` }
+        },
+      },
+      {
+        name: 'set_mobile',
+        description: 'Fill in the mobile number.',
+        params: { mobile: '10-digit Indian mobile number, digits only' },
+        run: a => {
+          const digits = String(a.mobile ?? '').replace(/\D/g, '').replace(/^(?:91|0)(?=\d{10}$)/, '')
+          if (!/^[6-9]\d{9}$/.test(digits)) return { en: 'I need a 10-digit mobile number — please say it once more.', ta: '10 இலக்க கைபேசி எண் தேவை — மீண்டும் ஒருமுறை சொல்லுங்கள்.' }
+          updateDraft({ contact: digits })
+          setTouched(s => ({ ...s, contact: true }))
+          const spaced = `${digits.slice(0, 5)} ${digits.slice(5)}`
+          return { en: `Mobile number set to ${spaced}.`, ta: `கைபேசி எண்: ${spaced}.` }
+        },
+      },
+      {
+        name: 'set_email',
+        description: 'Fill in the email address (optional field).',
+        params: { email: 'email address' },
+        run: a => {
+          const email = String(a.email ?? '').trim().toLowerCase()
+          if (!isEmail(email)) return { en: 'That email does not look right — please spell it once more.', ta: 'மின்னஞ்சல் சரியாக இல்லை — மீண்டும் ஒருமுறை சொல்லுங்கள்.' }
+          updateDraft({ email })
+          return { en: `Email set to ${email}.`, ta: `மின்னஞ்சல்: ${email}.` }
+        },
+      },
+      {
+        name: 'set_notes',
+        description: 'Add something to the notes for the studio (rituals, must-have shots, timings).',
+        params: { notes: 'the note, in the visitor’s words' },
+        run: a => {
+          const notes = String(a.notes ?? '').trim()
+          if (!notes) return
+          updateDraft({ notes: draft.notes ? `${draft.notes}\n${notes}` : notes })
+          return { en: 'Added to your notes.', ta: 'குறிப்புகளில் சேர்க்கப்பட்டது.' }
+        },
+      },
+      {
+        name: 'read_summary',
+        description: 'Read back everything chosen so far: district, event, venue, date, package, extras and the estimated total.',
+        run: () => {
+          const d = useStore.getState().draft
+          return { en: spokenSummary(d, 'en'), ta: spokenSummary(d, 'ta') }
+        },
+      },
+      {
+        name: 'accept_terms',
+        description: 'Tick the terms and conditions checkbox.',
+        run: () => {
+          setAgree(true)
+          setTouched(s => ({ ...s, terms: true }))
+          return { en: 'Terms accepted.', ta: 'விதிமுறைகள் ஏற்கப்பட்டன.' }
+        },
+      },
+      {
+        name: 'send_enquiry',
+        description: 'Accept the terms and submit the enquiry. Only when the visitor clearly asks to send, submit or book.',
+        run: () => {
+          const d = useStore.getState().draft
+          const needName = d.name.trim().length < 2
+          const needMobile = !isMobile(d.contact)
+          if (needName || needMobile) {
+            const en = [needName && 'your name', needMobile && 'a 10-digit mobile number'].filter(Boolean).join(' and ')
+            const ta = [needName && 'உங்கள் பெயர்', needMobile && '10 இலக்க கைபேசி எண்'].filter(Boolean).join(' மற்றும் ')
+            return { en: `Before I send it, I still need ${en}.`, ta: `அனுப்புவதற்கு முன் ${ta} தேவை.` }
+          }
+          setAgree(true)
+          setTouched(s => ({ ...s, terms: true }))
+          window.setTimeout(() => formRef.current?.requestSubmit(), 80)
+          return { en: 'Sending your enquiry now.', ta: 'உங்கள் விசாரணையை இப்போது அனுப்புகிறேன்.' }
+        },
+      },
+    ],
+  })
+
   const errors = {
     name: draft.name.trim().length < 2 ? t.errName : '',
     contact: !isMobile(draft.contact) ? t.errMobile : '',
@@ -119,7 +216,11 @@ function DetailsStep() {
     window.setTimeout(() => {
       updateDraft({ name: draft.name.trim(), email: draft.email.trim() })
       const id = submitEnquiry()
-      if (id) navigate(`/book/confirmed/${id}`)
+      // submitEnquiry signs the customer in as a client for this order, so land them on tracking.
+      if (id) {
+        toast(t.tracked)
+        navigate('/dashboard/track', { replace: true })
+      }
       else {
         setSending(false)
         toast(t.failed)
@@ -264,9 +365,8 @@ function Review() {
   const quote = quoteFor(d)
   const ev = eventByKey(d.eventType)
   const venue = VENUES.find(v => v.key === d.venueType)
-  const pkg = PACKAGES.find(p => p.key === d.packageId)
   const crowd = CROWDS.find(c => c.key === d.crowd)
-  const extras = d.addons.map(a => ADDONS.find(x => x.key === a)?.name[lang]).filter(Boolean).join(', ')
+  const extras = cartExtras(d.cart).map(({ item, qty }) => `${item.name[lang]}${qty > 1 ? ` × ${qty}` : ''}`).join(', ')
 
   const rows: { icon: IconName; label: string; value: string; sub?: string; to: string }[] = [
     { icon: 'mapPin', label: t.district, value: districtName(d.district, lang), to: '/book' },
@@ -285,7 +385,7 @@ function Review() {
       sub: [d.time ? formatTime(d.time, lang) : t.timeTbc, d.dateCertainty === 'tentative' ? t.tentative : ''].filter(Boolean).join(' · '),
       to: '/book/venue',
     },
-    { icon: 'gem', label: t.pkg, value: pkg?.name[lang] ?? '', sub: extras || t.noExtras, to: '/book/package' },
+    { icon: 'gem', label: t.pkg, value: cartLabel(d.cart)[lang], sub: extras || t.noExtras, to: '/book/package' },
   ]
 
   return (
@@ -340,4 +440,27 @@ function Review() {
       )}
     </div>
   )
+}
+
+const VOICE_EXAMPLES: Bi[] = [
+  { en: 'My name is Priya Karthik', ta: 'என் பெயர் பிரியா கார்த்திக்' },
+  { en: 'My number is 98765 43210', ta: 'என் எண் 98765 43210' },
+  { en: 'Read my summary', ta: 'சுருக்கம் சொல்லு' },
+  { en: 'Send my enquiry', ta: 'விசாரணையை அனுப்பு' },
+]
+
+/** Everything chosen so far as one spoken paragraph, for the voice guide. */
+function spokenSummary(d: BookingDraft, lang: Lang): string {
+  const ev = eventByKey(d.eventType)
+  const venue = VENUES.find(v => v.key === d.venueType)
+  const crowd = CROWDS.find(c => c.key === d.crowd)
+  const q = quoteFor(d)
+  const date = d.date ? formatDate(d.date, lang, { weekday: 'long', day: 'numeric', month: 'long' }) : lang === 'ta' ? 'தேதி பின்னர் உறுதிசெய்யப்படும்' : 'date to be confirmed'
+  const extras = cartExtras(d.cart).map(({ item, qty }) => `${item.name[lang]}${qty > 1 ? ` × ${qty}` : ''}`)
+  const place = [venue?.name[lang], d.venueName].filter(Boolean).join(', ')
+  const total = q ? spokenINR(q.total, lang) : ''
+  if (lang === 'ta') {
+    return `உங்கள் சுருக்கம்: ${districtName(d.district, 'ta')}-இல் ${ev?.name.ta ?? 'விழா'}, ${date} அன்று, ${place}. படப்பிடிப்பு ${hoursLabel(d.durationHours, 'ta')}, ${crowd?.name.ta ?? ''} கூட்டம். தொகுப்பு: ${cartLabel(d.cart).ta}${extras.length ? `; கூடுதலாக ${extras.join(', ')}` : ''}.${total ? ` மதிப்பிடப்பட்ட மொத்தம் ${total}, GST தவிர.` : ''}`
+  }
+  return `Here is your summary. A ${ev?.name.en ?? 'celebration'} in ${districtName(d.district, 'en')}, on ${date}, at ${place}. Coverage ${hoursLabel(d.durationHours, 'en')}, ${crowd?.name.en ?? ''} crowd. Package: ${cartLabel(d.cart).en}${extras.length ? `, with ${extras.join(', ')}` : ''}.${total ? ` Estimated total ${total}, before GST.` : ''}`
 }

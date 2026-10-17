@@ -42,6 +42,7 @@ const AdminCms = lazy(() => import('./pages/admin/Cms'))
 const AdminMessages = lazy(() => import('./pages/admin/Messages'))
 const AdminLeads = lazy(() => import('./pages/admin/Leads'))
 const AdminBilling = lazy(() => import('./pages/admin/Billing'))
+const AdminBillingDetail = lazy(() => import('./pages/admin/Billing').then(m => ({ default: m.BillingDetail })))
 
 const adminFallback = <div className="min-h-screen bg-ink" />
 
@@ -93,6 +94,7 @@ export default function App() {
             <Route path="messages" element={<AdminMessages />} />
             <Route path="leads" element={<AdminLeads />} />
             <Route path="billing" element={<AdminBilling />} />
+            <Route path="billing/:id" element={<AdminBillingDetail />} />
           </Route>
         </Routes>
         <LanguageCurtain />

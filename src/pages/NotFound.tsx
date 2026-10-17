@@ -46,7 +46,7 @@ export default function NotFound() {
       <div className="absolute inset-0 -z-10 bg-gradient-to-t from-ink via-ink/60 to-ink/40" />
       <div className="absolute inset-0 -z-10 bg-gradient-to-r from-ink/75 via-ink/30 to-transparent" />
       <TamilOnly>
-        <GopuramSkyline className="pointer-events-none absolute inset-x-0 bottom-0 -z-10" color="#c0163c" opacity={0.3} />
+        <GopuramSkyline className="pointer-events-none absolute inset-x-0 bottom-0 -z-10" color="var(--color-ruby)" opacity={0.3} />
       </TamilOnly>
 
       {/* Giant outlined 404 */}
@@ -80,7 +80,7 @@ export default function NotFound() {
         </Reveal>
 
         <Reveal delay={0.7} className="mt-10 md:mt-16">
-          <nav aria-label={lang === 'ta' ? 'பரிந்துரைக்கப்பட்ட பக்கங்கள்' : 'Suggested pages'} className="glass-dark grid overflow-hidden rounded-3xl sm:grid-cols-3 md:rounded-[26px]">
+          <nav aria-label={lang === 'ta' ? 'பரிந்துரைக்கப்பட்ட பக்கங்கள்' : 'Suggested pages'} className="glass-ruby-dark grid overflow-hidden rounded-3xl sm:grid-cols-3 md:rounded-[26px]">
             {links.map((l, i) => (
               <Link
                 key={l.to}

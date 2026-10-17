@@ -8,7 +8,7 @@ import { useT } from '../../lib/i18n'
 import { IMG, type ImgKey } from '../../lib/images'
 import { useStore, type Order } from '../../lib/store'
 import { toast } from '../../lib/ui'
-import { PHOTO_QUOTA } from './shared'
+import { photoQuota } from './shared'
 
 /** Shared pieces of the two proofing designs (editorial chapters and the light table). */
 
@@ -74,7 +74,7 @@ export function SubmitSelectionModal({ order, selected, open, onClose }: { order
   const submitSelection = useStore(s => s.submitSelection)
   const navigate = useNavigate()
   const count = selected.size
-  const quota = PHOTO_QUOTA[order.packageId]
+  const quota = photoQuota(order)
   const status = useQuotaStatus(count, quota)
 
   const submit = () => {

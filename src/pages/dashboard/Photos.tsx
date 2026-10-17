@@ -12,7 +12,7 @@ import { useMyOrder, useStore, type Order } from '../../lib/store'
 import { toast, useTitle } from '../../lib/ui'
 import { LightTable } from './PhotosLightTable'
 import { AnimatedCount, SubmitSelectionModal, Watermark, pad2, ratioOf, useProofingVersion, useQuotaStatus } from './proofing'
-import { FloatingBar, LockedPanel, PHOTO_QUOTA, PageIntro, TamilCorners, gcsPath, isProof, photosUnlocked, proofCategory, proofFile, resolveCover, selectionClosed, useProofs } from './shared'
+import { FloatingBar, LockedPanel, photoQuota, PageIntro, TamilCorners, gcsPath, isProof, photosUnlocked, proofCategory, proofFile, resolveCover, selectionClosed, useProofs } from './shared'
 
 const copy = {
   eyebrow: { en: 'Proofing gallery', ta: 'தேர்வு கேலரி' },
@@ -222,7 +222,7 @@ function Proofing({ order }: { order: Order }) {
 
   const selected = useMemo(() => new Set(order.selection.filter(isProof)), [order.selection])
   const count = selected.size
-  const quota = PHOTO_QUOTA[order.packageId]
+  const quota = photoQuota(order)
 
   const byCat = useMemo(() => {
     const m = Object.fromEntries(PROOF_CATEGORIES.map(c => [c.key, [] as ImgKey[]])) as Record<ProofCategory, ImgKey[]>
@@ -597,7 +597,7 @@ function Lightbox({ ids, index, onIndex, selected, onToggle, readOnly = false }:
                     src={photoUrl(id, 1400)}
                     alt={IMG[id].alt}
                     draggable={false}
-                    className={`h-full w-full rounded-xl object-contain transition-shadow duration-500 ${isSel ? 'shadow-[0_0_0_3px_#e2264f]' : ''}`}
+                    className={`h-full w-full rounded-xl object-contain transition-shadow duration-500 ${isSel ? 'shadow-[0_0_0_3px_#c41e3a]' : ''}`}
                   />
                   <Watermark size="md" />
                 </div>

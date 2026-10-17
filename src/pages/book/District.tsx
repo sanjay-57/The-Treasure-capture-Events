@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { motion } from 'motion/react'
-import { Img } from '../../components/ui'
+import { CrossfadeImg } from '../../components/ui'
+import { DISTRICT_GALLERY } from '../../lib/images'
 import { Icon } from '../../components/Icon'
 import { Stagger, StaggerItem, Reveal, EASE } from '../../components/motion'
 import { Ornament } from '../../components/tamil'
@@ -66,7 +67,7 @@ export default function District() {
                 transition={{ duration: 0.4, ease: EASE }}
                 className={`group relative block aspect-[3/4] w-full overflow-hidden rounded-[22px] text-left shadow-soft outline-offset-4 transition-shadow duration-500 cursor-pointer ${active ? 'ring-2 ring-ruby ring-offset-2 ring-offset-white' : ''}`}
               >
-                <Img k={d.img} w={480} ratio={3 / 4} sizes="(min-width: 768px) 200px, 50vw" className="absolute inset-0 h-full w-full" imgClassName="transition-transform duration-[1.2s] ease-out group-hover:scale-[1.06]" priority={i < 4} />
+                <CrossfadeImg keys={DISTRICT_GALLERY[d.key] ?? [d.img]} offset={i * 900} w={480} ratio={3 / 4} sizes="(min-width: 768px) 200px, 50vw" className="absolute inset-0 h-full w-full" imgClassName="transition-transform duration-[1.2s] ease-out group-hover:scale-[1.06]" priority={i < 4} />
                 <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/10 to-transparent" />
                 {i === 0 && (
                   <span className="glass-ruby absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10.5px] font-semibold tracking-wide">{t.head}</span>

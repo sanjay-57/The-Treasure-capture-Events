@@ -1,4 +1,5 @@
 import type { Bi } from './i18n'
+import type { TierSpec } from './catalogue'
 import type { ImgKey } from './images'
 
 // ─── Districts ───────────────────────────────────────────────────────────────
@@ -28,31 +29,50 @@ export const districtName = (key: string, lang: 'en' | 'ta') => DISTRICTS.find(d
 
 // ─── Events ──────────────────────────────────────────────────────────────────
 
-export type EventKey = 'wedding' | 'engagement' | 'reception' | 'puberty' | 'earpiercing' | 'naming' | 'birthday' | 'outdoor'
+export type EventKey =
+  | 'wedding' | 'engagement' | 'reception' | 'puberty' | 'earpiercing' | 'naming' | 'birthday'
+  | 'babyshower' | 'babyshoot'
+  | 'prewedding' | 'outdoor' | 'model' | 'commercial' | 'corporate'
+
+/** Display grouping on the website. */
+export type EventBucket = 'family' | 'maternity' | 'special'
+
+export const BUCKETS: { key: EventBucket; name: Bi; blurb: Bi }[] = [
+  { key: 'family', name: { en: 'Wedding & family', ta: 'திருமணம் & குடும்பம்' }, blurb: { en: 'Muhurtham to reception and every ceremony around it', ta: 'முகூர்த்தம் முதல் வரவேற்பு வரை, அனைத்து விழாக்களும்' } },
+  { key: 'maternity', name: { en: 'Baby & maternity', ta: 'குழந்தை & வளைகாப்பு' }, blurb: { en: 'Valaikappu, newborns and first birthdays', ta: 'வளைகாப்பு, பிறந்த குழந்தை, முதல் பிறந்தநாள்' } },
+  { key: 'special', name: { en: 'Special & commercial', ta: 'சிறப்பு & வணிகம்' }, blurb: { en: 'Couple shoots, portfolios, brands and public events', ta: 'ஜோடி படப்பிடிப்பு, போர்ட்ஃபோலியோ, பிராண்டுகள், பொது நிகழ்வுகள்' } },
+]
 
 export interface EventType {
   key: EventKey
+  bucket: EventBucket
   name: Bi
   blurb: Bi
-  /** Price for the minimum 2-hour coverage. */
-  base: number
-  /** Each hour beyond the first two. */
-  hourly: number
   img: Bi<ImgKey>
   /** Whether "Bride / Groom meeting" applies, otherwise "Family consultation". */
   couple: boolean
+  /** Which fixed-tier presets this event expands to. */
+  tiers: TierSpec
 }
 
 export const EVENTS: EventType[] = [
-  { key: 'wedding', name: { en: 'Wedding', ta: 'திருமணம்' }, blurb: { en: 'Muhurtham to reception, every ritual', ta: 'முகூர்த்தம் முதல் வரவேற்பு வரை' }, base: 18000, hourly: 4500, img: { en: 'm_couple_bokeh', ta: 't_couple_garland' }, couple: true },
-  { key: 'engagement', name: { en: 'Engagement', ta: 'நிச்சயதார்த்தம்' }, blurb: { en: 'Rings, families and first promises', ta: 'மோதிரம், குடும்பம், முதல் வாக்குறுதி' }, base: 12000, hourly: 3000, img: { en: 'm_ring_hands', ta: 't_ritual_offering' }, couple: true },
-  { key: 'reception', name: { en: 'Reception', ta: 'வரவேற்பு' }, blurb: { en: 'Stage, lights and the whole guest list', ta: 'மேடை, விளக்குகள், அனைத்து விருந்தினரும்' }, base: 14000, hourly: 3500, img: { en: 'm_rec_stage', ta: 't_lamp_many' }, couple: true },
-  { key: 'puberty', name: { en: 'Puberty ceremony', ta: 'மஞ்சள் நீராட்டு விழா' }, blurb: { en: 'Manjal Neerattu Vizha, with warmth', ta: 'பாரம்பரிய மஞ்சள் நீராட்டு விழா' }, base: 12000, hourly: 3000, img: { en: 'm_haldi_seated', ta: 't_manjal_bride' }, couple: false },
-  { key: 'earpiercing', name: { en: 'Ear piercing', ta: 'காதுகுத்து' }, blurb: { en: 'Kaadhu Kuthu at home or temple', ta: 'வீட்டிலோ கோயிலிலோ காதுகுத்து' }, base: 8000, hourly: 2500, img: { en: 'm_baby_smile', ta: 't_temple_mandapam' }, couple: false },
-  { key: 'naming', name: { en: 'Naming ceremony', ta: 'பெயர் சூட்டு விழா' }, blurb: { en: 'Peyar Soottu — the first celebration', ta: 'குழந்தையின் முதல் கொண்டாட்டம்' }, base: 7000, hourly: 2500, img: { en: 'm_baby_wrap', ta: 't_diya_hands' }, couple: false },
-  { key: 'birthday', name: { en: 'Birthday', ta: 'பிறந்தநாள்' }, blurb: { en: 'Cakes, candles and candid chaos', ta: 'கேக், மெழுகுவர்த்தி, மகிழ்ச்சி' }, base: 7500, hourly: 2500, img: { en: 'm_bday_girl', ta: 't_diya_many' }, couple: false },
-  { key: 'outdoor', name: { en: 'Outdoor shoot', ta: 'வெளிப்புறப் படப்பிடிப்பு' }, blurb: { en: 'Pre-wedding, maternity, portraits', ta: 'திருமணத்திற்கு முன், போர்ட்ரெயிட்' }, base: 9000, hourly: 3000, img: { en: 'm_couple_pinksky', ta: 't_saree_temple' }, couple: false },
+  { key: 'wedding', bucket: 'family', name: { en: 'Wedding', ta: 'திருமணம்' }, blurb: { en: 'Muhurtham to reception, every ritual', ta: 'முகூர்த்தம் முதல் வரவேற்பு வரை' }, img: { en: 'm_couple_bokeh', ta: 't_couple_garland' }, couple: true, tiers: { kind: 'family' } },
+  { key: 'engagement', bucket: 'family', name: { en: 'Engagement', ta: 'நிச்சயதார்த்தம்' }, blurb: { en: 'Rings, families and first promises', ta: 'மோதிரம், குடும்பம், முதல் வாக்குறுதி' }, img: { en: 'm_ring_hands', ta: 't_ritual_offering' }, couple: true, tiers: { kind: 'family' } },
+  { key: 'reception', bucket: 'family', name: { en: 'Reception', ta: 'வரவேற்பு' }, blurb: { en: 'Stage, lights and the whole guest list', ta: 'மேடை, விளக்குகள், அனைத்து விருந்தினரும்' }, img: { en: 'm_rec_stage', ta: 't_lamp_many' }, couple: true, tiers: { kind: 'family' } },
+  { key: 'puberty', bucket: 'family', name: { en: 'Puberty ceremony', ta: 'மஞ்சள் நீராட்டு விழா' }, blurb: { en: 'Manjal Neerattu Vizha, with warmth', ta: 'பாரம்பரிய மஞ்சள் நீராட்டு விழா' }, img: { en: 'm_haldi_seated', ta: 't_manjal_bride' }, couple: false, tiers: { kind: 'family' } },
+  { key: 'earpiercing', bucket: 'family', name: { en: 'Ear piercing', ta: 'காதுகுத்து' }, blurb: { en: 'Kaadhu Kuthu at home or temple', ta: 'வீட்டிலோ கோயிலிலோ காதுகுத்து' }, img: { en: 'm_baby_smile', ta: 't_temple_mandapam' }, couple: false, tiers: { kind: 'family' } },
+  { key: 'naming', bucket: 'family', name: { en: 'Naming ceremony', ta: 'பெயர் சூட்டு விழா' }, blurb: { en: 'Peyar Soottu — the first celebration', ta: 'குழந்தையின் முதல் கொண்டாட்டம்' }, img: { en: 'm_baby_wrap', ta: 't_diya_hands' }, couple: false, tiers: { kind: 'family' } },
+  { key: 'birthday', bucket: 'family', name: { en: 'Birthday', ta: 'பிறந்தநாள்' }, blurb: { en: 'Cakes, candles and candid chaos', ta: 'கேக், மெழுகுவர்த்தி, மகிழ்ச்சி' }, img: { en: 'm_bday_girl', ta: 't_diya_many' }, couple: false, tiers: { kind: 'family' } },
+  { key: 'babyshower', bucket: 'maternity', name: { en: 'Baby shower', ta: 'வளைகாப்பு' }, blurb: { en: 'Valaikappu bangles and blessings', ta: 'வளையல்களும் ஆசிகளும்' }, img: { en: 'm_mehndi_hands', ta: 't_jewel_set' }, couple: false, tiers: { kind: 'maternity' } },
+  { key: 'babyshoot', bucket: 'maternity', name: { en: 'Baby shoot', ta: 'குழந்தை படப்பிடிப்பு' }, blurb: { en: 'Newborn and milestone portraits', ta: 'பிறந்த குழந்தை & மைல்கல் படங்கள்' }, img: { en: 'm_baby_hat', ta: 't_diya_glow' }, couple: false, tiers: { kind: 'maternity' } },
+  { key: 'prewedding', bucket: 'special', name: { en: 'Pre / post-wedding', ta: 'திருமணத்திற்கு முன் / பின்' }, blurb: { en: 'A couple shoot before or after the big day', ta: 'பெரிய நாளுக்கு முன்னோ பின்னோ ஜோடி படப்பிடிப்பு' }, img: { en: 'm_couple_pinksky', ta: 't_saree_temple' }, couple: true, tiers: { kind: 'shoot', shootItem: 'prepost_wedding' } },
+  { key: 'outdoor', bucket: 'special', name: { en: 'Outdoor shoot', ta: 'வெளிப்புறப் படப்பிடிப்பு' }, blurb: { en: 'Couple, baby or maternity, on location', ta: 'ஜோடி, குழந்தை, வளைகாப்பு — வெளிப்புறத்தில்' }, img: { en: 'm_couple_field', ta: 't_tn_paddy' }, couple: false, tiers: { kind: 'shoot', shootItem: 'outdoor_couple' } },
+  { key: 'model', bucket: 'special', name: { en: 'Model portfolio', ta: 'மாடல் போர்ட்ஃபோலியோ' }, blurb: { en: 'Studio or street, looks that land', ta: 'ஸ்டுடியோவோ தெருவோ, கவரும் தோற்றங்கள்' }, img: { en: 'm_bride_studio', ta: 't_dance_pose' }, couple: false, tiers: { kind: 'shoot', shootItem: 'model_portfolio' } },
+  { key: 'commercial', bucket: 'special', name: { en: 'Commercial / ad shoot', ta: 'வணிக / விளம்பரப் படப்பிடிப்பு' }, blurb: { en: 'Products, spaces and campaigns', ta: 'பொருட்கள், இடங்கள், பிரச்சாரங்கள்' }, img: { en: 'e_commercial', ta: 'e_commercial' }, couple: false, tiers: { kind: 'shoot', shootItem: 'commercial_shoot' } },
+  { key: 'corporate', bucket: 'special', name: { en: 'Corporate event', ta: 'நிறுவன நிகழ்வு' }, blurb: { en: 'Conferences, launches and team days', ta: 'மாநாடுகள், அறிமுகங்கள், குழு நாட்கள்' }, img: { en: 'e_corporate', ta: 'e_corporate' }, couple: false, tiers: { kind: 'corporate' } },
 ]
+
+export const eventsIn = (bucket: EventBucket) => EVENTS.filter(e => e.bucket === bucket)
 
 export const eventByKey = (key: string) => EVENTS.find(e => e.key === key)
 
@@ -76,69 +96,6 @@ export const VENUES: { key: VenueType; name: Bi; note: Bi; add: number; img: Bi<
 
 export const TRAVEL_FREE_KM = 20
 export const TRAVEL_PER_KM = 40
-
-// ─── Packages & add-ons ──────────────────────────────────────────────────────
-
-export type PackageKey = 'essential' | 'signature' | 'heirloom'
-
-export interface Package {
-  key: PackageKey
-  name: Bi
-  add: number
-  pitch: Bi
-  includes: Bi[]
-  popular?: boolean
-}
-
-export const PACKAGES: Package[] = [
-  {
-    key: 'essential',
-    name: { en: 'Essential', ta: 'எசென்ஷியல்' },
-    add: 0,
-    pitch: { en: 'Everything captured, beautifully edited.', ta: 'அனைத்தும் படம்பிடித்து, அழகாக எடிட் செய்து.' },
-    includes: [
-      { en: 'Lead photographer', ta: 'முதன்மை புகைப்படக் கலைஞர்' },
-      { en: 'Unlimited digital photos', ta: 'எல்லையற்ற டிஜிட்டல் படங்கள்' },
-      { en: 'Private online proofing gallery', ta: 'தனிப்பட்ட ஆன்லைன் தேர்வு கேலரி' },
-    ],
-  },
-  {
-    key: 'signature',
-    name: { en: 'Signature', ta: 'சிக்னேச்சர்' },
-    add: 15000,
-    popular: true,
-    pitch: { en: 'Candid storytelling with a highlight film.', ta: 'கேண்டிட் கதைசொல்லல் + ஹைலைட் வீடியோ.' },
-    includes: [
-      { en: 'Everything in Essential', ta: 'எசென்ஷியலில் உள்ள அனைத்தும்' },
-      { en: 'Candid photographer', ta: 'கேண்டிட் புகைப்படக் கலைஞர்' },
-      { en: '3–5 min cinematic highlight film', ta: '3–5 நிமிட சினிமா ஹைலைட் வீடியோ' },
-      { en: '30-sheet premium album', ta: '30 தாள் பிரீமியம் ஆல்பம்' },
-    ],
-  },
-  {
-    key: 'heirloom',
-    name: { en: 'Heirloom', ta: 'பரம்பரைப் பொக்கிஷம்' },
-    add: 38000,
-    pitch: { en: 'The full story, told for generations.', ta: 'தலைமுறைகளுக்கான முழுக் கதை.' },
-    includes: [
-      { en: 'Everything in Signature', ta: 'சிக்னேச்சரில் உள்ள அனைத்தும்' },
-      { en: 'Aerial drone coverage', ta: 'ட்ரோன் படப்பிடிப்பு' },
-      { en: 'Full-length documentary film', ta: 'முழு நீள ஆவணப் படம்' },
-      { en: '40-sheet heirloom album + parents’ copy', ta: '40 தாள் ஆல்பம் + பெற்றோர் பிரதி' },
-    ],
-  },
-]
-
-export type AddonKey = 'drone' | 'ledwall' | 'sameday' | 'extraalbum' | 'preshoot' | 'booth'
-
-export const ADDONS: { key: AddonKey; name: Bi; price: number; note: Bi }[] = [
-  { key: 'drone', name: { en: 'Drone coverage', ta: 'ட்ரோன் படப்பிடிப்பு' }, price: 8000, note: { en: 'Aerial stills & video', ta: 'வான்வழி படங்கள் & வீடியோ' } },
-  { key: 'ledwall', name: { en: 'Live LED wall', ta: 'நேரலை LED திரை' }, price: 12000, note: { en: 'Live feed for guests', ta: 'விருந்தினர்களுக்கு நேரலை' } },
-  { key: 'sameday', name: { en: 'Same-day edit reel', ta: 'அன்றே எடிட் ரீல்' }, price: 6000, note: { en: 'Shown before the night ends', ta: 'விழா முடியும் முன் திரையிடல்' } },
-  { key: 'extraalbum', name: { en: 'Extra album copy', ta: 'கூடுதல் ஆல்பம்' }, price: 7500, note: { en: 'For parents or in-laws', ta: 'பெற்றோர் / சம்பந்திக்கு' } },
-  { key: 'preshoot', name: { en: 'Pre-event outdoor shoot', ta: 'முன் வெளிப்புறப் படப்பிடிப்பு' }, price: 15000, note: { en: 'Half-day, one location', ta: 'அரை நாள், ஒரு இடம்' } },
-  { key: 'booth', name: { en: 'Instant photo booth', ta: 'உடனடி போட்டோ பூத்' }, price: 9000, note: { en: 'Printed keepsakes', ta: 'அச்சிட்ட நினைவுப் படங்கள்' } },
-]
 
 // ─── Order pipeline ──────────────────────────────────────────────────────────
 

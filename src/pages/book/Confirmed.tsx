@@ -7,7 +7,8 @@ import { Kolam, Ornament, TempleBorder, Vilakku } from '../../components/tamil'
 import { COMMON, formatDate, formatINR, useLang, useT, type Bi } from '../../lib/i18n'
 import { toast, useTitle } from '../../lib/ui'
 import { useStore, type Order } from '../../lib/store'
-import { ADDONS, PACKAGES, VENUES, districtName, eventByKey } from '../../lib/data'
+import { VENUES, districtName, eventByKey } from '../../lib/data'
+import { cartExtras, cartLabel } from '../../lib/catalogue'
 import { formatTime, hoursLabel } from './shared'
 
 const copy = {
@@ -161,8 +162,8 @@ function CheckMoment() {
         ))}
       <div className="absolute inset-0 rounded-full bg-ruby/15 blur-2xl" />
       <svg viewBox="0 0 120 120" className="relative h-32 w-32">
-        <motion.circle cx="60" cy="60" r="56" fill="none" stroke="#c0163c" strokeWidth="2" strokeLinecap="round" initial={{ pathLength: 0, rotate: -90 }} animate={{ pathLength: 1 }} transition={{ duration: 1, ease: [0.65, 0, 0.35, 1] }} style={{ originX: '50%', originY: '50%' }} />
-        <motion.circle cx="60" cy="60" r="46" fill="#c0163c" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.7, delay: 0.55, ease: EASE }} style={{ originX: '50%', originY: '50%' }} />
+        <motion.circle cx="60" cy="60" r="56" fill="none" stroke="#9b111e" strokeWidth="2" strokeLinecap="round" initial={{ pathLength: 0, rotate: -90 }} animate={{ pathLength: 1 }} transition={{ duration: 1, ease: [0.65, 0, 0.35, 1] }} style={{ originX: '50%', originY: '50%' }} />
+        <motion.circle cx="60" cy="60" r="46" fill="#9b111e" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.7, delay: 0.55, ease: EASE }} style={{ originX: '50%', originY: '50%' }} />
         <motion.path d="M40 61 L54 75 L81 46" fill="none" stroke="#fff" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.55, delay: 0.95, ease: [0.65, 0, 0.35, 1] }} />
       </svg>
     </div>
@@ -189,8 +190,7 @@ function OrderSummary({ order }: { order: Order }) {
   const t = useT(copy)
   const ev = eventByKey(order.eventType)
   const venue = VENUES.find(v => v.key === order.venueType)
-  const pkg = PACKAGES.find(p => p.key === order.packageId)
-  const extras = order.addons.map(a => ADDONS.find(x => x.key === a)?.name[lang]).filter(Boolean)
+  const extras = cartExtras(order.cart).map(({ item, qty }) => `${item.name[lang]}${qty > 1 ? ` × ${qty}` : ''}`)
   const rows: { icon: IconName; value: string; sub?: string }[] = [
     { icon: 'sparkle', value: ev?.name[lang] ?? order.eventType, sub: hoursLabel(order.durationHours, lang) },
     { icon: 'mapPin', value: [venue?.name[lang], order.venueName].filter(Boolean).join(' · '), sub: `${order.venueAddress} · ${districtName(order.district, lang)}` },
@@ -199,7 +199,7 @@ function OrderSummary({ order }: { order: Order }) {
       value: formatDate(order.date, lang, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
       sub: [order.time && formatTime(order.time, lang), order.dateCertainty === 'tentative' && t.tentative].filter(Boolean).join(' · ') || undefined,
     },
-    { icon: 'gem', value: pkg?.name[lang] ?? '', sub: extras.length ? extras.join(', ') : undefined },
+    { icon: 'gem', value: cartLabel(order.cart)[lang], sub: extras.length ? extras.join(', ') : undefined },
   ]
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-[30px] border hairline bg-white shadow-soft">

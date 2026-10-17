@@ -374,7 +374,7 @@ function MissingOrder({ onSignOut }: { onSignOut: () => void }) {
           transition={{ duration: 0.9, ease: EASE }}
           className="glass-strong mx-auto max-w-xl rounded-[28px] p-6 text-center sm:rounded-[32px] sm:p-8 md:p-12"
         >
-          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-ruby-soft text-ruby">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl glass-ruby-tint text-ruby">
             <Icon name="search" size={24} />
           </span>
           <h1 className="t-3 mt-6 text-balance">{t.missingTitle}</h1>

@@ -3,7 +3,7 @@
 
 /* ─────────────────────────────────────────────────────────────────────────────
    DESIGN TOKENS
-   Palette is strictly black · white · ruby. Neutral greys are tints of ink.
+   Palette is strictly black · white · gemstone ruby (#9b111e). Neutral greys are tints of ink.
    Font families switch by language through the --ff-* variables below.
    ───────────────────────────────────────────────────────────────────────────── */
 
@@ -14,10 +14,11 @@
   --color-paper: #ffffff;
   --color-mist: #f4f4f5;
   --color-smoke: #e7e7e9;
-  --color-ruby: #c0163c;
-  --color-ruby-deep: #8c0d2b;
-  --color-ruby-bright: #e2264f;
-  --color-ruby-soft: #fcecef;
+  --color-ruby: #9b111e;
+  --color-ruby-deep: #6e0b1a;
+  --color-ruby-bright: #c41e3a;
+  --color-ruby-glow: #e0115f;
+  --color-ruby-soft: #fbe9eb;
 
   --font-display: var(--ff-display);
   --font-sans: var(--ff-sans);
@@ -106,6 +107,18 @@ html.lenis, html.lenis body { height: auto; }
 .italic-accent { font-family: var(--ff-accent); font-style: italic; }
 :root[lang='ta'] .italic-accent { font-style: normal; }
 
+/* Tamil runs ~35% longer and Hind Madurai has a tall x-height, so the whole
+   rem scale steps down 6%, body leading opens, and the uppercase tracking the
+   English UI relies on (which Tamil has no use for) is removed everywhere. */
+:root[lang='ta'] { font-size: 93.75%; }
+:root[lang='ta'] body { line-height: 1.65; }
+:root[lang='ta'] [class*='tracking-'] { letter-spacing: 0 !important; }
+:root[lang='ta'] button, :root[lang='ta'] a, :root[lang='ta'] label { letter-spacing: 0; }
+:root[lang='ta'] .t-label { font-size: 0.7rem; line-height: 1.4; }
+:root[lang='ta'] .t-eyebrow { font-size: 0.74rem; line-height: 1.4; }
+:root[lang='ta'] .font-display { line-height: 1.25; }
+:root[lang='ta'] p, :root[lang='ta'] li { overflow-wrap: break-word; }
+
 /* Phones: tighter tracking so eyebrows fit one line, and Tamil words may break rather than overflow. */
 @media (max-width: 47.99rem) {
   .t-eyebrow { letter-spacing: 0.18em; }
@@ -123,74 +136,139 @@ html.lenis, html.lenis body { height: auto; }
    ───────────────────────────────────────────────────────────────────────────── */
 
 .glass {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.52));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 45%),
+    linear-gradient(165deg, rgba(255, 246, 247, 0.74), rgba(251, 233, 235, 0.58));
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(155, 17, 30, 0.14);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.8),
-    0 1px 2px rgba(10, 10, 11, 0.04),
-    0 12px 40px -12px rgba(10, 10, 11, 0.14);
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 1px 2px rgba(155, 17, 30, 0.05),
+    0 12px 40px -12px rgba(155, 17, 30, 0.22);
 }
 
 .glass-strong {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.74));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 40%),
+    linear-gradient(165deg, rgba(255, 250, 250, 0.9), rgba(251, 236, 238, 0.8));
   backdrop-filter: blur(30px) saturate(190%);
   -webkit-backdrop-filter: blur(30px) saturate(190%);
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(155, 17, 30, 0.16);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    0 1px 2px rgba(10, 10, 11, 0.05),
-    0 24px 60px -20px rgba(10, 10, 11, 0.22);
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 1px 2px rgba(155, 17, 30, 0.06),
+    0 24px 60px -20px rgba(155, 17, 30, 0.3);
 }
 
 .glass-dark {
-  background: linear-gradient(180deg, rgba(28, 28, 31, 0.62), rgba(12, 12, 13, 0.52));
-  backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 40%),
+    linear-gradient(160deg, rgba(64, 12, 20, 0.62), rgba(14, 9, 10, 0.6));
+  backdrop-filter: blur(24px) saturate(170%);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  border: 1px solid rgba(224, 17, 95, 0.2);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.09),
-    0 20px 50px -20px rgba(0, 0, 0, 0.6);
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 20px 50px -20px rgba(110, 11, 26, 0.7);
   color: #fff;
 }
 
 .glass-ruby {
-  background: linear-gradient(180deg, rgba(214, 30, 72, 0.78), rgba(150, 12, 44, 0.72));
-  backdrop-filter: blur(22px) saturate(170%);
-  -webkit-backdrop-filter: blur(22px) saturate(170%);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 42%),
+    linear-gradient(160deg, rgba(196, 30, 58, 0.86), rgba(155, 17, 30, 0.82) 55%, rgba(110, 11, 26, 0.86));
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    0 18px 44px -16px rgba(140, 13, 43, 0.6);
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    inset 0 -1px 0 rgba(110, 11, 26, 0.5),
+    0 1px 2px rgba(110, 11, 26, 0.2),
+    0 20px 48px -16px rgba(155, 17, 30, 0.65);
   color: #fff;
 }
 
-.glass-ruby-tint {
-  background: linear-gradient(180deg, rgba(252, 236, 239, 0.8), rgba(252, 236, 239, 0.58));
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(192, 22, 60, 0.16);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 10px 30px -14px rgba(192, 22, 60, 0.28);
+/* Low-opacity ruby over photography: the image shows through, tinted. */
+.glass-ruby-clear {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 40%),
+    linear-gradient(165deg, rgba(196, 30, 58, 0.34), rgba(155, 17, 30, 0.3));
+  backdrop-filter: blur(22px) saturate(170%);
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 18px 44px -18px rgba(155, 17, 30, 0.5);
+  color: #fff;
 }
 
-.hairline { border-color: rgba(10, 10, 11, 0.08); }
+/* Ruby on black for admin / dashboard / nav over dark heroes. */
+.glass-ruby-dark {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 38%),
+    linear-gradient(160deg, rgba(110, 11, 26, 0.62), rgba(20, 8, 10, 0.72));
+  backdrop-filter: blur(26px) saturate(170%);
+  -webkit-backdrop-filter: blur(26px) saturate(170%);
+  border: 1px solid rgba(224, 17, 95, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 22px 54px -20px rgba(110, 11, 26, 0.75);
+  color: #fff;
+}
+
+/* Pale ruby tint on light surfaces: cards, chips, selected states. */
+.glass-ruby-tint {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 45%),
+    linear-gradient(165deg, rgba(251, 226, 229, 0.9), rgba(248, 214, 219, 0.74));
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(155, 17, 30, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 2px rgba(155, 17, 30, 0.08),
+    0 12px 32px -14px rgba(155, 17, 30, 0.36);
+}
+
+/* Ruby glass hover lift shared by interactive ruby surfaces */
+.glass-ruby-hover { transition: box-shadow 0.3s var(--ease-out-expo), transform 0.3s var(--ease-out-expo), filter 0.3s; }
+.glass-ruby-hover:hover { filter: saturate(115%) brightness(1.06); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42), 0 24px 56px -16px rgba(155, 17, 30, 0.7); }
+
+/* Primary ruby button: gem-like gradient with a specular top edge. */
+.btn-ruby {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 50%),
+    linear-gradient(160deg, #c41e3a, #9b111e 60%, #7d0d1e);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 0 rgba(110, 11, 26, 0.6),
+    0 14px 34px -12px rgba(155, 17, 30, 0.6);
+  color: #fff;
+}
+.btn-ruby:hover { filter: brightness(1.08) saturate(110%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 18px 40px -12px rgba(155, 17, 30, 0.7); }
+
+/* Ruby edge glow used on focused/selected glass. @utility so hover:/focus: variants work. */
+@utility ring-ruby-glow { box-shadow: 0 0 0 1px rgba(155, 17, 30, 0.35), 0 0 0 5px rgba(155, 17, 30, 0.1), 0 0 28px -6px rgba(224, 17, 95, 0.45); }
+
+.hairline { border-color: rgba(155, 17, 30, 0.12); }
 .hairline-dark { border-color: rgba(255, 255, 255, 0.1); }
 
-.shadow-soft { box-shadow: 0 1px 2px rgba(10, 10, 11, 0.04), 0 18px 48px -24px rgba(10, 10, 11, 0.2); }
-.shadow-ruby { box-shadow: 0 14px 34px -12px rgba(192, 22, 60, 0.55); }
+.shadow-soft { box-shadow: 0 1px 2px rgba(155, 17, 30, 0.05), 0 18px 48px -24px rgba(155, 17, 30, 0.28); }
+.shadow-ruby { box-shadow: 0 14px 34px -12px rgba(155, 17, 30, 0.55); }
 
 /* Soft ruby/black ambient light used behind glass so the blur has something to refract */
 .ambient {
   background:
-    radial-gradient(60% 50% at 12% 0%, rgba(192, 22, 60, 0.1), transparent 70%),
+    radial-gradient(60% 50% at 12% 0%, rgba(155, 17, 30, 0.14), transparent 70%),
     radial-gradient(50% 45% at 100% 30%, rgba(10, 10, 11, 0.06), transparent 70%),
-    radial-gradient(60% 50% at 40% 100%, rgba(192, 22, 60, 0.07), transparent 70%);
+    radial-gradient(60% 50% at 40% 100%, rgba(155, 17, 30, 0.1), transparent 70%);
 }
 .ambient-dark {
   background:
-    radial-gradient(55% 45% at 15% 0%, rgba(192, 22, 60, 0.28), transparent 70%),
-    radial-gradient(45% 40% at 100% 60%, rgba(192, 22, 60, 0.14), transparent 70%),
+    radial-gradient(55% 45% at 15% 0%, rgba(155, 17, 30, 0.36), transparent 70%),
+    radial-gradient(45% 40% at 100% 60%, rgba(196, 30, 58, 0.18), transparent 70%),
     #0a0a0b;
 }
 
@@ -211,17 +289,17 @@ html.lenis, html.lenis body { height: auto; }
    ───────────────────────────────────────────────────────────────────────────── */
 
 .kolam-bg {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23c0163c' stroke-width='1' opacity='0.55'%3E%3Cpath d='M28 6 L50 28 L28 50 L6 28 Z'/%3E%3Ccircle cx='28' cy='28' r='7'/%3E%3C/g%3E%3Cg fill='%23c0163c' opacity='0.7'%3E%3Ccircle cx='28' cy='28' r='1.6'/%3E%3Ccircle cx='0' cy='0' r='1.6'/%3E%3Ccircle cx='56' cy='0' r='1.6'/%3E%3Ccircle cx='0' cy='56' r='1.6'/%3E%3Ccircle cx='56' cy='56' r='1.6'/%3E%3C/g%3E%3C/svg%3E");
-  background-size: 56px 56px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%239b111e' stroke-width='0.75' opacity='0.3'%3E%3Cpath d='M28 6 L50 28 L28 50 L6 28 Z'/%3E%3Ccircle cx='28' cy='28' r='7'/%3E%3C/g%3E%3Cg fill='%239b111e' opacity='0.4'%3E%3Ccircle cx='28' cy='28' r='1.6'/%3E%3Ccircle cx='0' cy='0' r='1.6'/%3E%3Ccircle cx='56' cy='0' r='1.6'/%3E%3Ccircle cx='0' cy='56' r='1.6'/%3E%3Ccircle cx='56' cy='56' r='1.6'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 72px 72px;
 }
 .kolam-bg-white {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1' opacity='0.5'%3E%3Cpath d='M28 6 L50 28 L28 50 L6 28 Z'/%3E%3Ccircle cx='28' cy='28' r='7'/%3E%3C/g%3E%3Cg fill='%23ffffff' opacity='0.6'%3E%3Ccircle cx='28' cy='28' r='1.6'/%3E%3Ccircle cx='0' cy='0' r='1.6'/%3E%3Ccircle cx='56' cy='0' r='1.6'/%3E%3Ccircle cx='0' cy='56' r='1.6'/%3E%3Ccircle cx='56' cy='56' r='1.6'/%3E%3C/g%3E%3C/svg%3E");
-  background-size: 56px 56px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='0.75' opacity='0.32'%3E%3Cpath d='M28 6 L50 28 L28 50 L6 28 Z'/%3E%3Ccircle cx='28' cy='28' r='7'/%3E%3C/g%3E%3Cg fill='%23ffffff' opacity='0.4'%3E%3Ccircle cx='28' cy='28' r='1.6'/%3E%3Ccircle cx='0' cy='0' r='1.6'/%3E%3Ccircle cx='56' cy='0' r='1.6'/%3E%3Ccircle cx='0' cy='56' r='1.6'/%3E%3Ccircle cx='56' cy='56' r='1.6'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 72px 72px;
 }
 
 .temple-border {
   height: 14px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='14' viewBox='0 0 28 14'%3E%3Cpath d='M0 14 L7 2 L14 14 L21 2 L28 14 Z' fill='%23c0163c'/%3E%3Ccircle cx='7' cy='9' r='1.4' fill='%23ffffff'/%3E%3Ccircle cx='21' cy='9' r='1.4' fill='%23ffffff'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='14' viewBox='0 0 28 14'%3E%3Cpath d='M0 14 L7 2 L14 14 L21 2 L28 14 Z' fill='%239b111e'/%3E%3Ccircle cx='7' cy='9' r='1.4' fill='%23ffffff'/%3E%3Ccircle cx='21' cy='9' r='1.4' fill='%23ffffff'/%3E%3C/svg%3E");
   background-size: 28px 14px;
   background-repeat: repeat-x;
 }

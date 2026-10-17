@@ -7,7 +7,8 @@ import { EASE, Reveal } from '../../components/motion'
 import { KolamCorner } from '../../components/tamil'
 import { formatDate, useLang, useT, type Bi, type Lang } from '../../lib/i18n'
 import { IMG, type ImgKey } from '../../lib/images'
-import { PROOF_CATEGORY, PROOF_EXTRAS, PROOF_SETS, STATUS_ORDER, statusName, type GalleryCover, type OrderStatus, type PackageKey, type ProofCategory } from '../../lib/data'
+import { PROOF_CATEGORY, PROOF_EXTRAS, PROOF_SETS, STATUS_ORDER, statusName, type GalleryCover, type OrderStatus, type ProofCategory } from '../../lib/data'
+import { albumSheets } from '../../lib/catalogue'
 import type { Order } from '../../lib/store'
 
 /*
@@ -33,9 +34,10 @@ export const albumEditable = (o: Order) => albumUnlocked(o) && stageIdx(o.status
 export const firstName = (name: string) => name.split(/\s*&\s*|\s+/)[0] || name
 
 /** Album sheets bundled into each package; anything above is charged per sheet. */
-export const INCLUDED_SHEETS: Record<PackageKey, number> = { essential: 0, signature: 30, heirloom: 40 }
-/** How many proofs each package's album is designed around. */
-export const PHOTO_QUOTA: Record<PackageKey, number> = { essential: 24, signature: 30, heirloom: 40 }
+/** Album sheets the order's cart includes (0 when soft copies only). */
+export const includedSheets = (o: Order) => albumSheets(o.cart)
+/** How many proofs the album is designed around; soft-copy-only orders still pick a highlight set. */
+export const photoQuota = (o: Order) => albumSheets(o.cart) || 24
 
 // ─── Proof catalogue (mocked GCS listing) ────────────────────────────────────
 
@@ -131,8 +133,8 @@ export function ProgressRing({ value, size = 136, stroke = 10, children, classNa
       <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#e2264f" />
-            <stop offset="1" stopColor="#8c0d2b" />
+            <stop offset="0" stopColor="#c41e3a" />
+            <stop offset="1" stopColor="#6e0b1a" />
           </linearGradient>
         </defs>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="currentColor" strokeWidth={stroke} className={track} />

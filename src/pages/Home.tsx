@@ -2,13 +2,13 @@ import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { AnimatePresence, motion, useMotionValue, useScroll, useSpring, useTransform } from 'motion/react'
 import { Icon } from '../components/Icon'
-import { Button, Container, Eyebrow, Img, LangImg, ListenButton, SectionHeading } from '../components/ui'
+import { Button, Container, Eyebrow, Img, LangImg, ListenButton, SectionHeading, CrossfadeImg } from '../components/ui'
 import { Counter, EASE, ImageReveal, Marquee, Reveal, RevealText, ScrollText, Stagger, StaggerItem } from '../components/motion'
 import { GopuramSkyline, Kolam, Ornament, TamilOnly, Thoranam, Vilakku } from '../components/tamil'
 import { StoryCard, useGalleryItems } from '../components/gallery'
 import { DISTRICTS, EVENTS, districtName, type DistrictKey, type EventKey } from '../lib/data'
 import { GALLERY, storiesForLang } from '../lib/gallery'
-import { IMG, photoUrl, type ImgKey } from '../lib/images'
+import { IMG, photoUrl, type ImgKey, DISTRICT_GALLERY } from '../lib/images'
 import { formatINR, useLang, useT, type Bi } from '../lib/i18n'
 import { startingPrice } from '../lib/pricing'
 import { useStore } from '../lib/store'
@@ -85,6 +85,12 @@ const HOME_EVENT_IMG: Record<EventKey, Bi<ImgKey>> = {
   naming: { en: 'm_baby_hands', ta: 't_diya_hands' },
   birthday: { en: 'm_bday_candles', ta: 't_diya_many' },
   outdoor: { en: 'm_cam_silhouette', ta: 't_temple_frame' },
+  babyshower: { en: 'm_mehndi_hands', ta: 't_jewel_set' },
+  babyshoot: { en: 'm_baby_hat', ta: 't_diya_glow' },
+  prewedding: { en: 'm_couple_pinksky', ta: 't_saree_temple' },
+  model: { en: 'm_bride_studio', ta: 't_dance_pose' },
+  commercial: { en: 'e_commercial_2', ta: 'e_commercial_2' },
+  corporate: { en: 'e_corporate_2', ta: 'e_corporate_2' },
 }
 
 const HOME_MOSAIC: Bi<ImgKey[]> = {
@@ -190,7 +196,7 @@ function Hero() {
             </motion.p>
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.15, duration: 1, ease: EASE }} className="mt-8 grid gap-3 sm:flex sm:flex-wrap md:mt-9">
               <Button to="/book" size="lg" icon="arrowRight" className="w-full sm:w-auto">{t.quote}</Button>
-              <Button to="/gallery" size="lg" variant="glass-dark" className="w-full sm:w-auto">{t.explore}</Button>
+              <Button to="/gallery" size="lg" variant="glass-ruby-clear" className="w-full sm:w-auto">{t.explore}</Button>
             </motion.div>
           </div>
         </Container>
@@ -211,7 +217,7 @@ function Hero() {
 
       {/* Slide caption with story-style progress */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.5, duration: 0.9, ease: EASE }} className={`absolute right-4 z-10 hidden w-72 md:right-8 md:block ${lang === 'ta' ? 'bottom-[calc(max(110px,14.4vw)+1.5rem)]' : 'bottom-6'}`}>
-        <div className="glass-dark rounded-2xl p-4">
+        <div className="glass-ruby-dark rounded-2xl p-4">
           <div className="mb-3 flex gap-1.5">
             {slides.map((s, n) => (
               <button key={s + n} type="button" onClick={() => setI(n)} aria-label={`Slide ${n + 1}`} className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/20 cursor-pointer">
@@ -230,9 +236,7 @@ function Hero() {
         </div>
       </motion.div>
 
-      <TamilOnly>
-        <GopuramSkyline className="pointer-events-none absolute inset-x-0 bottom-0 z-[5]" color="#ffffff" />
-      </TamilOnly>
+      <GopuramSkyline className="pointer-events-none absolute inset-x-0 bottom-0 z-[5]" color="#0a0a0b" opacity={0.94} />
     </section>
   )
 }
@@ -297,7 +301,7 @@ function DistrictGateway() {
           {DISTRICTS.map((d, n) => (
             <StaggerItem key={d.key}>
               <button type="button" onClick={() => choose(d.key)} className={`group relative block w-full overflow-hidden rounded-3xl text-left cursor-pointer ${n === 0 ? 'aspect-[4/5] md:aspect-auto md:h-full' : 'aspect-[4/5]'}`}>
-                <Img k={d.img} w={700} ratio={4 / 5} sizes="(max-width: 768px) 50vw, 25vw" className="absolute inset-0" imgClassName="transition-transform duration-[1.4s] ease-out group-hover:scale-[1.07]" />
+                <CrossfadeImg keys={DISTRICT_GALLERY[d.key] ?? [d.img]} offset={n * 900} w={700} ratio={4 / 5} sizes="(max-width: 768px) 50vw, 25vw" className="absolute inset-0" imgClassName="transition-transform duration-[1.4s] ease-out group-hover:scale-[1.07]" />
                 <span className="absolute inset-0 bg-gradient-to-t from-ink/75 via-ink/5 to-transparent" />
                 {n === 0 && <span className="glass-ruby absolute left-2.5 top-2.5 rounded-full px-2.5 py-1 text-[10.5px] font-semibold md:left-3 md:top-3 md:px-3 md:text-[11px]">{lang === 'ta' ? 'தலைமையகம்' : 'Head studio'}</span>}
                 <span className="absolute inset-x-2.5 bottom-2.5 md:inset-x-3 md:bottom-3">
@@ -412,7 +416,7 @@ function Events() {
                       <span className="mt-1 block text-[13px] leading-snug text-ink/50 md:mt-0.5 md:leading-normal">{ev.blurb[lang]}</span>
                     </span>
                     <span className="hidden text-right text-[13px] text-ink/50 sm:block">
-                      {t.from}<br /><span className="text-base font-semibold text-ink">{formatINR(startingPrice(ev.key))}</span>
+                      {t.from}<br /><span className="text-base font-semibold text-ruby">{formatINR(startingPrice(ev.key))}</span>
                     </span>
                     <Icon name="arrowUpRight" size={20} className="shrink-0 text-ink/30 transition-all duration-300 group-hover:rotate-45 group-hover:text-ruby" />
                   </Link>
@@ -460,12 +464,12 @@ function Stats() {
     { n: 4.9, s: '★', label: t.stat4, decimal: true },
   ]
   return (
-    <section className="relative overflow-hidden bg-ink py-16 text-white md:py-28">
+    <section className="ambient-dark relative overflow-hidden py-16 text-white md:py-28">
       <div className="ambient-dark absolute inset-0" />
       <TamilOnly><div className="kolam-bg-white absolute inset-0 opacity-[0.05]" /></TamilOnly>
-      <Container className="relative grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-4 md:gap-x-0 md:gap-y-12">
+      <Container className="relative grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         {stats.map((s, i) => (
-          <Reveal key={s.label} delay={i * 0.08} className="border-l border-white/12 pl-4 md:pl-7">
+          <Reveal key={s.label} delay={i * 0.08} className="glass-ruby-dark rounded-[22px] p-5 md:rounded-[26px] md:p-7">
             <p className="font-display text-[2.6rem] leading-none sm:text-5xl md:text-7xl">
               {s.decimal ? <span>4.9</span> : <Counter to={s.n} />}
               <span className="text-ruby-bright">{s.s}</span>
@@ -593,7 +597,7 @@ function Testimonials() {
   }, [stories.length, i])
   const s = stories[i]
   return (
-    <section className="relative overflow-hidden bg-ink py-20 text-white md:py-40">
+    <section className="ambient-dark relative overflow-hidden py-20 text-white md:py-40">
       <AnimatePresence>
         <motion.div key={s.slug} className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 0.35 }} exit={{ opacity: 0 }} transition={{ duration: 1.4 }}>
           <Img k={storyCover(s)} w={1600} dark className="h-full w-full scale-110 blur-sm" />
@@ -602,7 +606,7 @@ function Testimonials() {
       <div className="absolute inset-0 bg-ink/50" />
       <Container className="relative flex flex-col items-center text-center">
         <Eyebrow dark>{t.loveEyebrow}</Eyebrow>
-        <div className="glass-dark mt-8 w-full max-w-4xl rounded-[28px] px-5 py-10 md:mt-10 md:rounded-[32px] md:px-16 md:py-16">
+        <div className="glass-ruby-dark mt-8 w-full max-w-4xl rounded-[28px] px-5 py-10 md:mt-10 md:rounded-[32px] md:px-16 md:py-16">
           <Ornament dark className="mb-6 md:mb-8" />
           <AnimatePresence mode="wait">
             <motion.figure key={s.slug + lang} initial={{ opacity: 0, y: 16, filter: 'blur(6px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} exit={{ opacity: 0, y: -10, filter: 'blur(6px)' }} transition={{ duration: 0.7, ease: EASE }}>

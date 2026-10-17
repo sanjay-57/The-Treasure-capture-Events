@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router'
 import { AnimatePresence, motion, useMotionValueEvent, useScroll } from 'motion/react'
 import { useLenis } from 'lenis/react'
-import { Icon, LogoMark } from '../Icon'
+import { Icon } from '../Icon'
 import { Button } from '../ui'
 import { EASE } from '../motion'
 import { Thoranam } from '../tamil'
@@ -23,7 +23,6 @@ export function Logo({ light = false, compact = false }: { light?: boolean; comp
   const lang = useLang()
   return (
     <Link to="/" className="group flex items-center gap-2.5" aria-label={COMMON.brand[lang]}>
-      <LogoMark size={30} className="transition-transform duration-500 group-hover:rotate-[8deg] group-hover:scale-105" />
       {!compact && (
         <span className={`leading-none ${light ? 'text-white' : 'text-ink'}`}>
           <span className="block whitespace-nowrap text-[19px] font-semibold tracking-tight" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
@@ -162,20 +161,20 @@ export function Nav() {
         <div className="pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-2 md:pl-[max(0.75rem,env(safe-area-inset-left))] md:pr-[max(0.75rem,env(safe-area-inset-right))] md:pt-3">
           <nav
             className={`relative mx-auto flex h-[60px] max-w-6xl items-center justify-between rounded-full pl-3 pr-1.5 transition-all duration-500 md:pl-5 md:pr-2 ${
-              solidDark ? 'glass-dark' : onDark ? 'bg-white/[0.06] border border-white/15 backdrop-blur-xl' : 'glass-strong'
+              solidDark ? 'glass-ruby-dark' : onDark ? 'bg-ruby-deep/15 border border-white/15 backdrop-blur-xl' : 'glass-strong'
             }`}
             aria-label="Main"
           >
             <Logo light={onDark} />
 
-            <ul className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 lg:flex">
+            <ul className={`absolute left-1/2 hidden -translate-x-1/2 items-center lg:flex ${lang === 'ta' ? 'gap-0' : 'gap-1'}`}>
               {LINKS.map(l => (
                 <li key={l.to}>
                   <NavLink
                     to={l.to}
                     end={l.to === '/'}
                     className={({ isActive }) =>
-                      `relative block rounded-full px-3.5 py-2 text-[14px] font-medium transition-colors duration-300 ${
+                      `relative block rounded-full py-2 font-medium transition-colors duration-300 ${lang === 'ta' ? 'px-2.5 text-[13px]' : 'px-3.5 text-[14px]'} ${
                         isActive ? (onDark ? 'text-white' : 'text-ink') : onDark ? 'text-white/70 hover:text-white' : 'text-ink/60 hover:text-ink'
                       }`
                     }

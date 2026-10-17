@@ -31,7 +31,7 @@ export function Footer() {
     <footer className="relative mt-auto overflow-hidden bg-ink text-white">
       <TamilOnly>
         <TempleBorder flip />
-        <GopuramSkyline className="pointer-events-none absolute inset-x-0 top-3" color="#c0163c" opacity={0.16} />
+        <GopuramSkyline className="pointer-events-none absolute inset-x-0 top-3" color="var(--color-ruby)" opacity={0.16} />
       </TamilOnly>
       <div className="ambient-dark grain absolute inset-0 opacity-80" />
 
@@ -45,7 +45,7 @@ export function Footer() {
           </div>
           <Reveal delay={0.3} className="grid gap-3 sm:flex sm:flex-wrap md:justify-end">
             <Button to="/book" size="lg" icon="arrowRight" className="w-full sm:w-auto">{c.getQuote}</Button>
-            <Button href={`https://wa.me/${wa}`} size="lg" variant="glass-dark" iconLeft="whatsapp" className="w-full sm:w-auto">{t.whatsapp}</Button>
+            <Button href={`https://wa.me/${wa}`} size="lg" variant="glass-ruby" iconLeft="whatsapp" className="w-full sm:w-auto">{t.whatsapp}</Button>
           </Reveal>
         </div>
 

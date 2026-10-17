@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react'
-import { Field, LangImg, Segmented, Badge } from '../../components/ui'
+import { DatePicker, Field, LangImg, Segmented, Badge, TimePicker } from '../../components/ui'
 import { Icon } from '../../components/Icon'
 import { Reveal, EASE } from '../../components/motion'
 import { KolamCorner, Ornament, TempleBorder } from '../../components/tamil'
@@ -336,16 +336,12 @@ function DistanceMeter() {
 
 // ─── Date & time ─────────────────────────────────────────────────────────────
 
-const inputCls =
-  'h-[52px] w-full min-w-0 rounded-2xl border border-ink/10 bg-white/80 pl-11 pr-4 text-base text-ink [&::-webkit-date-and-time-value]:text-left md:text-[15px] outline-none transition-all duration-200 focus:border-ruby focus:bg-white focus:ring-4 focus:ring-ruby/10 [color-scheme:light]'
 
 function DateTime() {
   const lang = useLang()
   const t = useT(copy)
   const draft = useStore(s => s.draft)
   const updateDraft = useStore(s => s.updateDraft)
-  const dateId = useId()
-  const timeId = useId()
   const min = todayISO()
   const tentative = draft.dateCertainty === 'tentative'
   const days = draft.date ? Math.round((new Date(draft.date + 'T00:00:00').getTime() - new Date(min + 'T00:00:00').getTime()) / 864e5) : null
@@ -362,57 +358,48 @@ function DateTime() {
           ]}
         />
 
-        <div className="mt-6 grid gap-5 sm:grid-cols-2">
-          <div>
-            <label htmlFor={dateId} className="t-label mb-2 flex items-center gap-1 text-ink/55">
+        <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+          <div className="flex flex-col">
+            <p className="t-label mb-2 flex items-center gap-1 text-ink/55">
+              <Icon name="calendar" size={14} className="text-ruby" />
               {tentative ? t.approxDate : t.date}
               <span className="text-ruby">*</span>
-            </label>
-            <div className="relative">
-              <Icon name="calendar" size={17} className="pointer-events-none absolute left-4 top-[17px] text-ink/35" />
-              <input
-                id={dateId}
-                type="date"
-                min={min}
-                value={draft.date}
-                required
-                onChange={e => {
-                  const v = e.target.value
-                  updateDraft({ date: v && v < min ? min : v })
-                }}
-                className={inputCls}
-              />
-            </div>
+            </p>
+            <DatePicker value={draft.date} onChange={d => updateDraft({ date: d && d < min ? min : d })} min={min} lang={lang} className="flex-1" />
           </div>
-          <div>
-            <label htmlFor={timeId} className="t-label mb-2 flex items-center gap-1 text-ink/55">
+          <div className="flex min-w-0 flex-col">
+            <p className="t-label mb-2 flex items-center gap-1 text-ink/55">
+              <Icon name="clock" size={14} className="text-ruby" />
               {t.time}
-            </label>
-            <div className="relative">
-              <Icon name="clock" size={17} className="pointer-events-none absolute left-4 top-[17px] text-ink/35" />
-              <input id={timeId} type="time" value={draft.time} onChange={e => updateDraft({ time: e.target.value })} className={inputCls} />
-            </div>
-            <p className="mt-1.5 text-xs text-ink/45">{t.timeHint}</p>
+              <span className="ml-auto text-[11px] font-medium normal-case tracking-normal text-ink/40">{t.timeHint}</span>
+            </p>
+            <TimePicker value={draft.time} onChange={time => updateDraft({ time })} lang={lang} />
+            <motion.div
+              key={draft.date + draft.time + draft.dateCertainty + lang}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: EASE }}
+              className={`mt-4 flex flex-1 flex-col justify-center rounded-[22px] px-5 py-5 ${draft.date ? 'bg-gradient-to-br from-ruby-deep via-[#5c0c1a] to-ink text-white shadow-ruby' : 'border border-dashed border-ruby/25 text-ink/40'}`}
+            >
+              {draft.date ? (
+                <>
+                  <p className="t-label text-white/55">{tentative ? t.approxDate : t.date}</p>
+                  <p className="mt-1.5 font-display text-[1.45rem] font-semibold leading-tight md:text-[1.6rem]">
+                    {formatDate(draft.date, lang, { weekday: 'long', day: 'numeric', month: 'long' })}
+                  </p>
+                  <p className="mt-1 text-[14px] text-white/70">
+                    {formatDate(draft.date, lang, { year: 'numeric' })}
+                    {draft.time && <> · {new Date(`2000-01-01T${draft.time}:00`).toLocaleTimeString(lang === 'ta' ? 'ta-IN' : 'en-IN', { hour: 'numeric', minute: '2-digit' })}</>}
+                  </p>
+                  {days !== null && days >= 0 && <p className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-white/12 px-3 py-1 text-[12.5px] font-medium">{days === 0 ? t.today : `${days} ${t.daysAway}`}</p>}
+                </>
+              ) : (
+                <p className="text-center text-[13.5px]">{lang === 'ta' ? 'தேதியைத் தேர்ந்தெடுங்கள்' : 'Pick a date to see your booking day here'}</p>
+              )}
+            </motion.div>
           </div>
         </div>
 
-        {draft.date && (
-          <motion.div
-            key={draft.date + draft.dateCertainty + lang}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: EASE }}
-            className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl bg-ink/[0.04] px-4 py-3.5"
-          >
-            <Icon name="calendar" size={18} className="text-ruby" />
-            <p className="font-display text-[1.1rem] font-semibold text-ink md:text-[1.2rem]">
-              {formatDate(draft.date, lang, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
-            {days !== null && days >= 0 && (
-              <span className="text-[13px] text-ink/50">{days === 0 ? t.today : `${days} ${t.daysAway}`}</span>
-            )}
-          </motion.div>
-        )}
         {tentative && <p className="mt-4 flex items-start gap-2 text-[13px] leading-relaxed text-ink/55"><Icon name="info" size={15} className="mt-0.5 text-ruby" />{t.tentativeHint}</p>}
       </div>
     </Reveal>

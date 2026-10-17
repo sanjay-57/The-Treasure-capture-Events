@@ -183,13 +183,34 @@ export const IMG = {
   t_manjal_shower: { id: "1681717166573-f71589207785", w: 4000, h: 6000, alt: "a woman is covered in yellow powder and water" },
   t_manjal_pot: { id: "1671339911435-9c5b004eb5bf", w: 6000, h: 3376, alt: "a person holding a wooden stick and a clay pot" },
   // District landmarks (d_), shown on the district pickers.
-  d_madurai: { id: "1692173248120-59547c3d4653", w: 5521, h: 4000, alt: "Meenakshi Amman temple gopuram rising above the trees, Madurai" },
-  d_chennai: { id: "1616843413587-9e3a37f7bbd8", w: 3024, h: 4032, alt: "A colourful temple gopuram against a clear blue sky, Chennai" },
-  d_coimbatore: { id: "1595433306946-233f47e4af3a", w: 6000, h: 4000, alt: "Misty Western Ghats foothills at golden hour near Coimbatore" },
-  d_salem: { id: "1644902027101-b04200c6ea38", w: 3000, h: 4000, alt: "A hillside village among the forests of Yercaud, Salem" },
+  d_madurai: { id: "1677434654722-69e7ba88b4ef", w: 4000, h: 6000, alt: "Meenakshi Amman temple gopuram crowded with painted deities, Madurai" },
+  d_madurai_2: { id: "1732883247945-896e63ee644a", w: 4000, h: 5160, alt: "A tall gopuram of Meenakshi Amman temple against the sky, Madurai" },
+  d_madurai_3: { id: "1692173248120-59547c3d4653", w: 5521, h: 4000, alt: "Meenakshi Amman temple gopuram rising above the trees, Madurai" },
+  d_chennai: { id: "1563715493579-e0b3e0493b60", w: 4000, h: 4140, alt: "Kapaleeshwarar temple gopuram under blue skies, Mylapore, Chennai" },
+  d_chennai_2: { id: "1724992609113-bb30249a2573", w: 6000, h: 4000, alt: "Aerial view of Chennai with Marina beach in the background" },
+  d_chennai_3: { id: "1570553305204-149983b3d081", w: 4000, h: 7110, alt: "A wave breaking at golden hour on the Chennai coast" },
+  d_coimbatore: { id: "1609609830354-8f615d61b9c8", w: 6000, h: 3375, alt: "The Adiyogi Shiva statue against a blue sky, Isha Yoga Center, Coimbatore" },
+  d_coimbatore_2: { id: "1749059193981-b8f50a78e7dd", w: 6000, h: 4000, alt: "The Adiyogi statue under a cloudy sky, Coimbatore" },
+  d_coimbatore_3: { id: "1595433306946-233f47e4af3a", w: 6000, h: 4000, alt: "Misty Western Ghats foothills at golden hour near Coimbatore" },
+  d_thanjavur: { id: "1759134334340-9398d9814bcb", w: 4000, h: 6000, alt: "The vimana of Brihadeeswarar temple, Thanjavur" },
+  d_thanjavur_2: { id: "1759134334610-488eb3937c82", w: 6000, h: 4000, alt: "Brihadeeswarar temple complex under a cloudy sky, Thanjavur" },
+  d_thanjavur_3: { id: "1668766036774-2a9f3ba68fc6", w: 6000, h: 8000, alt: "Stone gateway with Brihadeeswarar temple behind, Thanjavur" },
+  d_salem: { id: "1565195160611-251c9f88dc9c", w: 6000, h: 3375, alt: "Green-leafed hills of Yercaud, Salem" },
+  d_salem_2: { id: "1644902027101-b04200c6ea38", w: 3000, h: 4000, alt: "A hillside village among the forests of Yercaud, Salem" },
+  d_salem_3: { id: "1658417992443-cb5580571eab", w: 4000, h: 3000, alt: "Mountain ranges stretching into the haze near Yercaud" },
   d_tirunelveli: { id: "1728454574591-7f04866da195", w: 4330, h: 5773, alt: "The Thamirabarani river winding between green banks, Tirunelveli" },
-  d_theni: { id: "1698338123678-21b665ff680c", w: 4032, h: 3024, alt: "Rolling tea estates in the hills near Theni" },
+  d_tirunelveli_2: { id: "1603766806347-54cdf3745953", w: 6000, h: 4000, alt: "A carved stone temple shrine in warm golden-hour light" },
+  d_tirunelveli_3: { id: "1644061923021-96308e055db7", w: 6000, h: 4000, alt: "Tall green grass under a blue sky near Tirunelveli" },
+  d_theni: { id: "1698338324356-65f03bf40bbd", w: 6000, h: 8000, alt: "Tea plantation rows on the hills near Theni" },
+  d_theni_2: { id: "1697105736790-72114a1ad088", w: 4000, h: 6000, alt: "A lush green valley below the hills, Theni" },
+  d_theni_3: { id: "1698338123678-21b665ff680c", w: 4032, h: 3024, alt: "Rolling tea estates in the hills near Theni" },
   d_dindigul: { id: "1734007741768-0d55ed0cc02b", w: 3653, h: 5479, alt: "Pillar Rocks wrapped in mist, Kodaikanal" },
+  d_dindigul_2: { id: "1692792284356-f80113facd09", w: 6000, h: 4000, alt: "A Kodaikanal hillside covered in fog and cloud" },
+  d_dindigul_3: { id: "1682868485021-02db6876225b", w: 6000, h: 3375, alt: "A village on a mountainside near Kodaikanal" },
+  e_commercial: { id: "1697301439930-2405c5347e1f", w: 4000, h: 6000, alt: "A cologne bottle and its box lit for a product advertisement" },
+  e_commercial_2: { id: "1631573576452-a073df952614", w: 4000, h: 6000, alt: "A perfume bottle on a table in studio light" },
+  e_corporate: { id: "1775113586139-b583cc93517f", w: 6000, h: 4000, alt: "A speaker at a podium during a corporate event" },
+  e_corporate_2: { id: "1562649268-bd8fa4cf7ad7", w: 6000, h: 4000, alt: "A team standing together on a conference stage" },
 } satisfies Record<string, Photo>
 
 export type ImgKey = keyof typeof IMG
@@ -208,3 +229,16 @@ export function photoSrcSet(key: ImgKey, widths = [480, 800, 1200, 1800], ratio?
 export function photoRatio(key: ImgKey): number {
   return IMG[key].w / IMG[key].h
 }
+
+/** Several photos per district, cycled in the district pickers. First entry is the hero shot. */
+export const DISTRICT_GALLERY: Record<string, ImgKey[]> = {
+  madurai: ['d_madurai', 'd_madurai_2', 'd_madurai_3'],
+  chennai: ['d_chennai', 'd_chennai_2', 'd_chennai_3'],
+  coimbatore: ['d_coimbatore', 'd_coimbatore_2', 'd_coimbatore_3'],
+  thanjavur: ['d_thanjavur', 'd_thanjavur_2', 'd_thanjavur_3'],
+  salem: ['d_salem', 'd_salem_2', 'd_salem_3'],
+  tirunelveli: ['d_tirunelveli', 'd_tirunelveli_2', 'd_tirunelveli_3'],
+  theni: ['d_theni', 'd_theni_2', 'd_theni_3'],
+  dindigul: ['d_dindigul', 'd_dindigul_2', 'd_dindigul_3'],
+}
+

@@ -97,7 +97,7 @@ export function Thoranam({ className = '', dark = false }: { className?: string;
   return (
     <div className={`pointer-events-none flex overflow-hidden ${className}`} aria-hidden="true">
       {Array.from({ length: 64 }, (_, i) => (
-        <ThoranamUnit key={i} i={i} leaf="#c0163c" flower={dark ? '#0a0a0b' : '#ffffff'} />
+        <ThoranamUnit key={i} i={i} leaf="var(--color-ruby)" flower={dark ? '#0a0a0b' : '#ffffff'} />
       ))}
     </div>
   )
@@ -118,18 +118,18 @@ function Flame({ x, y, delay }: { x: number; y: number; delay: number }) {
 
 /** Traditional five-faced lamp with flickering flames. */
 export function Vilakku({ height = 160, className = '', tone = 'ink' }: { height?: number; className?: string; tone?: 'ink' | 'white' | 'ruby' }) {
-  const body = tone === 'white' ? '#ffffff' : tone === 'ruby' ? '#c0163c' : '#0a0a0b'
+  const body = tone === 'white' ? '#ffffff' : tone === 'ruby' ? 'var(--color-ruby)' : '#0a0a0b'
   return (
     <svg height={height} viewBox="0 0 80 160" className={className} aria-hidden="true">
       <defs>
         <radialGradient id="flame" cx="0.5" cy="0.8" r="0.8">
           <stop offset="0" stopColor="#ffffff" />
           <stop offset="0.35" stopColor="#ff5a7a" />
-          <stop offset="1" stopColor="#c0163c" />
+          <stop offset="1" stopColor="var(--color-ruby)" />
         </radialGradient>
         <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0" stopColor="#e2264f" stopOpacity="0.45" />
-          <stop offset="1" stopColor="#e2264f" stopOpacity="0" />
+          <stop offset="0" stopColor="var(--color-ruby-bright)" stopOpacity="0.45" />
+          <stop offset="1" stopColor="var(--color-ruby-bright)" stopOpacity="0" />
         </radialGradient>
       </defs>
       <ellipse cx="40" cy="44" rx="40" ry="26" fill="url(#glow)" />
@@ -186,101 +186,106 @@ function kalasam(x: number, baseY: number, s: number): string {
 
 interface Shape { d: string; cut: string }
 
+/**
+ * Gopuram (gateway tower) after Madurai Meenakshi and Srirangam: a tall stone
+ * storey with a doorway, then many close-set talas that taper on a concave
+ * curve, each with a thin projecting cornice and small corner pavilions, and a
+ * long low barrel-vault crown carrying a row of kalasams.
+ */
 function gopuram(cx: number, baseW: number, h: number, tiers: number): Shape {
   let d = ''
   let cut = ''
   const s = h / 150
-  // Stone base storey with a moulded plinth and cornice.
-  const baseH = h * 0.2
-  let y = GROUND - baseH
-  d += rect(cx - baseW / 2 - 3 * s, GROUND - 5 * s, baseW + 6 * s, 5 * s)
-  d += rect(cx - baseW / 2, y, baseW, baseH)
-  d += rect(cx - baseW / 2 - 3 * s, y - 2.5 * s, baseW + 6 * s, 3 * s)
-  // Doorway: tall opening with a rounded top.
-  const dw = baseW * 0.2
-  const dh = baseH * 0.78
+  const baseH = h * 0.23
+  d += rect(cx - baseW / 2 - 5 * s, GROUND - 6 * s, baseW + 10 * s, 6 * s)
+  d += rect(cx - baseW / 2, GROUND - baseH, baseW, baseH)
+  d += rect(cx - baseW / 2 - 4 * s, GROUND - baseH - 3 * s, baseW + 8 * s, 3 * s)
+  const dw = baseW * 0.16
+  const dh = baseH * 0.86
   cut += `M${cx - dw / 2} ${GROUND}V${GROUND - dh + dw / 2}A${dw / 2} ${dw / 2} 0 0 1 ${cx + dw / 2} ${GROUND - dh + dw / 2}V${GROUND}Z`
-  y -= 2.5 * s
+  let y = GROUND - baseH - 3 * s
 
-  // Tiers (talas): each tapers, carries a projecting cornice and corner pavilions.
-  const towerH = h * 0.6
+  const towerH = h * 0.62
   const th = towerH / tiers
   const w0 = baseW * 0.9
   const wTop = baseW * 0.34
+  const wAt = (t: number) => wTop + (w0 - wTop) * Math.pow(1 - t, 1.35)
   for (let i = 0; i < tiers; i++) {
-    const wb = lerp(w0, wTop, i / tiers)
-    const wt = lerp(w0, wTop, (i + 1) / tiers)
-    const bodyH = th * 0.74
+    const wb = wAt(i / tiers)
+    const wt = wAt((i + 1) / tiers)
+    const bodyH = th * 0.72
     d += `M${cx - wb / 2} ${y}L${cx - wt / 2} ${y - bodyH}L${cx + wt / 2} ${y - bodyH}L${cx + wb / 2} ${y}Z`
-    // Niches down the face of each tier.
-    for (const f of [-0.28, 0, 0.28]) cut += rect(cx + f * wt - th * 0.09, y - bodyH * 0.8, th * 0.18, bodyH * 0.55)
     y -= bodyH
-    const ledgeH = th * 0.26
+    const ledgeH = th * 0.28
     d += rect(cx - wt / 2 - 2.5 * s, y - ledgeH, wt + 5 * s, ledgeH)
-    // Corner pavilions (karnakutas) sitting on the ledge ends.
-    const k = th * 0.34
-    for (const side of [-1, 1]) {
-      const kx = cx + side * (wt / 2 - k * 0.2)
-      d += `M${kx - k / 2} ${y - ledgeH}Q${kx} ${y - ledgeH - k * 1.2} ${kx + k / 2} ${y - ledgeH}Z`
-    }
     y -= ledgeH
+    // Small corner pavilions: a low square cell, no dome, so the outline stays calm.
+    const k = Math.min(th * 0.36, wt * 0.16)
+    d += rect(cx - wt / 2 - 1.5 * s, y - k * 0.5, k, k * 0.5)
+    d += rect(cx + wt / 2 + 1.5 * s - k, y - k * 0.5, k, k * 0.5)
   }
 
-  // Crown: a barrel vault (shala) with horned ends and a row of kalasams.
-  const wc = wTop * 1.3
-  const band = h * 0.03
+  // Crown: a long, low barrel vault that just overhangs the top tala.
+  const wc = wTop * 1.22
+  const band = h * 0.025
   d += rect(cx - wc / 2, y - band, wc, band)
   y -= band
-  const hc = h * 0.11
-  d += `M${cx - wc / 2} ${y}C${cx - wc / 2} ${y - hc * 1.25} ${cx + wc / 2} ${y - hc * 1.25} ${cx + wc / 2} ${y}Z`
-  for (const side of [-1, 1]) {
-    const ex = cx + side * wc / 2
-    d += `M${ex} ${y}Q${ex + side * hc * 0.55} ${y - hc * 0.2} ${ex + side * hc * 0.45} ${y - hc * 0.85}Q${ex + side * hc * 0.1} ${y - hc * 0.55} ${ex - side * hc * 0.25} ${y - hc * 0.45}Z`
-  }
-  const count = tiers >= 9 ? 7 : 5
+  const hc = h * 0.075
+  d += `M${cx - wc / 2} ${y}C${cx - wc / 2} ${y - hc * 1.32} ${cx + wc / 2} ${y - hc * 1.32} ${cx + wc / 2} ${y}Z`
+  // Kalasams along the ridge, small and evenly spaced.
+  const count = tiers >= 13 ? 9 : tiers >= 9 ? 7 : 5
   for (let i = 0; i < count; i++) {
-    const t = (i / (count - 1)) * 2 - 1 // -1..1
-    const kx = cx + t * wc * 0.36
-    const ky = y - hc * 0.94 * Math.sqrt(1 - (t * 0.72) ** 2)
-    d += kalasam(kx, ky + 1, s * (i === (count - 1) / 2 ? 1.15 : 1))
+    const t = (i / (count - 1)) * 2 - 1
+    const kx = cx + t * wc * 0.4
+    const ky = y - hc * 0.98 * Math.sqrt(1 - (t * 0.8) ** 2)
+    d += kalasam(kx, ky + 0.5, s * 0.95)
   }
   return { d, cut }
 }
 
+/**
+ * Vimana after Thanjavur's Brihadeeswarar: a plain tall sanctum wall, a steep
+ * straight pyramid of close-set storeys, a square neck and the round cupola
+ * with its single tall kalasam.
+ */
 function vimana(cx: number, w: number, h: number): Shape {
   let d = ''
   let cut = ''
   const s = h / 110
-  const baseH = h * 0.34
-  let y = GROUND - baseH
-  d += rect(cx - w / 2 - 3 * s, GROUND - 4 * s, w + 6 * s, 4 * s)
-  d += rect(cx - w / 2, y, w, baseH)
-  // Pilasters on the sanctum wall.
-  for (const f of [-0.3, 0, 0.3]) cut += rect(cx + f * w - 2 * s, y + baseH * 0.2, 4 * s, baseH * 0.55)
-  // Stepped storeys, each with a cornice and corner kutas.
-  let cw = w
-  for (let i = 0; i < 2; i++) {
-    d += rect(cx - cw / 2 - 3 * s, y - 3 * s, cw + 6 * s, 3 * s)
-    y -= 3 * s
-    cw *= 0.74
-    const sh = h * 0.1
-    d += rect(cx - cw / 2, y - sh, cw, sh)
-    for (const side of [-1, 1]) {
-      const kx = cx + side * (cw / 2 + 2 * s)
-      d += `M${kx - 4 * s} ${y}Q${kx} ${y - 9 * s} ${kx + 4 * s} ${y}Z`
+  const baseH = h * 0.3
+  d += rect(cx - w / 2 - 4 * s, GROUND - 5 * s, w + 8 * s, 5 * s)
+  d += rect(cx - w / 2, GROUND - baseH, w, baseH)
+  d += rect(cx - w / 2 - 3 * s, GROUND - baseH - 3 * s, w + 6 * s, 3 * s)
+  const dw = w * 0.14
+  cut += `M${cx - dw / 2} ${GROUND}V${GROUND - baseH * 0.6 + dw / 2}A${dw / 2} ${dw / 2} 0 0 1 ${cx + dw / 2} ${GROUND - baseH * 0.6 + dw / 2}V${GROUND}Z`
+  let y = GROUND - baseH - 3 * s
+
+  const steps = 7
+  const pyrH = h * 0.44
+  const sh = pyrH / steps
+  const w0 = w * 0.9
+  const wTop = w * 0.3
+  for (let i = 0; i < steps; i++) {
+    const wb = lerp(w0, wTop, i / steps)
+    const wt = lerp(w0, wTop, (i + 1) / steps)
+    d += `M${cx - wb / 2} ${y}L${cx - wt / 2} ${y - sh * 0.68}L${cx + wt / 2} ${y - sh * 0.68}L${cx + wb / 2} ${y}Z`
+    y -= sh * 0.68
+    d += rect(cx - wt / 2 - 2 * s, y - sh * 0.32, wt + 4 * s, sh * 0.32)
+    y -= sh * 0.32
+    if (i % 2 === 0) {
+      const k = Math.min(sh * 0.5, wt * 0.2)
+      d += rect(cx - wt / 2 - 1.5 * s, y - k * 0.5, k, k * 0.5)
+      d += rect(cx + wt / 2 + 1.5 * s - k, y - k * 0.5, k, k * 0.5)
     }
-    y -= sh
   }
-  // Neck (griva) and the domed sikhara.
-  const neckW = cw * 0.55
-  d += rect(cx - cw / 2 - 2 * s, y - 2.5 * s, cw + 4 * s, 2.5 * s)
-  y -= 2.5 * s
+  // Neck and cupola.
+  const neckW = wTop * 0.62
   d += rect(cx - neckW / 2, y - h * 0.05, neckW, h * 0.05)
   y -= h * 0.05
-  const dw = cw * 0.95
-  const dh = h * 0.2
-  d += `M${cx - dw / 2} ${y}C${cx - dw * 0.62} ${y - dh * 0.75} ${cx - dw * 0.22} ${y - dh * 1.08} ${cx} ${y - dh}C${cx + dw * 0.22} ${y - dh * 1.08} ${cx + dw * 0.62} ${y - dh * 0.75} ${cx + dw / 2} ${y}Z`
-  d += kalasam(cx, y - dh + 1, s * 1.5)
+  const cw = wTop * 1.3
+  const ch = h * 0.13
+  d += `M${cx - cw / 2} ${y}C${cx - cw / 2} ${y - ch * 0.85} ${cx - cw * 0.3} ${y - ch * 1.08} ${cx} ${y - ch}C${cx + cw * 0.3} ${y - ch * 1.08} ${cx + cw / 2} ${y - ch * 0.85} ${cx + cw / 2} ${y}Z`
+  d += kalasam(cx, y - ch + 1, s * 1.4)
   return { d, cut }
 }
 
@@ -288,14 +293,12 @@ function mandapam(x1: number, x2: number, h: number): Shape {
   const s = h / 40
   let d = rect(x1, GROUND - h, x2 - x1, h)
   let cut = ''
-  // Curved eave (kapota) and a parapet of small pavilions.
   d += `M${x1 - 4 * s} ${GROUND - h}Q${(x1 + x2) / 2} ${GROUND - h - 7 * s} ${x2 + 4 * s} ${GROUND - h}Z`
   const n = Math.max(2, Math.round((x2 - x1) / (22 * s)))
   for (let i = 0; i <= n; i++) {
     const px = lerp(x1 + 6 * s, x2 - 6 * s, i / n)
     d += `M${px - 4 * s} ${GROUND - h - 3 * s}Q${px} ${GROUND - h - 12 * s} ${px + 4 * s} ${GROUND - h - 3 * s}Z`
   }
-  // Pillar bays.
   const bays = Math.max(3, Math.round((x2 - x1) / (14 * s)))
   const bw = (x2 - x1) / bays
   for (let i = 0; i < bays; i++) cut += rect(x1 + i * bw + bw * 0.28, GROUND - h * 0.78, bw * 0.44, h * 0.66)
@@ -309,19 +312,21 @@ function wall(): Shape {
   return { d, cut: '' }
 }
 
+// Left to right: a Meenakshi east-type gopuram, the Thanjavur vimana, the big
+// Meenakshi south tower, Srirangam's slender rajagopuram, and a west gopuram.
 const SKYLINE: Shape[] = [
   wall(),
   mandapam(300, 420, 40),
-  mandapam(590, 680, 46),
-  mandapam(920, 1010, 46),
-  mandapam(1180, 1300, 40),
-  vimana(70, 64, 82),
-  vimana(1530, 70, 88),
-  gopuram(225, 118, 150, 7),
-  vimana(510, 104, 128),
-  gopuram(800, 176, 208, 9),
-  vimana(1090, 110, 134),
-  gopuram(1380, 126, 158, 7),
+  mandapam(600, 700, 44),
+  mandapam(930, 1020, 44),
+  mandapam(1200, 1300, 40),
+  vimana(70, 60, 78),
+  vimana(1530, 66, 84),
+  gopuram(222, 112, 148, 9),
+  vimana(510, 112, 150),
+  gopuram(800, 172, 200, 13),
+  gopuram(1100, 98, 184, 13),
+  gopuram(1392, 120, 150, 9),
 ]
 const SKY_PATH = SKYLINE.map(s => s.d).join('')
 const SKY_CUT = SKYLINE.map(s => s.cut).join('')
@@ -359,13 +364,13 @@ export function TempleBorder({ className = '', flip = false }: { className?: str
 /** Small kolam corner flourish for cards in Tamil mode. */
 export function KolamCorner({ className = '' }: { className?: string }) {
   return (
-    <svg width="44" height="44" viewBox="0 0 44 44" className={className} aria-hidden="true" fill="none" stroke="#c0163c" strokeWidth="1.3" strokeLinecap="round">
+    <svg width="44" height="44" viewBox="0 0 44 44" className={className} aria-hidden="true" fill="none" stroke="var(--color-ruby)" strokeWidth="1.3" strokeLinecap="round">
       <path d="M2 22 C 2 10, 10 2, 22 2" />
       <path d="M8 22 C 8 14, 14 8, 22 8" opacity="0.6" />
       <circle cx="22" cy="22" r="5" />
-      <circle cx="22" cy="22" r="1.4" fill="#c0163c" />
-      <circle cx="4" cy="4" r="1.4" fill="#c0163c" />
-      <circle cx="12" cy="12" r="1.2" fill="#c0163c" />
+      <circle cx="22" cy="22" r="1.4" fill="var(--color-ruby)" />
+      <circle cx="4" cy="4" r="1.4" fill="var(--color-ruby)" />
+      <circle cx="12" cy="12" r="1.2" fill="var(--color-ruby)" />
     </svg>
   )
 }

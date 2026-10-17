@@ -14,7 +14,7 @@ import { useStore } from '../lib/store'
 
 export const CAT_TO_EVENT: Record<GalleryCat, EventKey> = {
   weddings: 'wedding',
-  prewedding: 'outdoor',
+  prewedding: 'prewedding',
   engagement: 'engagement',
   reception: 'reception',
   ceremonies: 'puberty',

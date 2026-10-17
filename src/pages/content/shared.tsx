@@ -125,7 +125,7 @@ export function ClosingCta({
             </div>
             <div className="absolute inset-0 -z-10 bg-gradient-to-r from-ink/85 via-ink/50 to-ink/10" />
             <div className="grid min-h-[500px] items-end p-3 sm:p-8 md:min-h-[600px] md:grid-cols-[minmax(0,560px)_1fr] md:p-12">
-              <div className="glass-dark relative rounded-[22px] p-6 sm:rounded-[24px] sm:p-7 md:rounded-[28px] md:p-10">
+              <div className="glass-ruby-dark relative rounded-[22px] p-6 sm:rounded-[24px] sm:p-7 md:rounded-[28px] md:p-10">
                 <TamilOnly>
                   <KolamCorner className="absolute right-3 top-3 rotate-90" />
                 </TamilOnly>

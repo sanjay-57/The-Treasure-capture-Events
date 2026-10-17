@@ -19,3 +19,7 @@ logs/
 # beside it.
 /.plugins/
 /.opencode-skills/
+
+# Voice guide: ship only the compressed clips; raw renders and voice samples stay local
+public/voice/*.wav
+public/voice/samples/

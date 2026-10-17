@@ -17,15 +17,17 @@ export function Container({ children, className = '', wide = false }: { children
 
 // ─── Buttons ─────────────────────────────────────────────────────────────────
 
-type Variant = 'ruby' | 'ink' | 'white' | 'glass' | 'glass-dark' | 'outline' | 'outline-light' | 'ghost'
+type Variant = 'ruby' | 'ink' | 'white' | 'glass' | 'glass-dark' | 'glass-ruby' | 'glass-ruby-clear' | 'outline' | 'outline-light' | 'ghost'
 type Size = 'sm' | 'md' | 'lg'
 
 const VARIANTS: Record<Variant, string> = {
-  ruby: 'bg-ruby text-white hover:bg-ruby-bright shadow-ruby',
+  ruby: 'btn-ruby text-white',
   ink: 'bg-ink text-white hover:bg-ink-3',
   white: 'bg-white text-ink hover:bg-mist shadow-soft',
   glass: 'glass text-ink hover:bg-white/80',
   'glass-dark': 'glass-dark text-white hover:bg-white/10',
+  'glass-ruby': 'glass-ruby glass-ruby-hover text-white',
+  'glass-ruby-clear': 'glass-ruby-clear glass-ruby-hover text-white',
   outline: 'border border-ink/15 text-ink hover:border-ink/40 hover:bg-ink/[0.03]',
   'outline-light': 'border border-white/25 text-white hover:border-white/60 hover:bg-white/5',
   ghost: 'text-ink/70 hover:text-ink hover:bg-ink/[0.04]',
@@ -58,7 +60,7 @@ export function Button({ children, variant = 'ruby', size = 'md', to, href, onCl
   const cls = `group relative inline-flex max-w-full items-center justify-center overflow-hidden rounded-full text-center font-medium tracking-tight transition-all duration-300 ease-out active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40 cursor-pointer select-none ${VARIANTS[variant]} ${SIZES[size]} ${full ? 'w-full' : ''} ${className}`
   const content = (
     <>
-      {variant === 'ruby' && (
+      {(variant === 'ruby' || variant === 'glass-ruby') && (
         <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-full" />
       )}
       {iconLeft && <Icon name={iconLeft} size={size === 'sm' ? 15 : 17} />}
@@ -83,17 +85,17 @@ export function IconButton({ icon, onClick, label, variant = 'glass', size = 40,
 
 // ─── Glass surfaces ──────────────────────────────────────────────────────────
 
-type GlassTone = 'light' | 'strong' | 'dark' | 'ruby' | 'tint'
-const GLASS: Record<GlassTone, string> = { light: 'glass', strong: 'glass-strong', dark: 'glass-dark', ruby: 'glass-ruby', tint: 'glass-ruby-tint' }
+type GlassTone = 'light' | 'strong' | 'dark' | 'ruby' | 'ruby-clear' | 'ruby-dark' | 'tint'
+const GLASS: Record<GlassTone, string> = { light: 'glass', strong: 'glass-strong', dark: 'glass-dark', ruby: 'glass-ruby', 'ruby-clear': 'glass-ruby-clear', 'ruby-dark': 'glass-ruby-dark', tint: 'glass-ruby-tint' }
 
 export function Glass({ children, tone = 'light', className = '', as = 'div' }: { children: ReactNode; tone?: GlassTone; className?: string; as?: 'div' | 'section' | 'aside' | 'article' }) {
   const Tag = as
   return <Tag className={`${GLASS[tone]} rounded-3xl ${className}`}>{children}</Tag>
 }
 
-/** Plain white card with hairline border, for dense app screens. */
+/** Light ruby-glass card with hairline border, for dense app screens. */
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-3xl border hairline bg-white shadow-soft ${className}`}>{children}</div>
+  return <div className={`glass-strong rounded-3xl ${className}`}>{children}</div>
 }
 
 // ─── Typography ──────────────────────────────────────────────────────────────
@@ -149,6 +151,32 @@ interface ImgProps {
 
 /** Adds `relative` only when the caller hasn't positioned the element itself (e.g. `absolute inset-0`). */
 const positioned = (cls: string) => (/\b(absolute|fixed|sticky)\b/.test(cls) ? '' : 'relative')
+
+/**
+ * Stack of photos that slowly crossfades through `keys`. Starts on a per-card
+ * `offset` (ms) so neighbouring cards don't change in unison.
+ */
+export function CrossfadeImg({ keys, interval = 5200, offset = 0, ...rest }: { keys: ImgKey[]; interval?: number; offset?: number } & Omit<ImgProps, 'k' | 'src'>) {
+  const [i, setI] = useState(0)
+  useEffect(() => {
+    if (keys.length < 2) return
+    let id: number | undefined
+    const start = window.setTimeout(() => {
+      setI(n => (n + 1) % keys.length)
+      id = window.setInterval(() => setI(n => (n + 1) % keys.length), interval)
+    }, offset + interval)
+    return () => { window.clearTimeout(start); if (id) window.clearInterval(id) }
+  }, [keys, interval, offset])
+  if (keys.length < 2) return <Img k={keys[0]} {...rest} />
+  const { className = '', imgClassName = '', ...img } = rest
+  return (
+    <div className={`${positioned(className)} overflow-hidden ${className}`}>
+      {keys.map((k, n) => (
+        <Img key={k} k={k} {...img} className={`absolute inset-0 transition-opacity duration-[1400ms] ease-out ${n === i ? 'opacity-100' : 'opacity-0'}`} imgClassName={imgClassName} priority={img.priority && n === 0} />
+      ))}
+    </div>
+  )
+}
 
 /** Photo with a shimmering placeholder and a soft blur-up once loaded. */
 export function Img({ k, src, alt, w = 1200, ratio, sizes = '100vw', className = '', imgClassName = '', priority = false, dark = false }: ImgProps) {
@@ -278,7 +306,7 @@ export function Chip({ active, onClick, children, dark = false, className = '' }
       onClick={onClick}
       className={`inline-flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-all duration-300 cursor-pointer active:scale-[0.97] ${
         active
-          ? 'border-ruby bg-ruby text-white shadow-ruby'
+          ? 'border-transparent glass-ruby text-white'
           : dark
             ? 'border-white/15 bg-white/5 text-white/75 hover:border-white/40 hover:text-white'
             : 'border-ink/10 bg-white/70 text-ink/70 hover:border-ink/30 hover:text-ink'
@@ -297,7 +325,7 @@ export function ChoiceCard({ active, onClick, children, className = '' }: { acti
       aria-pressed={active}
       onClick={onClick}
       className={`group relative w-full overflow-hidden rounded-3xl border text-left transition-all duration-300 cursor-pointer active:scale-[0.99] ${
-        active ? 'border-ruby bg-ruby-soft/70 ring-4 ring-ruby/10' : 'border-ink/10 bg-white/70 hover:border-ink/25 hover:bg-white'
+        active ? 'border-transparent glass-ruby-tint ring-ruby-glow' : 'border-ink/10 bg-white/70 hover:border-ink/25 hover:bg-white'
       } ${className}`}
     >
       {children}
@@ -310,7 +338,7 @@ export function ChoiceCard({ active, onClick, children, className = '' }: { acti
 
 export function Badge({ children, tone = 'muted', className = '' }: { children: ReactNode; tone?: 'ruby' | 'ink' | 'muted' | 'outline' | 'white'; className?: string }) {
   const tones = {
-    ruby: 'bg-ruby text-white',
+    ruby: 'glass-ruby text-white',
     ink: 'bg-ink text-white',
     muted: 'bg-ink/[0.06] text-ink/70',
     outline: 'border border-ink/15 text-ink/70',
@@ -456,6 +484,170 @@ export function Steps({ steps, current, onStep }: { steps: string[]; current: nu
       <p className="mt-2.5 truncate text-[12px] font-medium text-ink/60 sm:hidden">
         <span className="tabular-nums">{shown + 1} / {steps.length}</span> · <span className="text-ink">{steps[shown]}</span>
       </p>
+    </div>
+  )
+}
+
+
+// ─── Date & time pickers ─────────────────────────────────────────────────────
+
+const pad2 = (n: number) => String(n).padStart(2, '0')
+const toISO = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+const fromISO = (v: string) => { const [y, m, d] = v.split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1) }
+
+/**
+ * Inline month calendar in the Apple style: month header with arrows, weekday
+ * row, day grid with today ringed and the chosen day as a ruby pill. Quick
+ * chips jump to common choices. Dates before `min` are disabled.
+ */
+export function DatePicker({ value, onChange, min, lang = 'en', className = '' }: { value: string; onChange: (iso: string) => void; min?: string; lang?: 'en' | 'ta'; className?: string }) {
+  const locale = lang === 'ta' ? 'ta-IN' : 'en-IN'
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const minDate = min ? fromISO(min) : today
+  const selected = value ? fromISO(value) : null
+  const [view, setView] = useState(() => { const b = selected ?? today; return new Date(b.getFullYear(), b.getMonth(), 1) })
+  useEffect(() => { if (selected) setView(new Date(selected.getFullYear(), selected.getMonth(), 1)) }, [value]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const monthLabel = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(view)
+  const weekdays = lang === 'ta' ? ['ஞா', 'தி', 'செ', 'பு', 'வி', 'வெ', 'ச'] : Array.from({ length: 7 }, (_, i) => new Intl.DateTimeFormat(locale, { weekday: 'narrow' }).format(new Date(2024, 0, 7 + i))) // Sun..Sat
+  const first = new Date(view.getFullYear(), view.getMonth(), 1)
+  const lead = first.getDay()
+  const dim = new Date(view.getFullYear(), view.getMonth() + 1, 0).getDate()
+  const cells: (Date | null)[] = [...Array(lead).fill(null), ...Array.from({ length: dim }, (_, i) => new Date(view.getFullYear(), view.getMonth(), i + 1))]
+  while (cells.length % 7) cells.push(null)
+  const canPrev = new Date(view.getFullYear(), view.getMonth(), 0) >= new Date(minDate.getFullYear(), minDate.getMonth(), 1)
+  const shift = (n: number) => setView(v => new Date(v.getFullYear(), v.getMonth() + n, 1))
+
+  const quick: { label: string; d: Date }[] = []
+  const addDays = (n: number) => { const d = new Date(today); d.setDate(d.getDate() + n); return d }
+  const nextDow = (dow: number) => { const d = new Date(today); d.setDate(d.getDate() + ((dow - d.getDay() + 7) % 7 || 7)); return d }
+  quick.push({ label: lang === 'ta' ? 'இன்று' : 'Today', d: today })
+  quick.push({ label: lang === 'ta' ? 'நாளை' : 'Tomorrow', d: addDays(1) })
+  quick.push({ label: lang === 'ta' ? 'சனி' : 'Saturday', d: nextDow(6) })
+  quick.push({ label: lang === 'ta' ? 'ஞாயிறு' : 'Sunday', d: nextDow(0) })
+
+  return (
+    <div className={`flex flex-col rounded-[22px] border border-ruby/12 bg-white p-3 shadow-[0_1px_2px_rgba(155,17,30,0.04),0_14px_36px_-20px_rgba(155,17,30,0.25)] sm:p-4 ${className}`}>
+      <div className="flex items-center justify-between px-1">
+        <button type="button" onClick={() => shift(-1)} disabled={!canPrev} aria-label="Previous month" className="flex h-9 w-9 items-center justify-center rounded-full text-ink/60 transition hover:bg-ruby-soft hover:text-ruby disabled:opacity-25 cursor-pointer disabled:cursor-default"><Icon name="chevronLeft" size={18} /></button>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.p key={monthLabel} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }} className={`whitespace-nowrap font-display font-semibold text-ink ${lang === 'ta' ? 'text-[0.98rem]' : 'text-[1.15rem]'}`}>{monthLabel}</motion.p>
+        </AnimatePresence>
+        <button type="button" onClick={() => shift(1)} aria-label="Next month" className="flex h-9 w-9 items-center justify-center rounded-full text-ink/60 transition hover:bg-ruby-soft hover:text-ruby cursor-pointer"><Icon name="chevronRight" size={18} /></button>
+      </div>
+      <div className="mt-3 grid grid-cols-7 text-center">
+        {weekdays.map((w, i) => <span key={i} className={`py-1 font-semibold uppercase tracking-wider text-ink/40 ${lang === 'ta' ? 'text-[10px]' : 'text-[11px]'}`}>{w}</span>)}
+      </div>
+      <div role="grid" className="grid flex-1 grid-cols-7 content-start gap-y-1">
+        {cells.map((d, i) => {
+          if (!d) return <span key={i} />
+          const iso = toISO(d)
+          const disabled = d < minDate
+          const isSel = iso === value
+          const isToday = iso === toISO(today)
+          return (
+            <button
+              key={iso}
+              type="button"
+              role="gridcell"
+              aria-selected={isSel}
+              disabled={disabled}
+              onClick={() => onChange(iso)}
+              className={`relative mx-auto flex h-10 w-10 items-center justify-center rounded-full text-[14px] tabular-nums transition-all duration-200 ${
+                isSel ? 'bg-ruby font-semibold text-white shadow-ruby' : disabled ? 'text-ink/20 cursor-default' : 'text-ink hover:bg-ruby-soft hover:text-ruby cursor-pointer'
+              } ${isToday && !isSel ? 'ring-1 ring-ruby/50 font-semibold' : ''}`}
+            >
+              {d.getDate()}
+            </button>
+          )
+        })}
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-1.5 border-t border-ruby/10 pt-3">
+        {quick.map(q => {
+          const iso = toISO(q.d)
+          const on = iso === value
+          return <button key={q.label} type="button" onClick={() => onChange(iso)} className={`h-9 whitespace-nowrap rounded-full px-2 text-[12.5px] font-medium transition cursor-pointer ${on ? 'bg-ruby text-white shadow-ruby' : 'bg-ink/[0.04] text-ink/70 hover:bg-ruby-soft hover:text-ruby'}`}>{q.label}</button>
+        })}
+      </div>
+    </div>
+  )
+}
+
+export function TimePicker({ value, onChange, lang = 'en', className = '' }: { value: string; onChange: (v: string) => void; lang?: 'en' | 'ta'; className?: string }) {
+  const hh = value ? Number(value.split(':')[0]) : NaN
+  const mm = value ? Number(value.split(':')[1]) : NaN
+  const period: 'AM' | 'PM' = Number.isNaN(hh) ? 'AM' : hh >= 12 ? 'PM' : 'AM'
+  // Local text so the user can type freely; committed on blur / Enter / when complete.
+  const [hText, setHText] = useState(Number.isNaN(hh) ? '' : String(((hh + 11) % 12) + 1))
+  const [mText, setMText] = useState(Number.isNaN(mm) ? '' : pad2(mm))
+  const minRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    setHText(Number.isNaN(hh) ? '' : String(((hh + 11) % 12) + 1))
+    setMText(Number.isNaN(mm) ? '' : pad2(mm))
+  }, [value]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const commit = (h: string, m: string, p: 'AM' | 'PM') => {
+    const hn = Number(h)
+    if (!h || Number.isNaN(hn) || hn < 1 || hn > 12) return
+    const mn = m === '' ? 0 : Number(m)
+    if (Number.isNaN(mn) || mn < 0 || mn > 59) return
+    onChange(`${pad2(p === 'PM' ? (hn % 12) + 12 : hn % 12)}:${pad2(mn)}`)
+  }
+  const onHour = (raw: string) => {
+    const v = raw.replace(/\D/g, '').slice(0, 2)
+    setHText(v)
+    // Auto-advance once the hour is unambiguous (2 digits, or a digit > 1).
+    if (v.length === 2 || (v.length === 1 && Number(v) > 1)) { commit(v, mText, period); minRef.current?.focus(); minRef.current?.select() }
+  }
+  const onMinute = (raw: string) => {
+    const v = raw.replace(/\D/g, '').slice(0, 2)
+    setMText(v)
+    if (v.length === 2) commit(hText, v, period)
+  }
+  const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') { e.preventDefault(); commit(hText, mText, period); (e.target as HTMLInputElement).blur() } }
+
+  const slots: { label: string; v: string }[] = [
+    { label: lang === 'ta' ? 'அதிகாலை 6:00' : '6:00 AM', v: '06:00' },
+    { label: lang === 'ta' ? 'காலை 7:30' : '7:30 AM', v: '07:30' },
+    { label: lang === 'ta' ? 'காலை 9:00' : '9:00 AM', v: '09:00' },
+    { label: lang === 'ta' ? 'காலை 10:30' : '10:30 AM', v: '10:30' },
+    { label: lang === 'ta' ? 'மாலை 5:00' : '5:00 PM', v: '17:00' },
+    { label: lang === 'ta' ? 'மாலை 6:30' : '6:30 PM', v: '18:30' },
+  ]
+  const box = 'h-14 w-full min-w-0 max-w-[4.6rem] flex-1 rounded-2xl border border-ruby/15 bg-mist/60 text-center font-display text-[1.75rem] font-semibold tabular-nums text-ink outline-none transition placeholder:text-ink/25 focus:border-ruby focus:bg-white focus:ring-4 focus:ring-ruby/10'
+  return (
+    <div className={`rounded-[22px] border border-ruby/12 bg-white p-3 shadow-[0_1px_2px_rgba(155,17,30,0.04),0_14px_36px_-20px_rgba(155,17,30,0.25)] sm:p-4 ${className}`}>
+      <div className="flex items-center gap-2 sm:gap-3">
+        <input
+          type="text" inputMode="numeric" pattern="[0-9]*" placeholder="9" maxLength={2} aria-label="Hour"
+          value={hText} onChange={e => onHour(e.target.value)} onBlur={() => commit(hText, mText, period)} onKeyDown={onKey} onFocus={e => e.target.select()}
+          className={box}
+        />
+        <span className="shrink-0 font-display text-[1.7rem] font-semibold text-ink/40">:</span>
+        <input
+          ref={minRef}
+          type="text" inputMode="numeric" pattern="[0-9]*" placeholder="00" maxLength={2} aria-label="Minute"
+          value={mText} onChange={e => onMinute(e.target.value)} onBlur={() => { if (mText.length === 1) setMText(pad2(Number(mText))); commit(hText, mText, period) }} onKeyDown={onKey} onFocus={e => e.target.select()}
+          className={box}
+        />
+        <div role="radiogroup" aria-label="AM or PM" className="ml-auto flex h-14 shrink-0 items-center rounded-2xl bg-ink/[0.05] p-1">
+          {(['AM', 'PM'] as const).map(p => {
+            const on = period === p && !!value
+            return (
+              <button key={p} type="button" role="radio" aria-checked={on} onClick={() => commit(hText || '9', mText, p)} className={`h-full rounded-xl px-3 text-[13.5px] font-semibold transition cursor-pointer ${on ? 'bg-ruby text-white shadow-ruby' : 'text-ink/60 hover:text-ruby'}`}>
+                {lang === 'ta' ? (p === 'AM' ? 'மு.ப' : 'பி.ப') : p}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      <div className={`mt-3 grid gap-1.5 border-t border-ruby/10 pt-3 ${lang === 'ta' ? 'grid-cols-2' : 'grid-cols-3'}`}>
+        {slots.map(sl => {
+          const on = sl.v === value
+          return <button key={sl.v} type="button" onClick={() => onChange(sl.v)} className={`h-9 whitespace-nowrap rounded-full px-2 text-[12.5px] font-medium tabular-nums transition cursor-pointer ${on ? 'bg-ruby text-white shadow-ruby' : 'bg-ink/[0.04] text-ink/70 hover:bg-ruby-soft hover:text-ruby'}`}>{sl.label}</button>
+        })}
+      </div>
+      <button type="button" onClick={() => { onChange(''); setHText(''); setMText('') }} className={`mt-2 h-7 w-full rounded-full text-[12px] font-medium text-ink/45 transition hover:text-ruby cursor-pointer ${value ? '' : 'invisible'}`}>{lang === 'ta' ? 'நேரத்தை அழி' : 'Clear time'}</button>
     </div>
   )
 }

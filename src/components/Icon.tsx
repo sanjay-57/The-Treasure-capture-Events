@@ -217,8 +217,8 @@ export function LogoMark({ size = 32, className = '' }: { size?: number; classNa
     <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true" className={className}>
       <defs>
         <linearGradient id="ttc-gem" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#e2264f" />
-          <stop offset="0.55" stopColor="#c0163c" />
+          <stop offset="0" stopColor="var(--color-ruby-bright)" />
+          <stop offset="0.55" stopColor="var(--color-ruby)" />
           <stop offset="1" stopColor="#7a0b25" />
         </linearGradient>
       </defs>
