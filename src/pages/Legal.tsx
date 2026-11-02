@@ -8,7 +8,7 @@ import { EASE, Reveal, RevealText } from '../components/motion'
 import { Kolam, Ornament, TamilOnly, TempleBorder } from '../components/tamil'
 import { formatDate, useLang, useT } from '../lib/i18n'
 import { useStore } from '../lib/store'
-import { useTitle, useUi } from '../lib/ui'
+import { useSeo, useTitle, useUi } from '../lib/ui'
 import { useTopPad } from './content/shared'
 import { PRIVACY, TERMS, type LegalBlock, type LegalDoc } from './content/legalContent'
 
@@ -35,6 +35,11 @@ export function Privacy() {
   return <LegalPage doc={PRIVACY} />
 }
 
+const SEO: Record<LegalDoc['key'], { en: string; ta: string }> = {
+  terms: { en: 'Terms for booking The Treasure Capture Events, Madurai: advance, balance, dates, delivery of photos, videos and albums, and cancellations.', ta: 'மதுரை The Treasure Capture Events பதிவு விதிமுறைகள்: முன்பணம், மீதித் தொகை, தேதிகள், படம், வீடியோ, ஆல்பம் வழங்குதல், ரத்து.' },
+  privacy: { en: 'How our Madurai studio collects, uses and protects your booking details, photos and videos.', ta: 'எங்கள் மதுரை ஸ்டுடியோ உங்கள் பதிவு விவரங்கள், படங்கள், வீடியோக்களை எப்படிச் சேகரித்து, பயன்படுத்தி, பாதுகாக்கிறது.' },
+}
+
 function wordCount(doc: LegalDoc, lang: 'en' | 'ta') {
   let n = 0
   for (const s of doc.sections)
@@ -48,6 +53,7 @@ function wordCount(doc: LegalDoc, lang: 'en' | 'ta') {
 
 function LegalPage({ doc }: { doc: LegalDoc }) {
   useTitle(doc.title)
+  useSeo(SEO[doc.key])
   const t = useT(copy)
   const lang = useLang()
   const pad = useTopPad()
@@ -110,7 +116,7 @@ function LegalPage({ doc }: { doc: LegalDoc }) {
               className={`group relative flex w-full cursor-pointer items-start gap-3 rounded-xl px-3 py-2 text-left text-[13.5px] leading-snug transition-colors duration-300 ${on ? 'text-ink' : 'text-ink/50 hover:text-ink'}`}
             >
               {on && <motion.span layoutId={`toc-${doc.key}-${where}`} className="absolute inset-0 -z-10 rounded-xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05),0_6px_18px_-8px_rgba(0,0,0,0.18)]" transition={{ type: 'spring', stiffness: 400, damping: 36 }} />}
-              <span className={`mt-px w-5 shrink-0 font-mono text-[11px] tabular-nums ${on ? 'text-ruby' : 'text-ink/30'}`}>{String(i + 1).padStart(2, '0')}</span>
+              <span className={`mt-px w-5 shrink-0 font-mono text-xs tabular-nums ${on ? 'text-ruby' : 'text-ink/30'}`}>{String(i + 1).padStart(2, '0')}</span>
               <span className={on ? 'font-medium' : ''}>{s.title[lang]}</span>
             </button>
           </li>
@@ -175,12 +181,12 @@ function LegalPage({ doc }: { doc: LegalDoc }) {
         </TamilOnly>
         <div className="grid gap-8 md:gap-10 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-16 xl:grid-cols-[300px_minmax(0,1fr)]">
           {/* Mobile contents */}
-          <div className="legal-noprint sticky z-20 self-start transition-[top] duration-500 ease-out md:static lg:hidden" style={{ top: navHidden ? 12 : 84 }}>
+          <div className="legal-noprint sticky z-20 self-start transition-[top] duration-500 ease-out md:static lg:hidden" style={{ top: navHidden ? 12 : 'calc(var(--nav-h) + 8px)' }}>
             <div className="glass-strong overflow-hidden rounded-[22px] shadow-[0_10px_30px_-12px_rgba(0,0,0,0.25)] md:shadow-none">
               <button type="button" onClick={() => setTocOpen(o => !o)} aria-expanded={tocOpen} className="flex min-h-[52px] w-full cursor-pointer items-center justify-between gap-4 px-4 py-3 text-left sm:px-5 md:min-h-0 md:py-4">
                 <span className="flex shrink-0 items-center gap-2">
                   <span className="t-label text-ink/60">{t.contents}</span>
-                  <span className="font-mono text-[11px] tabular-nums text-ruby md:hidden">{String(doc.sections.findIndex(s => s.id === active) + 1).padStart(2, '0')}</span>
+                  <span className="font-mono text-xs tabular-nums text-ruby md:hidden">{String(doc.sections.findIndex(s => s.id === active) + 1).padStart(2, '0')}</span>
                 </span>
                 <span className="flex min-w-0 items-center gap-2.5 text-[13px] text-ink/70 md:gap-3">
                   <span className="truncate md:max-w-[45vw]">{doc.sections.find(s => s.id === active)?.title[lang]}</span>
@@ -228,7 +234,7 @@ function LegalPage({ doc }: { doc: LegalDoc }) {
               <section key={s.id} id={s.id} aria-labelledby={`${s.id}-h`} className={`legal-section scroll-mt-40 py-8 md:scroll-mt-32 md:py-14 ${i ? 'border-t border-ink/10' : 'pt-0 md:pt-0'}`}>
                 <div className="flex items-baseline gap-3 md:gap-4">
                   <span className="shrink-0 font-mono text-[12px] tabular-nums text-ruby">{String(i + 1).padStart(2, '0')}</span>
-                  <h2 id={`${s.id}-h`} className="t-3 text-ink">{s.title[lang]}</h2>
+                  <h2 id={`${s.id}-h`} className="t-3 min-w-0 break-words text-ink">{s.title[lang]}</h2>
                 </div>
                 <div className="mt-4 max-w-[68ch] space-y-5 md:mt-5 md:pl-9">
                   {s.blocks.map((b, j) => (
@@ -273,7 +279,7 @@ function LegalPage({ doc }: { doc: LegalDoc }) {
 
 function Block({ b }: { b: LegalBlock }) {
   const lang = useLang()
-  const body = `text-[15.5px] text-ink/70 md:text-base ${lang === 'ta' ? 'leading-[1.95]' : 'leading-[1.75]'}`
+  const body = `break-words text-[15.5px] text-ink/70 md:text-base ${lang === 'ta' ? 'leading-[1.95]' : 'leading-[1.75]'}`
   if ('p' in b) return <p className={body}>{b.p[lang]}</p>
   if ('list' in b)
     return (

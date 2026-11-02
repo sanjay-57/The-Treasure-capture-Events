@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { useLenis } from 'lenis/react'
@@ -11,10 +11,8 @@ import { useTitle } from '../../lib/ui'
 import { usePrices, useStore } from '../../lib/store'
 import { BUCKETS, CROWDS, EVENTS, eventByKey, type EventKey } from '../../lib/data'
 import { startingPrice } from '../../lib/pricing'
-import { sessionsForHours } from '../../lib/catalogue'
+import { MAX_HOURS, MIN_HOURS, OVERTIME_NOTE, coverageFor, sessionsForHours } from '../../lib/catalogue'
 
-const MIN_HOURS = 2
-const MAX_HOURS = 14
 import { StepGuard, StepHeader, StepNav, SubHeading } from './shared'
 
 const copy = {
@@ -38,8 +36,8 @@ const copy = {
   slider: { en: 'Coverage duration in hours', ta: 'படப்பிடிப்பு நேரம் (மணி)' },
   crowd: { en: 'Crowd volume', ta: 'விருந்தினர் எண்ணிக்கை' },
   crowdNote: {
-    en: 'Homes usually host under 50; mahals often 100 or more. It helps us plan the crew — it does not change the price.',
-    ta: 'வீடுகளில் பொதுவாக 50-க்கும் குறைவு; மண்டபங்களில் 100-க்கும் மேல். குழுவைத் திட்டமிட உதவும் — விலை மாறாது.',
+    en: 'Homes usually host under 50; mahals often 100 or more. Tell us so we plan the crew — it does not change the price.',
+    ta: 'வீடுகளில் பொதுவாக 50-க்கும் குறைவு; மண்டபங்களில் 100-க்கும் மேல். குழுவைத் திட்டமிடச் சொல்லுங்கள் — விலை மாறாது.',
   },
   guests: { en: 'guests', ta: 'பேர்' },
   next: { en: 'Continue to venue', ta: 'இடத்திற்குத் தொடர்க' },
@@ -73,6 +71,11 @@ function EventStep() {
   const durationRef = useRef<HTMLDivElement>(null)
   const ev = eventByKey(draft.eventType)
 
+  // Weddings are most of the bookings, so a fresh draft starts on Wedding.
+  useEffect(() => {
+    if (!draft.eventType) updateDraft({ eventType: 'wedding' })
+  }, [draft.eventType, updateDraft])
+
   const pick = (key: EventKey) => {
     const first = !draft.eventType
     updateDraft({ eventType: key })
@@ -97,7 +100,7 @@ function EventStep() {
         <p className="hidden text-[12.5px] text-ink/45 sm:block">{b.blurb[lang]}</p>
       </div>
       <Stagger className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4" gap={0.05}>
-        {EVENTS.filter(e => e.bucket === b.key).map((e, i) => {
+        {EVENTS.filter(e => e.bucket === b.key && e.bookable !== false).map((e, i) => {
           const active = draft.eventType === e.key
           return (
             <StaggerItem key={e.key}>
@@ -180,10 +183,10 @@ function DurationSlider() {
   const cart = useStore(s => s.draft.cart)
   const updateDraft = useStore(s => s.updateDraft)
   const pct = (hours - MIN_HOURS) / (MAX_HOURS - MIN_HOURS)
-  const sessions = sessionsForHours(hours)
+  const coverage = coverageFor(hours)
   const set = (h: number) => {
     const next = Math.min(MAX_HOURS, Math.max(MIN_HOURS, h))
-    updateDraft({ durationHours: next, cart: { ...cart, sessions: sessionsForHours(next) } })
+    updateDraft({ durationHours: next, cart: { ...cart, hours: next, sessions: sessionsForHours(next) } })
   }
   const [focus, setFocus] = useState(false)
   const ticks = Array.from({ length: MAX_HOURS - MIN_HOURS + 1 }, (_, i) => MIN_HOURS + i)
@@ -208,7 +211,10 @@ function DurationSlider() {
               {t.unlimited}
             </p>
             <p className="text-ink/50">
-              <span className="font-medium tabular-nums text-ink/80">{sessions}</span> {sessions > 1 ? t.sessionsPl : t.sessions} · {t.sessionNote}
+              <span className="font-medium tabular-nums text-ink/80">{coverage.label[lang]}</span>
+            </p>
+            <p className="mt-1 text-[12px] text-ink/40">
+              {OVERTIME_NOTE[lang]}
             </p>
           </div>
         </div>
@@ -239,7 +245,7 @@ function DurationSlider() {
             aria-valuetext={lang === 'ta' ? `${hours} மணி நேரம்` : `${hours} hours`}
             onFocus={e => setFocus(e.currentTarget.matches(':focus-visible'))}
             onBlur={() => setFocus(false)}
-            className="absolute inset-0 z-10 h-full w-full cursor-grab appearance-none bg-transparent opacity-0 active:cursor-grabbing [&::-moz-range-thumb]:h-7 [&::-moz-range-thumb]:w-7 [&::-webkit-slider-thumb]:h-7 [&::-webkit-slider-thumb]:w-7 [&::-webkit-slider-thumb]:appearance-none"
+            className="absolute inset-0 z-10 h-full w-full cursor-grab appearance-none bg-transparent opacity-0 [touch-action:pan-y] active:cursor-grabbing [&::-moz-range-thumb]:h-7 [&::-moz-range-thumb]:w-7 [&::-webkit-slider-thumb]:h-7 [&::-webkit-slider-thumb]:w-7 [&::-webkit-slider-thumb]:appearance-none"
           />
           {/* Thumb */}
           <div className="pointer-events-none absolute inset-x-[14px] top-1/2" aria-hidden="true">

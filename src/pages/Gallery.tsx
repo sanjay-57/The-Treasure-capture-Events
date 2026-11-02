@@ -9,11 +9,11 @@ import { GopuramSkyline, Kolam, Ornament, TamilOnly } from '../components/tamil'
 import { Lightbox } from '../components/Lightbox'
 import { StoryCard, itemRatio, toLightbox, useGalleryItems } from '../components/gallery'
 import { DISTRICTS, districtName, type DistrictKey } from '../lib/data'
-import { GALLERY_CATS, STORIES, storiesForLang, type GalleryCat, type GalleryItem } from '../lib/gallery'
+import { GALLERY_CATS, SUB_BRANDS, STORIES, storiesForLang, type GalleryCat, type GalleryItem } from '../lib/gallery'
 import { photoUrl } from '../lib/images'
 import { formatDate, useLang, useT } from '../lib/i18n'
 import { useStore } from '../lib/store'
-import { toast, useDarkHero, useTitle, useUi } from '../lib/ui'
+import { toast, useDarkHero, useTitle, useUi, useSeo } from '../lib/ui'
 
 const copy = {
   eyebrow: { en: 'Portfolio · 2018 — 2026', ta: 'எங்கள் படைப்புகள் · 2018 — 2026' },
@@ -55,6 +55,7 @@ const PAGE = 24
 export default function Gallery() {
   useDarkHero('page')
   useTitle({ en: 'Gallery', ta: 'காட்சியகம்' })
+  useSeo({ en: 'Weddings, puberty functions, baby showers and outdoor shoots from Madurai and across Tamil Nadu. Cradle Captures and Bumpy Tales too.', ta: 'மதுரையிலும் தமிழ்நாடு முழுவதும் எடுத்த திருமணம், மஞ்சள் நீராட்டு விழா, வளைகாப்பு, அவுட்டோர் படங்கள்.' })
   const lang = useLang()
   const t = useT(copy)
   const items = useGalleryItems()
@@ -159,7 +160,8 @@ export default function Gallery() {
         />
 
         <Container wide className="mt-6 md:mt-8">
-          {filtered.length === 0 ? (
+          {!moodOnly && cat !== 'all' && SUB_BRANDS[cat as GalleryCat] && <SubBrandHeader cat={cat as GalleryCat} />}
+          {filtered.length === 0 && !moodOnly && cat !== 'all' && SUB_BRANDS[cat as GalleryCat] ? null : filtered.length === 0 ? (
             <div className="flex flex-col items-center py-24 text-center">
               <span className="mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-white/15 text-white/50"><Icon name={moodOnly ? 'heart' : 'image'} size={22} /></span>
               <p className="t-3">{moodOnly ? t.emptyMood : t.emptyFilter}</p>
@@ -290,6 +292,25 @@ function WallHero({ items, count, storyCount, onPick }: { items: GalleryItem[]; 
   )
 }
 
+// ─── Sub-brands ──────────────────────────────────────────────────────────────
+
+/** Wordmark lock-up for Cradle Captures / Bumpy Tales, with Contact us instead of Book. */
+function SubBrandHeader({ cat }: { cat: GalleryCat }) {
+  const lang = useLang()
+  const b = SUB_BRANDS[cat]!
+  return (
+    <div className="mb-8 flex flex-col gap-5 rounded-[28px] border border-white/10 bg-white/[0.04] p-6 md:mb-10 md:flex-row md:items-center md:justify-between md:p-8">
+      <div className="min-w-0">
+        <p className="t-label text-white/45">{lang === 'ta' ? 'The Treasure Capture Events வழங்கும்' : 'by The Treasure Capture Events'}</p>
+        <p className="mt-2 font-display text-[34px] leading-none text-white md:text-[44px]">{b.wordmark}</p>
+        <p className="mt-2 text-[15px] font-medium text-white/75">{b.tagline[lang]}</p>
+        <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-white/55">{b.note[lang]}</p>
+      </div>
+      <Button to={`/contact?brand=${cat}`} variant="ruby" icon="arrowRight" className="shrink-0">{lang === 'ta' ? 'தொடர்பு கொள்ள' : 'Contact us'}</Button>
+    </div>
+  )
+}
+
 // ─── Featured story ──────────────────────────────────────────────────────────
 
 function FeaturedStory() {
@@ -389,23 +410,23 @@ function FilterBar({
   const [open, setOpen] = useState(false)
 
   return (
-    <div className="sticky z-30 px-5 transition-[top] duration-500 ease-out md:px-8" style={{ top: navHidden ? 12 : 84 }}>
+    <div className="sticky z-30 px-5 transition-[top] duration-500 ease-out md:px-8" style={{ top: navHidden ? 12 : 'calc(var(--nav-h) + 8px)' }}>
       <div className="glass-dark mx-auto flex max-w-[1376px] items-center gap-2 rounded-full p-1.5">
-        <div className="no-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto" data-lenis-prevent>
+        <div className="no-scrollbar flex min-w-0 flex-1 snap-x snap-proximity items-center gap-1 overflow-x-auto overscroll-x-contain" data-lenis-prevent>
           {GALLERY_CATS.map(c => {
             const active = !moodOnly && cat === c.key
             const n = counts[c.key] ?? 0
-            if (c.key !== 'all' && n === 0) return null
+            if (c.key !== 'all' && n === 0 && !SUB_BRANDS[c.key]) return null
             return (
               <button
                 key={c.key}
                 type="button"
                 onClick={() => onCat(c.key)}
-                className={`relative h-10 shrink-0 rounded-full px-4 text-[13px] font-medium transition-colors cursor-pointer ${active ? 'text-ink' : 'text-white/70 hover:text-white'}`}
+                className={`relative h-10 shrink-0 snap-start whitespace-nowrap rounded-full px-4 text-[13px] font-medium transition-colors cursor-pointer ${active ? 'text-ink' : 'text-white/70 hover:text-white'}`}
               >
                 {active && <motion.span layoutId="gal-cat" className="absolute inset-0 -z-10 rounded-full bg-white" transition={{ type: 'spring', stiffness: 400, damping: 34 }} />}
                 <span className="relative">{c.name[lang]}</span>
-                <span className={`relative ml-1.5 text-[11px] tabular-nums ${active ? 'text-ink/45' : 'text-white/35'}`}>{n}</span>
+                <span className={`relative ml-1.5 text-xs tabular-nums ${active ? 'text-ink/45' : 'text-white/35'}`}>{n}</span>
               </button>
             )
           })}
@@ -466,9 +487,9 @@ function FilterBar({
       </div>
 
       {/* District chips on small screens */}
-      <div className="no-scrollbar -mx-5 mt-2 flex gap-1.5 overflow-x-auto px-5 md:hidden" data-lenis-prevent>
+      <div className="no-scrollbar -mx-5 mt-2 flex snap-x snap-proximity scroll-pl-5 gap-1.5 overflow-x-auto overscroll-x-contain px-5 md:hidden" data-lenis-prevent>
         {[{ key: 'all', name: { en: labels.all, ta: labels.all } }, ...DISTRICTS].map(d => (
-          <button key={d.key} type="button" onClick={() => onDistrict(d.key)} className={`h-9 shrink-0 rounded-full px-3.5 text-[12.5px] font-medium transition cursor-pointer ${district === d.key ? 'glass-ruby text-white' : 'glass-dark text-white/70'}`}>
+          <button key={d.key} type="button" onClick={() => onDistrict(d.key)} className={`h-10 shrink-0 snap-start whitespace-nowrap rounded-full px-3.5 text-[12.5px] font-medium transition cursor-pointer ${district === d.key ? 'glass-ruby text-white' : 'glass-dark text-white/70'}`}>
             {d.name[lang]}
           </button>
         ))}
@@ -558,12 +579,13 @@ function Tile({ item, index, onOpen, saveLabel, ratio, compact = false }: { item
           className="h-full w-full"
           imgClassName="transition-transform duration-[1.2s] ease-out group-hover:scale-[1.05]"
         />
-        <span className="absolute inset-0 bg-gradient-to-t from-ink/75 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+        <span className="absolute inset-0 bg-gradient-to-t from-ink/75 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100 [@media(hover:none)]:opacity-100" />
+        {/* Touch screens never hover, so the caption is always shown there. */}
         {!compact && (
-          <span className="absolute inset-x-2 bottom-2 translate-y-3 opacity-0 transition-all duration-500 ease-out group-hover:translate-y-0 group-hover:opacity-100">
-            <span className="glass-dark block rounded-xl px-3.5 py-2.5 text-left">
-              <span className="block truncate font-display text-[17px] leading-tight text-white">{item.title[lang]}</span>
-              <span className="mt-0.5 block truncate text-[11.5px] text-white/55">{districtName(item.district, lang)} · {cat}</span>
+          <span className="absolute inset-x-1.5 bottom-1.5 translate-y-3 opacity-0 transition-all duration-500 ease-out group-hover:translate-y-0 group-hover:opacity-100 sm:inset-x-2 sm:bottom-2 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100">
+            <span className="glass-dark block rounded-xl px-2.5 py-2 text-left sm:px-3.5 sm:py-2.5">
+              <span className="block truncate font-display text-[15px] leading-tight text-white sm:text-[17px]">{item.title[lang]}</span>
+              <span className="mt-0.5 block truncate text-xs text-white/55">{districtName(item.district, lang)} · {cat}</span>
             </span>
           </span>
         )}
@@ -573,7 +595,7 @@ function Tile({ item, index, onOpen, saveLabel, ratio, compact = false }: { item
         onClick={() => toggleMood(item.id)}
         aria-label={saveLabel}
         aria-pressed={saved}
-        className={`absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full transition-all duration-300 cursor-pointer ${
+        className={`absolute right-1.5 top-1.5 flex h-11 w-11 items-center justify-center rounded-full md:right-2 md:top-2 md:h-9 md:w-9 transition-all duration-300 cursor-pointer ${
           saved ? 'bg-ruby text-white opacity-100 shadow-ruby' : 'glass-dark text-white opacity-100 md:opacity-0 md:group-hover:opacity-100'
         }`}
       >
@@ -644,7 +666,7 @@ function MoodboardBar() {
               <span className="font-semibold text-white tabular-nums">{saved.length}</span> {t.saved}
             </span>
             <button type="button" onClick={clearMood} className="hidden rounded-full px-3 py-2 text-[13px] text-white/55 transition hover:text-white sm:block cursor-pointer">{t.clear}</button>
-            <button type="button" onClick={send} className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-ruby px-4 text-[13px] font-semibold text-white transition hover:bg-ruby-bright cursor-pointer">
+            <button type="button" onClick={send} className="flex h-11 shrink-0 items-center gap-2 rounded-full bg-ruby px-4 text-[13px] font-semibold text-white transition hover:bg-ruby-bright cursor-pointer sm:h-10">
               {t.send}
               <Icon name="arrowRight" size={15} />
             </button>

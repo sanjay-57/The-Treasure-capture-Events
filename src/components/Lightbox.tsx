@@ -19,10 +19,13 @@ export interface LightboxItem {
   meta?: Bi
   story?: { slug: string; title: Bi }
   bookHref?: string
+  /** Sub-brand photos lead to Contact us instead of Book. */
+  contactOnly?: boolean
 }
 
 const copy = {
   close: { en: 'Close', ta: 'மூடு' },
+  contact: { en: 'Contact us', ta: 'தொடர்பு கொள்ள' },
   prev: { en: 'Previous', ta: 'முந்தையது' },
   next: { en: 'Next', ta: 'அடுத்தது' },
   share: { en: 'Copy link', ta: 'இணைப்பை நகலெடு' },
@@ -37,8 +40,8 @@ const copy = {
 const src = (item: LightboxItem, w: number) => (item.k ? photoUrl(item.k, w, undefined, 80) : item.url ?? '')
 
 /**
- * Full-screen viewer. Arrow keys / swipe to move, Esc to close. The current
- * photo is echoed as a heavily blurred ambient backdrop, Apple TV style.
+ * Full-screen viewer. Arrow keys / swipe to move, swipe down or Esc to close,
+ * double-tap to zoom and pan. The current photo is echoed as a heavily blurred ambient backdrop, Apple TV style.
  */
 export function Lightbox({ items, index, onIndex, onClose, shareUrl }: { items: LightboxItem[]; index: number | null; onIndex: (i: number) => void; onClose: () => void; shareUrl?: (item: LightboxItem) => string }) {
   const lang = useLang()
@@ -47,6 +50,9 @@ export function Lightbox({ items, index, onIndex, onClose, shareUrl }: { items: 
   const toggleMood = useStore(s => s.toggleMood)
   const [dir, setDir] = useState(0)
   const [chrome, setChrome] = useState(true)
+  const [zoom, setZoom] = useState(false)
+  const lastTap = useRef(0)
+  const touch = useRef(false)
   const stripRef = useRef<HTMLDivElement>(null)
   const open = index !== null && items.length > 0
   const item = open ? items[Math.min(index, items.length - 1)] : null
@@ -60,9 +66,16 @@ export function Lightbox({ items, index, onIndex, onClose, shareUrl }: { items: 
     [index, items.length, onIndex],
   )
 
+  // Each photo opens at fit size.
+  useEffect(() => setZoom(false), [index])
+
   useEffect(() => {
     if (!open) return
     lenis?.stop()
+    // Lenis only stops wheel scrolling; touch scrolling behind the viewer needs the page locked too.
+    const root = document.documentElement
+    const prevOverflow = root.style.overflow
+    root.style.overflow = 'hidden'
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
       if (e.key === 'ArrowRight') go(1)
@@ -71,6 +84,7 @@ export function Lightbox({ items, index, onIndex, onClose, shareUrl }: { items: 
     window.addEventListener('keydown', onKey)
     return () => {
       lenis?.start()
+      root.style.overflow = prevOverflow
       window.removeEventListener('keydown', onKey)
     }
   }, [open, go, onClose, lenis])
@@ -86,6 +100,7 @@ export function Lightbox({ items, index, onIndex, onClose, shareUrl }: { items: 
   }, [index, items])
 
   const onDragEnd = (_: unknown, info: PanInfo) => {
+    if (zoom) return
     if (info.offset.x < -80 || info.velocity.x < -400) go(1)
     else if (info.offset.x > 80 || info.velocity.x > 400) go(-1)
     else if (info.offset.y > 140) onClose()
@@ -104,6 +119,8 @@ export function Lightbox({ items, index, onIndex, onClose, shareUrl }: { items: 
 
   const saved = item ? mood.includes(item.id) : false
 
+  // Portals can't render on the server (build-time prerender); the client mounts it after hydration.
+  if (typeof document === 'undefined') return null
   return createPortal(
     <AnimatePresence>
       {open && item && (
@@ -140,7 +157,7 @@ export function Lightbox({ items, index, onIndex, onClose, shareUrl }: { items: 
               <span className="h-3 w-px bg-white/25" />
               <span className="tabular-nums text-white/55">{String(items.length).padStart(2, '0')}</span>
             </div>
-            <div className="glass-dark flex h-11 items-center gap-1 rounded-full px-1.5">
+            <div className="glass-dark flex h-12 items-center gap-0.5 rounded-full px-0.5 md:h-11 md:gap-1 md:px-1.5">
               <ToolButton label={copy.save[lang]} onClick={() => { toggleMood(item.id); if (!saved) toast(copy.saved[lang], 'ruby') }}>
                 <Icon name="heart" size={18} className={saved ? 'fill-ruby text-ruby' : ''} />
               </ToolButton>
@@ -148,7 +165,7 @@ export function Lightbox({ items, index, onIndex, onClose, shareUrl }: { items: 
               <ToolButton label={copy.fullscreen[lang]} onClick={() => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.())} className="hidden sm:flex">
                 <Icon name="maximize" size={18} />
               </ToolButton>
-              <ToolButton label={copy.close[lang]} onClick={onClose} className="!h-10 !w-10 md:!h-9 md:!w-9"><Icon name="x" size={19} /></ToolButton>
+              <ToolButton label={copy.close[lang]} onClick={onClose}><Icon name="x" size={19} /></ToolButton>
             </div>
           </motion.div>
 
@@ -164,20 +181,31 @@ export function Lightbox({ items, index, onIndex, onClose, shareUrl }: { items: 
                 custom={dir}
                 variants={{
                   enter: (d: number) => ({ opacity: 0, x: d * 120, scale: 0.96, filter: 'blur(10px)' }),
-                  center: { opacity: 1, x: 0, scale: 1, filter: 'blur(0px)' },
+                  center: { opacity: 1, x: 0, y: 0, scale: 1, filter: 'blur(0px)' },
+                  zoomed: { opacity: 1, scale: 2.2, filter: 'blur(0px)' },
                   exit: (d: number) => ({ opacity: 0, x: d * -120, scale: 0.96, filter: 'blur(10px)' }),
                 }}
                 initial="enter"
-                animate="center"
+                animate={zoom ? 'zoomed' : 'center'}
                 exit="exit"
                 transition={{ duration: 0.6, ease: EASE }}
                 drag
-                dragSnapToOrigin
-                dragElastic={0.25}
+                dragSnapToOrigin={!zoom}
+                dragElastic={zoom ? 0 : 0.25}
                 onDragEnd={onDragEnd}
+                onPointerDown={e => { touch.current = e.pointerType !== 'mouse' }}
+                onDoubleClick={() => { if (!touch.current) setZoom(z => !z) }}
                 className="max-h-full max-w-full cursor-grab select-none rounded-lg object-contain shadow-[0_40px_120px_-20px_rgba(0,0,0,0.8)] active:cursor-grabbing"
                 draggable={false}
-                onClick={e => e.stopPropagation()}
+                onClick={e => {
+                  e.stopPropagation()
+                  // Touch screens: drag owns the gesture, so a double-tap is detected by hand.
+                  if (!touch.current) return
+                  if (e.timeStamp - lastTap.current < 300) {
+                    setZoom(z => !z)
+                    lastTap.current = 0
+                  } else lastTap.current = e.timeStamp
+                }}
               />
             </AnimatePresence>
 
@@ -199,17 +227,17 @@ export function Lightbox({ items, index, onIndex, onClose, shareUrl }: { items: 
               </AnimatePresence>
               <div className="flex shrink-0 gap-2 md:flex-wrap">
                 {item.story && (
-                  <Link to={`/gallery/${item.story.slug}`} onClick={onClose} className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-full text-center leading-tight border border-white/20 px-4 md:flex-none text-[13px] font-medium transition hover:border-white/50">
+                  <Link to={`/gallery/${item.story.slug}`} onClick={onClose} className="inline-flex h-11 md:h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-full text-center leading-tight border border-white/20 px-4 md:flex-none text-[13px] font-medium transition hover:border-white/50">
                     {copy.story[lang]} <Icon name="arrowRight" size={15} />
                   </Link>
                 )}
-                <Link to={item.bookHref ?? '/book'} onClick={onClose} className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-full text-center leading-tight bg-ruby px-4 md:flex-none text-[13px] font-semibold transition hover:bg-ruby-bright">
-                  {copy.book[lang]} <Icon name="arrowUpRight" size={15} />
+                <Link to={item.bookHref ?? '/book'} onClick={onClose} className="inline-flex h-11 md:h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-full text-center leading-tight bg-ruby px-4 md:flex-none text-[13px] font-semibold transition hover:bg-ruby-bright">
+                  {item.contactOnly ? copy.contact[lang] : copy.book[lang]} <Icon name="arrowUpRight" size={15} />
                 </Link>
               </div>
             </div>
 
-            <div ref={stripRef} className="no-scrollbar mx-auto flex max-w-full gap-1.5 overflow-x-auto px-1 pb-1" data-lenis-prevent>
+            <div ref={stripRef} className="no-scrollbar mx-auto flex max-w-full gap-1.5 overflow-x-auto overscroll-x-contain px-1 pb-1" data-lenis-prevent>
               {items.map((it, i) => (
                 <button
                   key={it.id}
@@ -233,7 +261,7 @@ export function Lightbox({ items, index, onIndex, onClose, shareUrl }: { items: 
 
 function ToolButton({ children, label, onClick, className = '' }: { children: React.ReactNode; label: string; onClick: () => void; className?: string }) {
   return (
-    <button type="button" onClick={onClick} aria-label={label} title={label} className={`flex h-9 w-9 items-center justify-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white cursor-pointer ${className}`}>
+    <button type="button" onClick={onClick} aria-label={label} title={label} className={`flex h-11 w-11 items-center justify-center rounded-full text-white/80 md:h-9 md:w-9 transition hover:bg-white/10 hover:text-white cursor-pointer ${className}`}>
       {children}
     </button>
   )

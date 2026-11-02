@@ -261,7 +261,7 @@ export function Fact({ icon, label, value, sub }: { icon: IconName; label: strin
 
 // ─── Sections ────────────────────────────────────────────────────────────────
 
-export type SectionKey = 'overview' | 'track' | 'photos' | 'album' | 'billing' | 'review'
+export type SectionKey = 'overview' | 'track' | 'photos' | 'album' | 'billing' | 'invite' | 'review'
 
 export const SECTIONS: { key: SectionKey; to: string; icon: IconName; label: Bi; desc: Bi }[] = [
   { key: 'overview', to: '/dashboard', icon: 'dashboard', label: { en: 'Overview', ta: 'மேலோட்டம்' }, desc: { en: 'Everything at a glance', ta: 'அனைத்தும் ஒரே பார்வையில்' } },
@@ -269,6 +269,7 @@ export const SECTIONS: { key: SectionKey; to: string; icon: IconName; label: Bi;
   { key: 'photos', to: '/dashboard/photos', icon: 'heart', label: { en: 'Photos', ta: 'படங்கள்' }, desc: { en: 'Choose favourites for the album', ta: 'ஆல்பத்திற்குப் பிடித்தவற்றைத் தேர்வு' } },
   { key: 'album', to: '/dashboard/album', icon: 'book', label: { en: 'Album', ta: 'ஆல்பம்' }, desc: { en: 'Cover, paper, size & type', ta: 'அட்டை, தாள், அளவு, எழுத்துரு' } },
   { key: 'billing', to: '/dashboard/billing', icon: 'receipt', label: { en: 'Billing', ta: 'கட்டணம்' }, desc: { en: 'Invoice & offline payments', ta: 'ரசீது & நேரடிக் கட்டணம்' } },
+  { key: 'invite', to: '/dashboard/invite', icon: 'mail', label: { en: 'E-invite', ta: 'அழைப்பிதழ்' }, desc: { en: 'Make and share your wedding invite', ta: 'திருமண அழைப்பிதழை உருவாக்கிப் பகிருங்கள்' } },
   { key: 'review', to: '/dashboard/review', icon: 'star', label: { en: 'Review', ta: 'கருத்து' }, desc: { en: 'Tell others about us', ta: 'மற்றவர்களுக்குச் சொல்லுங்கள்' } },
 ]
 

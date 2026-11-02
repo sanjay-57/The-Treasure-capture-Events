@@ -7,7 +7,7 @@ import { GopuramSkyline, Kolam, KolamCorner, Ornament, TamilOnly, TempleBorder, 
 import { COMMON, useLang, useT, type Bi } from '../lib/i18n'
 import { DISTRICTS, ROLES, SEED_WORKERS, type DistrictKey } from '../lib/data'
 import type { ImgKey } from '../lib/images'
-import { useDarkHero, useTitle } from '../lib/ui'
+import { useDarkHero, useTitle, useSeo } from '../lib/ui'
 import { CenterIntro, ClosingCta } from './content/shared'
 
 // ─── Copy ────────────────────────────────────────────────────────────────────
@@ -279,6 +279,7 @@ const MAP: Record<DistrictKey, { x: number; y: number; side: 'l' | 'r' }> = {
 
 export default function About() {
   useTitle(TITLE)
+  useSeo({ en: 'The Treasure Capture Events: a Madurai photography and videography studio for Tamil weddings and family ceremonies.', ta: 'The Treasure Capture Events: தமிழ்த் திருமணங்களுக்கும் குடும்ப விழாக்களுக்குமான மதுரைப் புகைப்பட, வீடியோ ஸ்டுடியோ.' })
   useDarkHero()
   return (
     <>
@@ -705,6 +706,8 @@ function Network() {
                     type="button"
                     onMouseEnter={() => setHover(d.key)}
                     onMouseLeave={() => setHover(null)}
+                    // iOS doesn't focus buttons on tap, so touch highlights the route via click.
+                    onClick={() => setHover(h => (h === d.key ? null : d.key))}
                     onFocus={() => setHover(d.key)}
                     onBlur={() => setHover(null)}
                     className={`flex min-h-12 w-full cursor-default items-center gap-2.5 py-3 text-left text-[14.5px] leading-snug md:min-h-0 md:py-3.5 md:text-[15px] md:leading-normal transition-colors ${hover === d.key ? 'text-white' : 'text-white/60'}`}

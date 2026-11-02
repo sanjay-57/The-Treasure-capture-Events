@@ -236,6 +236,7 @@ export default function Login() {
                       type="tel"
                       inputMode="numeric"
                       autoComplete="tel-national"
+                      enterKeyHint="send"
                       autoFocus
                       value={formatPhone(digits)}
                       onChange={e => {
@@ -279,7 +280,7 @@ export default function Login() {
                 <h2 className="t-3 mt-6 text-balance sm:mt-8">{t.step2Title}</h2>
                 <p className="mt-2 flex flex-wrap items-center gap-x-2 text-[14.5px] text-ink/60">
                   {t.sentTo} <span className="font-mono text-ink">+91 {formatPhone(digits)}</span>
-                  <button type="button" onClick={reset} className="font-medium text-ruby underline-offset-4 hover:underline cursor-pointer">
+                  <button type="button" onClick={reset} className="-my-2 inline-flex min-h-11 items-center font-medium text-ruby underline-offset-4 hover:underline cursor-pointer sm:my-0 sm:min-h-0">
                     {t.change}
                   </button>
                 </p>
@@ -320,7 +321,7 @@ export default function Login() {
                   setDigits(DEMO_CLIENT_PHONE)
                   setError('')
                 }}
-                className="inline-flex h-9 items-center rounded-full bg-white/80 px-3.5 text-[12px] font-semibold text-ruby transition hover:bg-white cursor-pointer sm:h-auto sm:px-3 sm:py-1"
+                className="inline-flex h-10 items-center rounded-full bg-white/80 px-3.5 text-[12px] font-semibold text-ruby transition hover:bg-white cursor-pointer sm:h-auto sm:px-3 sm:py-1"
               >
                 {t.useDemo}
               </button>
@@ -440,6 +441,7 @@ function Otp({ onComplete, disabled, phase, label, groupLabel }: { onComplete: (
             disabled={disabled}
             inputMode="numeric"
             autoComplete={i === 0 ? 'one-time-code' : 'off'}
+            enterKeyHint={i === 3 ? 'done' : 'next'}
             aria-label={`${label} ${i + 1}`}
             maxLength={i === 0 ? 4 : 1}
             onChange={e => {
@@ -499,7 +501,7 @@ function Resend({ onResend }: { onResend: () => void }) {
             onResend()
             setLeft(30)
           }}
-          className="inline-flex items-center gap-1.5 font-medium text-ruby underline-offset-4 hover:underline cursor-pointer"
+          className="inline-flex min-h-11 items-center gap-1.5 font-medium text-ruby underline-offset-4 hover:underline cursor-pointer sm:min-h-0"
         >
           <Icon name="refresh" size={14} />
           {t.resend}

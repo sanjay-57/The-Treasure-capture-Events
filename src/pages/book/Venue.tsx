@@ -1,8 +1,11 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router'
+import { useLenis } from 'lenis/react'
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react'
 import { DatePicker, Field, LangImg, Segmented, Badge, TimePicker } from '../../components/ui'
 import { Icon } from '../../components/Icon'
+import { mapsLink } from '../../components/MapEmbed'
+import { PinMap } from '../../components/PinMap'
 import { Reveal, EASE } from '../../components/motion'
 import { KolamCorner, Ornament, TempleBorder } from '../../components/tamil'
 import { formatDate, formatINR, useLang, useT } from '../../lib/i18n'
@@ -10,7 +13,8 @@ import { useTitle } from '../../lib/ui'
 import { useStore } from '../../lib/store'
 import { TRAVEL_FREE_KM, TRAVEL_PER_KM, VENUES, districtName, type VenueType } from '../../lib/data'
 import { estimateDistanceKm } from '../../lib/pricing'
-import { StepGuard, StepHeader, StepNav, SubHeading, todayISO } from './shared'
+import { districtCentre, hasGooglePlaces, resolveSuggestion, reverseGeocode, roundCoord, suggestPlaces, type LatLng, type Suggestion } from '../../lib/geo'
+import { StepGuard, StepHeader, StepNav, SubHeading, LEAD_DAYS, earliestEventISO, todayISO } from './shared'
 
 const copy = {
   title: { en: 'Where, and when?', ta: 'எங்கே, எப்போது?' },
@@ -34,9 +38,11 @@ const copy = {
   fullAddress: { en: 'Full address', ta: 'முழு முகவரி' },
   addressPh: { en: 'Full address', ta: 'முழு முகவரி' },
   distTitle: { en: 'Distance from our studio', ta: 'எங்கள் ஸ்டுடியோவிலிருந்து தூரம்' },
-  estimate: { en: 'Estimate', ta: 'மதிப்பீடு' },
-  calculating: { en: 'Calculating…', ta: 'கணக்கிடுகிறது…' },
+  estimate: { en: 'Estimate', ta: 'தோராயம்' },
   enterAddress: { en: 'Enter the address to estimate distance.', ta: 'தூரத்தை மதிப்பிட முகவரியை உள்ளிடுங்கள்.' },
+  needPin: { en: 'Search for the venue or use your location to estimate distance.', ta: 'தூரத்தைக் கணக்கிட, இடத்தைத் தேடுங்கள் அல்லது உங்கள் இருப்பிடத்தைப் பயன்படுத்துங்கள்.' },
+  fromPin: { en: 'Measured to your pin.', ta: 'நீங்கள் குறித்த இடம் வரை கணக்கிட்டது.' },
+  fromCentre: { en: 'Measured to {d} town centre. Pin the venue for a closer figure.', ta: '{d} நகர மையம் வரை கணக்கிட்டது. இடத்தைக் குறித்தால் இன்னும் சரியாக வரும்.' },
   within: { en: 'Within the free 20 km radius — no travel charge.', ta: 'இலவச 20 கி.மீ வரம்புக்குள் — பயணக் கட்டணம் இல்லை.' },
   beyond: { en: 'beyond the free radius', ta: 'இலவச வரம்புக்கு அப்பால்' },
   perKm: { en: `₹${TRAVEL_PER_KM}/km`, ta: `கி.மீ-க்கு ₹${TRAVEL_PER_KM}` },
@@ -44,11 +50,36 @@ const copy = {
   freeZone: { en: '20 km free', ta: '20 கி.மீ இலவசம்' },
   km: { en: 'km', ta: 'கி.மீ' },
   distNote: {
-    en: 'A quick front-end estimate. When you submit, our server confirms the exact road distance with Google Maps Distance Matrix.',
-    ta: 'இது தோராயமான மதிப்பீடு. சமர்ப்பித்தவுடன், எங்கள் சர்வர் Google Maps Distance Matrix மூலம் சரியான சாலைத் தூரத்தை உறுதிசெய்யும்.',
+    en: 'An estimate: the straight line from our Madurai studio, plus 30% for the roads. We confirm the actual route when we call you.',
+    ta: 'இது தோராயமான தூரம்: எங்கள் மதுரை ஸ்டுடியோவிலிருந்து நேர்கோட்டுத் தூரத்துடன், சாலைக்காக 30% கூட்டியுள்ளோம். அழைக்கும்போது சரியான வழியை உறுதிசெய்வோம்.',
   },
+  search: { en: 'Search for the venue', ta: 'இடத்தைத் தேடுங்கள்' },
+  searchPh: { en: 'Search a mahal, street or area', ta: 'மண்டபம், தெரு அல்லது பகுதியைத் தேடுங்கள்' },
+  searchHint: { en: 'Pick a suggestion to pin it, or tap the map below to drop the pin yourself.', ta: 'ஒரு பரிந்துரையைத் தேர்ந்தால் குறிக்கப்படும்; அல்லது கீழே வரைபடத்தைத் தொட்டு நீங்களே பின் போடுங்கள்.' },
+  searching: { en: 'Searching…', ta: 'தேடுகிறது…' },
+  found: { en: 'places found', ta: 'இடங்கள் கிடைத்தன' },
+  noResults: { en: 'No match yet. Drop a pin on the map instead, or type the full address below.', ta: 'பொருத்தம் இல்லை. வரைபடத்தில் பின் போடுங்கள், அல்லது கீழே முழு முகவரியை எழுதுங்கள்.' },
+  google: { en: 'Powered by Google', ta: 'Google வழங்குகிறது' },
+  results: { en: 'Places found', ta: 'கிடைத்த இடங்கள்' },
+  osm: { en: '© OpenStreetMap contributors', ta: '© OpenStreetMap பங்களிப்பாளர்கள்' },
+  myLocation: { en: 'Use my location', ta: 'என் இருப்பிடத்தைப் பயன்படுத்து' },
+  locating: { en: 'Finding you…', ta: 'இருப்பிடம் தேடுகிறது…' },
+  pinned: { en: 'Pinned on the map', ta: 'வரைபடத்தில் குறிக்கப்பட்டது' },
+  unpin: { en: 'Remove pin', ta: 'குறியை நீக்கு' },
+  pinnedAddress: { en: 'Pinned location', ta: 'குறித்த இடம்' },
+  noLocation: { en: 'We could not get your location. Type the address instead.', ta: 'உங்கள் இருப்பிடம் கிடைக்கவில்லை. முகவரியைத் தட்டச்சு செய்யுங்கள்.' },
+  deniedLocation: {
+    en: 'Location is turned off for this site. Allow it in your browser’s site settings (the icon beside the address bar), or just type the address.',
+    ta: 'இந்தத் தளத்திற்கு இருப்பிட அனுமதி இல்லை. உலாவியின் தள அமைப்புகளில் (முகவரிப் பட்டைக்கு அருகிலுள்ள குறி) அனுமதி தாருங்கள், அல்லது முகவரியைத் தட்டச்சு செய்யுங்கள்.',
+  },
+  mapTitle: { en: 'Venue on the map', ta: 'வரைபடத்தில் இடம்' },
+  openMaps: { en: 'Open in Google Maps', ta: 'Google Maps-ல் திற' },
   when: { en: 'Date & time', ta: 'தேதி & நேரம்' },
   whenNote: { en: 'Not fixed yet? Mark it tentative and we will pencil it in.', ta: 'இன்னும் உறுதியாகவில்லையா? தற்காலிகம் எனக் குறியுங்கள்; நாங்கள் குறித்து வைக்கிறோம்.' },
+  leadNote: {
+    en: `We plan every shoot with the family, so bookings open ${LEAD_DAYS} days ahead. The earliest date is {d}. Sooner than that? Call or WhatsApp us.`,
+    ta: `ஒவ்வொரு படப்பிடிப்பையும் குடும்பத்துடன் சேர்ந்து திட்டமிடுகிறோம்; அதனால் ${LEAD_DAYS} நாட்களுக்கு முன்பே பதிவு செய்ய வேண்டும். முதல் தேதி {d}. அதற்கு முன் என்றால் அழைக்கவும் அல்லது WhatsApp செய்யவும்.`,
+  },
   exact: { en: 'Exact date', ta: 'உறுதியான தேதி' },
   tentative: { en: 'Tentative', ta: 'தற்காலிகம்' },
   date: { en: 'Event date', ta: 'நிகழ்வுத் தேதி' },
@@ -100,18 +131,20 @@ function VenueStep() {
       <Ornament className="my-10 md:my-14" />
 
       <SubHeading index="ii." title={t.address} note={t.addressNote} />
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <Reveal className="space-y-4">
+        <VenueSearch />
+        <VenuePin />
+      </Reveal>
+      <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <Reveal className="space-y-5">
-          <div>
-            <Field
-              label={`${draft.venueType === 'home' ? t.homeName : t.mahalName} · ${t.optional}`}
-              value={draft.venueName}
-              onChange={v => updateDraft({ venueName: v })}
-              placeholder={draft.venueType === 'home' ? t.homeNamePh : t.mahalNamePh}
-              icon={draft.venueType === 'home' ? 'home' : 'building'}
-              maxLength={80}
-            />
-          </div>
+          <Field
+            label={`${draft.venueType === 'home' ? t.homeName : t.mahalName} · ${t.optional}`}
+            value={draft.venueName}
+            onChange={v => updateDraft({ venueName: v })}
+            placeholder={draft.venueType === 'home' ? t.homeNamePh : t.mahalNamePh}
+            icon={draft.venueType === 'home' ? 'home' : 'building'}
+            maxLength={80}
+          />
           <Field label={t.fullAddress} value={draft.venueAddress} onChange={v => updateDraft({ venueAddress: v })} placeholder={t.addressPh} icon="mapPin" rows={3} required maxLength={240} />
         </Reveal>
         <Reveal delay={0.1}>
@@ -125,6 +158,286 @@ function VenueStep() {
       <DateTime />
 
       <StepNav back="/book/event" onNext={() => navigate('/book/package')} nextLabel={t.next} disabled={!!hint} hint={hint} />
+    </div>
+  )
+}
+
+// ─── Venue search: type-ahead like the Google Maps box ───────────────────────
+
+function VenueSearch() {
+  const t = useT(copy)
+  const district = useStore(s => s.draft.district)
+  const venueType = useStore(s => s.draft.venueType)
+  const updateDraft = useStore(s => s.updateDraft)
+  const lenis = useLenis()
+  const id = useId()
+  const listId = `${id}-list`
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState<Suggestion[]>([])
+  const [searched, setSearched] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [active, setActive] = useState(-1)
+  // The text a pick wrote into the box, so it does not search itself again.
+  const picked = useRef('')
+
+  // Short debounce so suggestions follow the typing; each keystroke aborts the request before it.
+  useEffect(() => {
+    const text = q.trim()
+    if (text.length < 2 || text === picked.current) {
+      setResults([])
+      setSearched('')
+      setLoading(false)
+      return
+    }
+    const ctrl = new AbortController()
+    setLoading(true)
+    const timer = window.setTimeout(() => {
+      suggestPlaces(text, districtCentre(district), ctrl.signal).then(found => {
+        if (ctrl.signal.aborted) return
+        setResults(found)
+        setSearched(text)
+        setActive(found.length ? 0 : -1)
+        setLoading(false)
+      })
+    }, 220)
+    return () => {
+      window.clearTimeout(timer)
+      ctrl.abort()
+    }
+  }, [q, district])
+
+  const pick = async (s: Suggestion) => {
+    picked.current = s.name
+    setQ(s.name)
+    setOpen(false)
+    setResults([])
+    const p = await resolveSuggestion(s)
+    const full = [s.name, p?.address ?? s.address].filter(Boolean).join(', ')
+    // A home's "name" field is the family's, so the place goes into the address there.
+    updateDraft({
+      ...(p ? { venueCoords: { lat: p.lat, lng: p.lng } } : {}),
+      ...(venueType === 'home' ? { venueAddress: full } : { venueName: s.name, venueAddress: (p?.address ?? s.address) || s.name }),
+    })
+  }
+
+  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (!results.length) return
+      e.preventDefault()
+      setOpen(true)
+      const step = e.key === 'ArrowDown' ? 1 : -1
+      setActive(a => (a + step + results.length) % results.length)
+    } else if (e.key === 'Enter') {
+      if (open && results[Math.max(0, active)]) {
+        e.preventDefault()
+        void pick(results[Math.max(0, active)])
+      }
+    } else if (e.key === 'Escape') {
+      if (open) {
+        e.preventDefault()
+        setOpen(false)
+        setActive(-1)
+      }
+    }
+  }
+
+  const showList = open && q.trim().length >= 2 && searched !== '' && (searched === q.trim() || results.length > 0)
+  const status = loading ? t.searching : showList ? (results.length ? `${results.length} ${t.found}` : t.noResults) : ''
+
+  /** Bold the part of the name that matches what was typed, as Google does. */
+  const mark = (name: string) => {
+    const i = name.toLowerCase().indexOf(q.trim().toLowerCase())
+    if (i < 0 || !q.trim()) return name
+    const n = q.trim().length
+    return (
+      <>
+        {name.slice(0, i)}
+        <span className="font-semibold">{name.slice(i, i + n)}</span>
+        {name.slice(i + n)}
+      </>
+    )
+  }
+
+  return (
+    <div>
+      <label htmlFor={id} className="t-label mb-2 flex items-center gap-1 text-ink/55">{t.search}</label>
+      <div className="relative">
+        <Icon name="search" size={17} className="pointer-events-none absolute left-4 top-[17px] text-ink/35" />
+        <input
+          id={id}
+          type="search"
+          role="combobox"
+          aria-expanded={showList && results.length > 0}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={showList && active >= 0 ? `${id}-opt-${active}` : undefined}
+          autoComplete="off"
+          value={q}
+          onChange={e => {
+            picked.current = ''
+            setQ(e.target.value)
+            setOpen(true)
+          }}
+          onFocus={e => {
+            setOpen(true)
+            // Phones: lift the box under the nav so the results have room above the keyboard.
+            if (!window.matchMedia('(max-width: 767px)').matches) return
+            const box = e.currentTarget
+            window.setTimeout(() => {
+              if (lenis) lenis.scrollTo(box, { offset: -110 })
+              else box.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }, 250)
+          }}
+          onBlur={() => setOpen(false)}
+          onKeyDown={onKey}
+          placeholder={t.searchPh}
+          enterKeyHint="search"
+          autoCorrect="off"
+          maxLength={120}
+          className="h-[54px] w-full rounded-full border border-ink/10 bg-white pl-11 pr-11 text-base text-ink shadow-soft outline-none transition-all duration-200 placeholder:text-ink/35 focus:border-ruby focus:ring-4 focus:ring-ruby/10 md:text-[15px]"
+        />
+        {loading && <span className="absolute right-4 top-[19px] h-4 w-4 animate-spin rounded-full border-2 border-ruby/25 border-t-ruby" aria-hidden="true" />}
+        {showList && (
+          <div className="absolute inset-x-0 top-full z-[600] mt-2 overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-soft">
+            {results.length > 0 ? (
+              <ul id={listId} role="listbox" aria-label={t.results} data-lenis-prevent className="max-h-[44vh] overflow-y-auto overscroll-contain py-1.5 sm:max-h-80">
+                {results.map((p, i) => (
+                  <li
+                    key={p.id}
+                    id={`${id}-opt-${i}`}
+                    role="option"
+                    aria-selected={i === active}
+                    // mousedown, so the pick lands before the input's blur closes the list
+                    onMouseDown={e => {
+                      e.preventDefault()
+                      void pick(p)
+                    }}
+                    onMouseEnter={() => setActive(i)}
+                    className={`flex min-h-12 cursor-pointer items-center gap-3 px-4 py-2.5 ${i === active ? 'bg-ink/[0.04]' : ''}`}
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink/[0.06]">
+                      <Icon name="mapPin" size={15} className="text-ink/55" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-[14px] text-ink">{mark(p.name)}</span>
+                      {p.address && <span className="block truncate text-[12px] text-ink/50">{p.address}</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="px-4 py-3 text-[13px] leading-snug text-ink/60">{t.noResults}</p>
+            )}
+            <p className="border-t border-ink/[0.06] px-4 py-2 text-right text-[10.5px] text-ink/45">
+              {hasGooglePlaces() ? (
+                t.google
+              ) : (
+                <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" onMouseDown={e => e.preventDefault()} className="hover:text-ruby">{t.osm}</a>
+              )}
+            </p>
+          </div>
+        )}
+      </div>
+      <p className="mt-1.5 text-xs text-ink/45">{t.searchHint}</p>
+      <p className="sr-only" role="status" aria-live="polite">{status}</p>
+    </div>
+  )
+}
+
+// ─── Map: drop or drag the pin, or "Use my location" ─────────────────────────
+
+function VenuePin() {
+  const t = useT(copy)
+  const { venueName, venueAddress, venueCoords, district } = useStore(s => s.draft)
+  const updateDraft = useStore(s => s.updateDraft)
+  const [locating, setLocating] = useState(false)
+  const [failed, setFailed] = useState<'denied' | 'other' | false>(false)
+  const canLocate = typeof navigator !== 'undefined' && 'geolocation' in navigator
+  // The address we wrote from a pin, so a later pin may replace it but never the customer's own typing.
+  const autoAddress = useRef('')
+  const reverse = useRef<AbortController | null>(null)
+
+  /** Sets the pin, then fills the address from the nearest known place when the box is empty or ours. */
+  const pinAt = (ll: LatLng) => {
+    updateDraft({ venueCoords: ll })
+    const current = useStore.getState().draft.venueAddress.trim()
+    if (current && current !== autoAddress.current) return
+    const fallback = `${t.pinnedAddress} · ${ll.lat}, ${ll.lng}`
+    autoAddress.current = fallback
+    updateDraft({ venueAddress: fallback })
+    reverse.current?.abort()
+    const ctrl = new AbortController()
+    reverse.current = ctrl
+    void reverseGeocode(ll, ctrl.signal).then(p => {
+      if (!p || ctrl.signal.aborted || useStore.getState().draft.venueAddress !== autoAddress.current) return
+      const text = [p.name, p.address].filter(Boolean).join(', ')
+      autoAddress.current = text
+      updateDraft({ venueAddress: text })
+    })
+  }
+
+  const locate = () => {
+    setFailed(false)
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        pinAt({ lat: roundCoord(pos.coords.latitude), lng: roundCoord(pos.coords.longitude) })
+        setLocating(false)
+      },
+      err => {
+        setFailed(err.code === err.PERMISSION_DENIED ? 'denied' : 'other')
+        setLocating(false)
+      },
+      { enableHighAccuracy: true, timeout: 12000 },
+    )
+  }
+
+  // The pin wins over the typed address; the typed address gets the district for a better match.
+  const query = venueCoords
+    ? `${venueCoords.lat},${venueCoords.lng}`
+    : venueAddress.trim().length > 6
+      ? [venueName, venueAddress, district ? districtName(district, 'en') : ''].filter(Boolean).join(', ')
+      : ''
+
+  return (
+    <div className="space-y-3">
+      <PinMap value={venueCoords} center={districtCentre(district)} onPick={pinAt} label={t.mapTitle} className="h-[380px] w-full sm:h-[440px] lg:h-[500px]" />
+      <div className="flex flex-wrap items-center gap-2">
+        {canLocate && (
+          <button
+            type="button"
+            onClick={locate}
+            disabled={locating}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-ink/10 bg-white/80 px-4 text-[13.5px] font-medium text-ink transition hover:border-ruby/40 hover:text-ruby disabled:opacity-60 cursor-pointer"
+          >
+            <Icon name="mapPin" size={15} className="text-ruby" />
+            {locating ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-ruby/25 border-t-ruby" aria-hidden="true" /> : null}
+            {locating ? t.locating : t.myLocation}
+          </button>
+        )}
+        {venueCoords && (
+          <span className="inline-flex h-9 items-center gap-1.5 rounded-full bg-ruby-soft px-3 text-[12.5px] font-medium text-ruby-deep">
+            <Icon name="check" size={13} strokeWidth={2.4} />
+            {t.pinned}
+            <button type="button" onClick={() => updateDraft({ venueCoords: undefined })} aria-label={t.unpin} className="relative -mr-1 ml-0.5 flex h-6 w-6 items-center justify-center rounded-full before:absolute before:-inset-2.5 before:content-[''] hover:bg-ruby/10 cursor-pointer">
+              <Icon name="x" size={12} />
+            </button>
+          </span>
+        )}
+        {query && (
+          <a href={mapsLink(query)} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-1 px-2 text-[12.5px] font-medium text-ink/55 hover:text-ruby">
+            {t.openMaps}
+            <Icon name="external" size={12} />
+          </a>
+        )}
+      </div>
+      {failed && (
+        <p role="alert" className="flex items-start gap-2 text-[12.5px] leading-snug text-ink/60">
+          <Icon name="info" size={14} className="mt-px shrink-0 text-ruby" />
+          {failed === 'denied' ? t.deniedLocation : t.noLocation}
+        </p>
+      )}
     </div>
   )
 }
@@ -228,27 +541,15 @@ function DistanceMeter() {
   const reduce = useReducedMotion()
   const address = useStore(s => s.draft.venueAddress)
   const district = useStore(s => s.draft.district)
+  const coords = useStore(s => s.draft.venueCoords)
   const km = useStore(s => s.draft.distanceKm)
   const updateDraft = useStore(s => s.updateDraft)
-  const [calculating, setCalculating] = useState(false)
-  const last = useRef(address)
 
-  // Debounced stand-in for the backend Distance Matrix call.
+  // Straight line × 1.3 to the pin, or to the district's town centre without one.
+  const target = address.trim() ? estimateDistanceKm(coords, district) : 0
   useEffect(() => {
-    if (address === last.current && (km > 0 || !address.trim())) return
-    last.current = address
-    if (!address.trim()) {
-      updateDraft({ distanceKm: 0 })
-      setCalculating(false)
-      return
-    }
-    setCalculating(true)
-    const timer = window.setTimeout(() => {
-      updateDraft({ distanceKm: estimateDistanceKm(address, district) })
-      setCalculating(false)
-    }, 650)
-    return () => window.clearTimeout(timer)
-  }, [address, district, km, updateDraft])
+    if (target !== km) updateDraft({ distanceKm: target })
+  }, [target, km, updateDraft])
 
   const has = !!address.trim() && km > 0
   const far = km > TRAVEL_FREE_KM
@@ -275,11 +576,7 @@ function DistanceMeter() {
       </div>
 
       <div className="mt-4 flex items-baseline gap-2">
-        {calculating ? (
-          <span className="skeleton inline-block h-[2.9rem] w-24 rounded-xl" aria-label={t.calculating} />
-        ) : (
-          <motion.span className="font-display text-[3rem] font-semibold leading-none tabular-nums text-ink">{has ? kmText : '—'}</motion.span>
-        )}
+        <motion.span className="font-display text-[3rem] font-semibold leading-none tabular-nums text-ink">{has ? kmText : '—'}</motion.span>
         <span className="text-ink/50">{t.km}</span>
       </div>
 
@@ -316,8 +613,8 @@ function DistanceMeter() {
       <div className="mt-5 min-h-[2.6rem] text-[13px] leading-snug">
         {!address.trim() ? (
           <p className="text-ink/50">{t.enterAddress}</p>
-        ) : calculating ? (
-          <p className="text-ink/50">{t.calculating}</p>
+        ) : !has ? (
+          <p className="text-ink/50">{t.needPin}</p>
         ) : far ? (
           <p className="text-ink/75">
             <span className="font-semibold tabular-nums text-ruby">+{formatINR(surcharge)}</span> · {km - TRAVEL_FREE_KM} {t.km} {t.beyond} ({t.perKm})
@@ -328,6 +625,7 @@ function DistanceMeter() {
             {t.within}
           </p>
         )}
+        {has && <p className="mt-1.5 text-[12px] text-ink/50">{coords ? t.fromPin : t.fromCentre.replace('{d}', districtName(district, lang))}</p>}
       </div>
       <p className="mt-4 border-t border-ruby/10 pt-3 text-[11px] leading-relaxed text-ink/45">{t.distNote}</p>
     </div>
@@ -342,9 +640,15 @@ function DateTime() {
   const t = useT(copy)
   const draft = useStore(s => s.draft)
   const updateDraft = useStore(s => s.updateDraft)
-  const min = todayISO()
+  const min = earliestEventISO()
+  const today = todayISO()
   const tentative = draft.dateCertainty === 'tentative'
-  const days = draft.date ? Math.round((new Date(draft.date + 'T00:00:00').getTime() - new Date(min + 'T00:00:00').getTime()) / 864e5) : null
+  const days = draft.date ? Math.round((new Date(draft.date + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 864e5) : null
+
+  // A date saved before the lead time came in (or an old draft) is too soon now: ask again.
+  useEffect(() => {
+    if (draft.date && draft.date < min) updateDraft({ date: '' })
+  }, [draft.date, min, updateDraft])
 
   return (
     <Reveal>
@@ -366,9 +670,13 @@ function DateTime() {
               <span className="text-ruby">*</span>
             </p>
             <DatePicker value={draft.date} onChange={d => updateDraft({ date: d && d < min ? min : d })} min={min} lang={lang} className="flex-1" />
+            <p className="mt-2 flex items-start gap-1.5 text-[12px] leading-snug text-ink/50">
+              <Icon name="info" size={13} className="mt-px shrink-0 text-ruby" />
+              {t.leadNote.replace('{d}', formatDate(min, lang, { day: 'numeric', month: 'long' }))}
+            </p>
           </div>
           <div className="flex min-w-0 flex-col">
-            <p className="t-label mb-2 flex items-center gap-1 text-ink/55">
+            <p className="t-label mb-2 flex flex-wrap items-center gap-1 text-ink/55">
               <Icon name="clock" size={14} className="text-ruby" />
               {t.time}
               <span className="ml-auto text-[11px] font-medium normal-case tracking-normal text-ink/40">{t.timeHint}</span>

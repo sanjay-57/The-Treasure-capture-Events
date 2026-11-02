@@ -1,6 +1,7 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { AnimatePresence, motion } from 'motion/react'
+import { useLenis } from 'lenis/react'
 import { Button, Field } from '../../components/ui'
 import { Icon, type IconName } from '../../components/Icon'
 import { Reveal, Stagger, StaggerItem, EASE } from '../../components/motion'
@@ -78,6 +79,16 @@ const isMobile = (s: string) => {
 }
 const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s.trim())
 
+/**
+ * Autofill and keyboard hints for the phone keyboard. `Field` doesn't take these
+ * props yet, so they are set on the rendered input; harmless once it does.
+ */
+const FIELD_ATTRS: Record<string, Record<string, string>> = {
+  name: { autocomplete: 'name', enterkeyhint: 'next', autocapitalize: 'words' },
+  contact: { autocomplete: 'tel-national', enterkeyhint: 'next' },
+  email: { autocomplete: 'email', enterkeyhint: 'done', autocapitalize: 'off', spellcheck: 'false' },
+}
+
 export default function Details() {
   return (
     <StepGuard step={4}>
@@ -98,6 +109,13 @@ function DetailsStep() {
   const [agree, setAgree] = useState(false)
   const [sending, setSending] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
+  const lenis = useLenis()
+  useEffect(() => {
+    for (const [field, attrs] of Object.entries(FIELD_ATTRS)) {
+      const input = formRef.current?.querySelector<HTMLInputElement>(`[data-field="${field}"] input`)
+      if (input) for (const [k, v] of Object.entries(attrs)) if (!input.hasAttribute(k)) input.setAttribute(k, v)
+    }
+  }, [])
   useDockAction({ onNext: () => formRef.current?.requestSubmit(), label: t.send, short: t.sendShort, icon: 'send', busy: sending })
 
   // What the voice guide can do on this step (see VoiceGuide.tsx). Replies are spoken back.
@@ -208,7 +226,13 @@ function DetailsStep() {
     if (!valid) {
       toast(t.failed)
       const first = (['name', 'contact', 'email', 'terms'] as const).find(k => errors[k])
-      document.querySelector<HTMLElement>(`[data-field="${first}"] input, [data-field="${first}"] textarea`)?.focus()
+      // Bring the first problem to the middle of the screen (clear of the nav and the dock), then focus it.
+      const box = document.querySelector<HTMLElement>(`[data-field="${first}"]`)
+      if (box) {
+        if (lenis) lenis.scrollTo(box, { offset: -window.innerHeight / 3 })
+        else box.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+      box?.querySelector<HTMLElement>('input, textarea')?.focus({ preventScroll: true })
       return
     }
     setSending(true)

@@ -7,7 +7,7 @@ import { EASE } from './motion'
 import { KolamCorner } from './tamil'
 import type { LightboxItem } from './Lightbox'
 import { districtName, type EventKey } from '../lib/data'
-import { GALLERY, GALLERY_CATS, galleryForLang, type GalleryCat, type GalleryItem, type Story, STORIES } from '../lib/gallery'
+import { GALLERY, GALLERY_CATS, SUB_BRANDS, galleryForLang, type GalleryCat, type GalleryItem, type Story, STORIES } from '../lib/gallery'
 import { photoRatio, type ImgKey } from '../lib/images'
 import { formatDate, useLang } from '../lib/i18n'
 import { useStore } from '../lib/store'
@@ -19,6 +19,8 @@ export const CAT_TO_EVENT: Record<GalleryCat, EventKey> = {
   reception: 'reception',
   ceremonies: 'puberty',
   little: 'birthday',
+  cradle: 'babyshoot',
+  bumpy: 'babyshower',
   culture: 'wedding',
 }
 
@@ -47,7 +49,8 @@ export function toLightbox(i: GalleryItem): LightboxItem {
     title: i.title,
     meta: { en: `${districtName(i.district, 'en')} · ${cat?.en ?? ''}`, ta: `${districtName(i.district, 'ta')} · ${cat?.ta ?? ''}` },
     story: story ? { slug: story.slug, title: story.title } : undefined,
-    bookHref: `/book?event=${CAT_TO_EVENT[i.cat]}&district=${i.district}`,
+    bookHref: SUB_BRANDS[i.cat] ? `/contact?brand=${i.cat}` : `/book?event=${CAT_TO_EVENT[i.cat]}&district=${i.district}`,
+    contactOnly: !!SUB_BRANDS[i.cat],
   }
 }
 

@@ -53,7 +53,8 @@ export function useT<D extends Record<string, Bi<unknown>>>(dict: D): Resolved<D
 // ─── Formatting ──────────────────────────────────────────────────────────────
 
 export function formatINR(amount: number): string {
-  return '₹' + Math.round(amount).toLocaleString('en-IN')
+  const n = Math.round(amount)
+  return (n < 0 ? '−₹' : '₹') + Math.abs(n).toLocaleString('en-IN')
 }
 
 export function formatDate(iso: string | undefined, lang: Lang, opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }): string {

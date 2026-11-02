@@ -202,7 +202,7 @@ function ReviewForm({ order, onDone, onCancel }: { order: Order; onDone: (copied
           maxLength={600}
           onChange={e => setText(e.target.value)}
           placeholder={t.placeholder}
-          className="w-full resize-none rounded-2xl border border-ink/10 bg-white/80 px-4 py-3.5 text-[15px] leading-relaxed text-ink outline-none transition-all duration-200 placeholder:text-ink/35 focus:border-ruby focus:bg-white focus:ring-4 focus:ring-ruby/10"
+          className="w-full resize-none rounded-2xl border border-ink/10 bg-white/80 px-4 py-3.5 text-[16px] leading-relaxed text-ink outline-none transition-all duration-200 placeholder:text-ink/35 md:text-[15px] focus:border-ruby focus:bg-white focus:ring-4 focus:ring-ruby/10"
         />
         <span className="pointer-events-none absolute bottom-3 right-4 text-[11px] tabular-nums text-ink/35">{text.length}/600</span>
       </div>

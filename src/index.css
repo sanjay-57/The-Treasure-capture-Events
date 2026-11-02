@@ -19,6 +19,11 @@
   --color-ruby-bright: #c41e3a;
   --color-ruby-glow: #e0115f;
   --color-ruby-soft: #fbe9eb;
+  /* Gold marks what is inside the chosen package */
+  --color-gold: #a8791c;
+  --color-gold-deep: #6f4f0e;
+  --color-gold-bright: #d9b26a;
+  --color-gold-soft: #fbf3df;
 
   --font-display: var(--ff-display);
   --font-sans: var(--ff-sans);
@@ -367,6 +372,23 @@ html.lenis, html.lenis body { height: auto; }
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   PHONES & TOUCH
+   Low-end Android pays heavily for large backdrop blurs and blended grain, so
+   small touch screens get a lighter blur radius and plain grain. Fields keep
+   16px text (px, not rem, since Tamil steps the rem down) so iOS doesn't zoom.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+a, button, [role='button'], label, summary { touch-action: manipulation; }
+
+@media (max-width: 47.99rem) and (pointer: coarse) {
+  .glass, .glass-strong, .glass-dark, .glass-ruby, .glass-ruby-clear, .glass-ruby-dark, .glass-ruby-tint {
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+  }
+  .grain::after { mix-blend-mode: normal; opacity: 0.035; }
+}
+
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
@@ -382,3 +404,15 @@ input[type='time']::-webkit-calendar-picker-indicator { opacity: 0.55; cursor: p
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Leaflet pin (PinMap): the SVG carries its own look */
+.pin-map-marker { background: none; border: 0; }
+.leaflet-container { font-family: inherit; }
+
+/* Pictorial tales rail: endless vertical drift; the list is doubled so -50% loops seamlessly */
+@keyframes tales-up { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+@keyframes tales-left { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.tales-up { animation: tales-up var(--tales-dur, 80s) linear infinite; }
+.tales-left { animation: tales-left var(--tales-dur, 70s) linear infinite; }
+.tales-up:hover, .tales-left:hover { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .tales-up, .tales-left { animation: none; } }

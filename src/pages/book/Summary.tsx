@@ -9,8 +9,9 @@ import { TempleBorder, KolamCorner } from '../../components/tamil'
 import { formatDate, formatINR, useLang, useT } from '../../lib/i18n'
 import { useStore } from '../../lib/store'
 import { CROWDS, VENUES, districtName, eventByKey } from '../../lib/data'
-import { tierName } from '../../lib/catalogue'
-import { AnimatedINR, hoursLabel, useQuote, useStepAction } from './shared'
+import { CATALOGUE_BY_ID, OVERTIME_NOTE, cartHours, cartTierName } from '../../lib/catalogue'
+import type { Quote, QuoteLine } from '../../lib/pricing'
+import { AnimatedINR, hoursLabel, useQuote, useStepAction, useTypingInField } from './shared'
 
 const copy = {
   live: { en: 'Live quote', ta: 'நேரலை மதிப்பீடு' },
@@ -21,6 +22,7 @@ const copy = {
   free: { en: 'Included', ta: 'அடங்கும்' },
   session: { en: 'session', ta: 'அமர்வு' },
   sessions: { en: 'sessions', ta: 'அமர்வுகள்' },
+  hours: { en: 'h', ta: 'மணி நேரம்' },
   noPay: { en: 'No payment now — pay offline after we confirm your date.', ta: 'இப்போது கட்டணம் இல்லை — தேதி உறுதியான பின் நேரடியாகச் செலுத்தலாம்.' },
   gst: { en: 'Indicative estimate. We confirm the date and send the final quote on WhatsApp.', ta: 'தோராயமான மதிப்பீடு. தேதியை உறுதி செய்து இறுதி மதிப்பீட்டை WhatsApp-ல் அனுப்புவோம்.' },
   startOver: { en: 'Start over', ta: 'மீண்டும் தொடங்கு' },
@@ -29,6 +31,112 @@ const copy = {
   tentative: { en: 'tentative', ta: 'தற்காலிகம்' },
   sheet: { en: 'Your quote', ta: 'உங்கள் மதிப்பீடு' },
   next: { en: 'Continue', ta: 'தொடர்க' },
+  pkgFor: { en: 'package', ta: 'தொகுப்பு' },
+  added: { en: 'Your additions', ta: 'நீங்கள் சேர்த்தவை' },
+  removed: { en: 'Removed', ta: 'நீக்கியவை' },
+}
+
+/** Line rows, shared by the section view and the package view. */
+function LineList({ lines, plus = false, gold = false }: { lines: QuoteLine[]; plus?: boolean; gold?: boolean }) {
+  const lang = useLang()
+  const t = useT(copy)
+  return (
+    <ul className="mt-1.5 space-y-1.5">
+      <AnimatePresence initial={false}>
+        {lines.map(line => (
+          <motion.li
+            key={line.id ?? `${line.label.en}|${line.detail?.en ?? ''}`}
+            layout="position"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.35, ease: EASE }}
+            className="overflow-hidden"
+          >
+            <div className="flex items-start justify-between gap-4 text-[13px]">
+              <div className="min-w-0">
+                <p className="leading-snug text-ink/80">
+                  {plus && <span className="mr-1 font-semibold text-ruby">+</span>}
+                  {line.label[lang]}
+                </p>
+                {line.detail && <p className="mt-0.5 text-[11.5px] leading-snug text-ink/45">{line.detail[lang]}</p>}
+              </div>
+              <span className={`shrink-0 tabular-nums ${line.kind === 'saving' ? `font-semibold ${gold ? 'text-gold-deep' : 'text-ruby'}` : line.amount === 0 ? 'text-ink/35' : 'text-ink/70'}`}>
+                {line.amount === 0 ? t.free : `${plus ? '+' : ''}${formatINR(line.amount)}`}
+              </span>
+            </div>
+          </motion.li>
+        ))}
+      </AnimatePresence>
+    </ul>
+  )
+}
+
+function GroupHead({ title, amount, sub, gold = false }: { title: string; amount?: number; sub?: string; gold?: boolean }) {
+  const t = useT(copy)
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <p className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] ${gold ? 'text-gold-deep' : 'text-ruby'}`}>
+        {gold && <Icon name="gem" size={12} />}
+        {title}
+        {sub && <span className="ml-1.5 normal-case tracking-normal text-ink/45">· {sub}</span>}
+      </p>
+      {amount !== undefined && <span className="text-[13px] font-semibold tabular-nums text-ink">{amount === 0 ? t.free : formatINR(amount)}</span>}
+    </div>
+  )
+}
+
+/**
+ * A cart that is still a package reads as: the package and its items (with
+ * the saving), then what was added, then what was taken out.
+ */
+function PackageGroups({ quote, hours }: { quote: Quote; hours: number }) {
+  const lang = useLang()
+  const t = useT(copy)
+  const pkg = quote.package!
+  const added = new Set(pkg.added)
+  const catalogue = quote.lines.filter(l => l.section !== 'travel' && l.section !== 'adjustment' && l.section !== 'tax')
+  const isBundle = (l: QuoteLine) => !!l.bundle
+  const own = catalogue.filter(l => !(l.id && added.has(l.id)) && !isBundle(l))
+  const extra = catalogue.filter(l => (l.id && added.has(l.id)) || isBundle(l))
+  const rest = quote.sections.filter(sec => sec.key === 'travel' || sec.key === 'adjustment' || sec.key === 'tax')
+  const sum = (ls: QuoteLine[]) => ls.reduce((s, l) => s + l.amount, 0)
+  return (
+    <>
+      {/* The package itself, in gold; whatever the customer changes follows as + / − lines */}
+      <motion.section layout="position" className="overflow-hidden rounded-2xl border border-gold/35 bg-gradient-to-b from-gold-soft to-white/60 p-3.5">
+        <GroupHead title={`${pkg.name[lang]} ${t.pkgFor}`} amount={sum(own)} sub={`${hours} ${t.hours}`} gold />
+        <LineList lines={own} gold />
+      </motion.section>
+      <AnimatePresence initial={false}>
+        {extra.length > 0 && (
+          <motion.section key="added" layout="position" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.45, ease: EASE }} className="overflow-hidden">
+            <GroupHead title={t.added} amount={sum(extra)} />
+            <LineList lines={extra} plus />
+          </motion.section>
+        )}
+        {pkg.removed.length > 0 && (
+          <motion.section key="removed" layout="position" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.45, ease: EASE }} className="overflow-hidden">
+            <GroupHead title={t.removed} />
+            <ul className="mt-1.5 space-y-1">
+              {pkg.removed.map(id => (
+                <li key={id} className="text-[13px] leading-snug text-ink/45">
+                  <span className="mr-1 font-semibold">−</span>
+                  <span className="line-through decoration-ink/25">{CATALOGUE_BY_ID[id].name[lang]}</span>
+                </li>
+              ))}
+            </ul>
+          </motion.section>
+        )}
+        {rest.map(sec => (
+          <motion.section key={sec.key} layout="position" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.45, ease: EASE }} className="overflow-hidden">
+            <GroupHead title={sec.name[lang]} amount={sec.amount} />
+            <LineList lines={sec.lines} />
+          </motion.section>
+        ))}
+      </AnimatePresence>
+    </>
+  )
 }
 
 function SummaryChips() {
@@ -40,7 +148,7 @@ function SummaryChips() {
   if (d.district) chips.push({ icon: 'mapPin', label: districtName(d.district, lang) })
   if (ev) chips.push({ icon: 'sparkle', label: ev.name[lang] })
   if (ev) chips.push({ icon: 'clock', label: hoursLabel(d.durationHours, lang) })
-  if (ev) chips.push({ icon: 'gem', label: tierName(d.cart.tier)[lang] })
+  if (ev) chips.push({ icon: 'gem', label: cartTierName(d.cart)[lang] })
   if (ev) chips.push({ icon: 'users', label: CROWDS.find(c => c.key === d.crowd)?.name[lang] ?? '' })
   if (d.venueAddress) chips.push({ icon: d.venueType === 'home' ? 'home' : 'building', label: VENUES.find(v => v.key === d.venueType)?.name[lang] ?? '' })
   if (d.date) chips.push({ icon: 'calendar', label: formatDate(d.date, lang, { day: 'numeric', month: 'short' }) + (d.dateCertainty === 'tentative' ? ` · ${t.tentative}` : '') })
@@ -72,7 +180,7 @@ export function SummaryBody({ compact = false }: { compact?: boolean }) {
   const lang = useLang()
   const t = useT(copy)
   const quote = useQuote()
-  const sessions = useStore(s => s.draft.cart.sessions)
+  const hours = useStore(s => cartHours(s.draft.cart))
   const resetDraft = useStore(s => s.resetDraft)
   const navigate = useNavigate()
 
@@ -102,52 +210,27 @@ export function SummaryBody({ compact = false }: { compact?: boolean }) {
             <AnimatedINR value={quote.total} className="mt-1 block font-display text-[2.6rem] font-semibold leading-none tracking-tight text-ink" />
           </div>
           <div className="mt-5 space-y-4">
-            <AnimatePresence initial={false}>
-              {quote.sections.map(sec => (
-                <motion.section
-                  key={sec.key}
-                  layout="position"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.45, ease: EASE }}
-                  className="overflow-hidden"
-                >
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ruby">
-                      {sec.name[lang]}
-                      {sec.key === 'crew' && <span className="ml-1.5 normal-case tracking-normal text-ink/45">· {sessions} {sessions > 1 ? t.sessions : t.session}</span>}
-                    </p>
-                    <span className="text-[13px] font-semibold tabular-nums text-ink">{sec.amount === 0 ? t.free : formatINR(sec.amount)}</span>
-                  </div>
-                  <ul className="mt-1.5 space-y-1.5">
-                    <AnimatePresence initial={false}>
-                      {sec.lines.map(line => (
-                        <motion.li
-                          key={line.id ?? line.label.en}
-                          layout="position"
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.35, ease: EASE }}
-                          className="overflow-hidden"
-                        >
-                          <div className="flex items-start justify-between gap-4 text-[13px]">
-                            <div className="min-w-0">
-                              <p className="leading-snug text-ink/80">{line.label[lang]}</p>
-                              {line.detail && <p className="mt-0.5 text-[11.5px] leading-snug text-ink/45">{line.detail[lang]}</p>}
-                            </div>
-                            <span className={`shrink-0 tabular-nums ${line.amount === 0 ? 'text-ink/35' : 'text-ink/70'}`}>
-                              {line.amount === 0 ? t.free : formatINR(line.amount)}
-                            </span>
-                          </div>
-                        </motion.li>
-                      ))}
-                    </AnimatePresence>
-                  </ul>
-                </motion.section>
-              ))}
-            </AnimatePresence>
+            {quote.package ? (
+              <PackageGroups quote={quote} hours={hours} />
+            ) : (
+              <AnimatePresence initial={false}>
+                {quote.sections.map(sec => (
+                  <motion.section
+                    key={sec.key}
+                    layout="position"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.45, ease: EASE }}
+                    className="overflow-hidden"
+                  >
+                    <GroupHead title={sec.name[lang]} amount={sec.amount} sub={sec.key === 'crew' ? `${hours} ${t.hours}` : undefined} />
+                    <LineList lines={sec.lines} />
+                  </motion.section>
+                ))}
+              </AnimatePresence>
+            )}
+            <p className="text-[11.5px] leading-snug text-ink/45">{OVERTIME_NOTE[lang]}</p>
           </div>
         </>
       ) : (
@@ -214,20 +297,18 @@ export function QuotePanel() {
   )
 }
 
-const isTextField = (el: EventTarget | null) =>
-  el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || (el instanceof HTMLInputElement && !['checkbox', 'radio', 'range', 'button', 'submit'].includes(el.type))
-
 /**
  * Bottom chrome below lg. Phones get an app-style dock (live total + the
  * step's continue action, hidden while typing); tablets keep the quote pill.
  * Both expand into the itemised quote sheet.
  */
 export function MobileQuoteBar() {
+  const lang = useLang()
   const t = useT(copy)
   const quote = useQuote()
   const action = useStepAction(s => s.action)
   const [open, setOpen] = useState(false)
-  const [typing, setTyping] = useState(false)
+  const typing = useTypingInField()
   const lenis = useLenis()
 
   useEffect(() => {
@@ -242,19 +323,9 @@ export function MobileQuoteBar() {
   }, [open, lenis])
 
   // The on-screen keyboard needs the room; tuck the dock away while a field has focus.
-  useEffect(() => {
-    const onIn = (e: FocusEvent) => isTextField(e.target) && setTyping(true)
-    const onOut = (e: FocusEvent) => isTextField(e.target) && setTyping(false)
-    document.addEventListener('focusin', onIn)
-    document.addEventListener('focusout', onOut)
-    return () => {
-      document.removeEventListener('focusin', onIn)
-      document.removeEventListener('focusout', onOut)
-    }
-  }, [])
-
   const dock = (!!quote || !!action) && !open && !typing
 
+  if (typeof document === 'undefined') return null
   return createPortal(
     <div className="lg:hidden">
       <AnimatePresence>
@@ -279,7 +350,7 @@ export function MobileQuoteBar() {
                     className="flex min-h-12 min-w-0 flex-1 flex-col justify-center rounded-[20px] px-3.5 text-left transition active:bg-ink/[0.05] cursor-pointer"
                   >
                     <span className="flex items-center gap-1 text-[11px] font-medium text-ink/50">
-                      <span className="truncate">{t.estimated}</span>
+                      <span className="truncate">{quote.package ? quote.package.label[lang] : t.estimated}</span>
                       <Icon name="chevronDown" size={13} className="shrink-0 rotate-180" />
                     </span>
                     <AnimatedINR value={quote.total} className="block truncate font-display text-[1.35rem] font-semibold leading-tight text-ink" />
@@ -331,7 +402,7 @@ export function MobileQuoteBar() {
               className="glass-strong flex w-full items-center justify-between gap-3 rounded-full py-2 pl-5 pr-2 text-left cursor-pointer"
             >
               <span className="min-w-0">
-                <span className="block text-[11px] font-medium text-ink/50">{t.estimated}</span>
+                <span className="block truncate text-[11px] font-medium text-ink/50">{quote.package ? quote.package.label[lang] : t.estimated}</span>
                 <AnimatedINR value={quote.total} className="block font-display text-[1.5rem] font-semibold leading-tight text-ink" />
               </span>
               <span className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-ink px-4 text-[13px] font-medium text-white">
@@ -367,6 +438,25 @@ export function MobileQuoteBar() {
                 </button>
               </div>
               <SummaryBody compact />
+              {/* Phones: carry on straight from the quote instead of closing it first */}
+              {action && (
+                <div className="sticky bottom-0 -mx-5 mt-5 bg-gradient-to-t from-white via-white/95 to-white/0 px-5 pb-[calc(12px+env(safe-area-inset-bottom))] pt-4 md:hidden">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (action.busy || action.disabled) return
+                      setOpen(false)
+                      action.onNext()
+                    }}
+                    disabled={action.disabled}
+                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-ruby px-5 text-[15px] font-medium text-white shadow-ruby transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-ink/15 disabled:text-ink/45 disabled:shadow-none cursor-pointer"
+                  >
+                    {action.label}
+                    <Icon name={action.icon ?? 'arrowRight'} size={17} />
+                  </button>
+                  {action.disabled && action.hint && <p className="mt-2 text-center text-[12px] leading-snug text-ink/55">{action.hint}</p>}
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}

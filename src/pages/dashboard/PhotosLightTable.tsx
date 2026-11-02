@@ -259,7 +259,7 @@ export function LightTable({ order }: { order: Order }) {
                   type="button"
                   onClick={undo}
                   disabled={!history.length}
-                  className="flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-white/15 px-3.5 text-white/80 transition hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-default"
+                  className="flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-white/15 px-4 text-white/80 md:h-9 md:px-3.5 transition hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-default"
                 >
                   <Icon name="refresh" size={14} className="-scale-x-100" />
                   {t.undo}
@@ -404,7 +404,7 @@ export function LightTable({ order }: { order: Order }) {
                             type="button"
                             onClick={() => toggleSelection(order.id, x)}
                             aria-label={`${t.remove}: ${proofFile(x)}`}
-                            className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-ink opacity-0 shadow transition group-hover:opacity-100 focus-visible:opacity-100 cursor-pointer max-lg:opacity-100"
+                            className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-ink opacity-0 shadow transition before:absolute before:-inset-2.5 before:content-[''] group-hover:opacity-100 focus-visible:opacity-100 cursor-pointer max-lg:opacity-100"
                           >
                             <Icon name="x" size={11} strokeWidth={2.4} />
                           </button>

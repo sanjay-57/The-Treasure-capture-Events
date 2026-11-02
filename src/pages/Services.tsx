@@ -3,15 +3,16 @@ import { Link } from 'react-router'
 import { AnimatePresence, motion, useInView, useScroll, useTransform } from 'motion/react'
 import { useLenis } from 'lenis/react'
 import { Icon, type IconName } from '../components/Icon'
+import { PackageAlbumNote } from '../components/PackageAlbumNote'
 import { Badge, Button, Chip, Container, Eyebrow, Img, LangImg, SectionHeading } from '../components/ui'
 import { EASE, ImageReveal, Marquee, Parallax, Reveal, RevealText, Stagger, StaggerItem } from '../components/motion'
 import { GopuramSkyline, Kolam, KolamCorner, Ornament, TamilOnly, TempleBorder } from '../components/tamil'
 import { COMMON, formatINR, useLang, useT, type Bi } from '../lib/i18n'
 import { ALBUM, DISTRICTS, EVENTS, TRAVEL_FREE_KM, TRAVEL_PER_KM, eventByKey, type EventKey } from '../lib/data'
 import { startingPrice, tierPrice } from '../lib/pricing'
-import { CATALOGUE, TIER_META, cartEntries, tierCart, tierPitch, type FixedTier } from '../lib/catalogue'
+import { CATALOGUE, CATALOGUE_BY_ID, TIER_META, addable, cartEntries, presetName, tierCart, tierPitch, tierPreset, type FixedTier } from '../lib/catalogue'
 import { usePrices } from '../lib/store'
-import { useDarkHero, useTitle } from '../lib/ui'
+import { useDarkHero, useTitle, useSeo } from '../lib/ui'
 import { ClosingCta, FaqList, Numeral, useMedia, type FaqItem } from './content/shared'
 
 // ─── Copy ────────────────────────────────────────────────────────────────────
@@ -41,7 +42,15 @@ const copy = {
     ta: 'ஒவ்வொரு விழாவுக்கும் தனி லயம் உண்டு. நாங்கள் மனப்பாடமாக அறிந்த எட்டு விழாக்களைப் பாருங்கள் — ஒவ்வொரு மதிப்பீடும் இரண்டு மணிநேரப் படப்பிடிப்பு, எல்லையற்ற எடிட் செய்த படங்களுடன் தொடங்குகிறது.',
   },
   from: { en: 'From', ta: 'தொடக்கம்' },
-  perHour: { en: 'Basic package · one session', ta: 'பேசிக் தொகுப்பு · ஒரு அமர்வு' },
+  perHour: { en: 'First package · one 4-hour session', ta: 'முதல் தொகுப்பு · ஒரு 4 மணி நேர அமர்வு' },
+  askUs: { en: 'Ask us', ta: 'எங்களைக் கேளுங்கள்' },
+  includedFree: { en: 'Included', ta: 'அடங்கும்' },
+  contactUs: { en: 'Contact us', ta: 'எங்களைத் தொடர்பு கொள்ளுங்கள்' },
+  galleryOnly: { en: 'By appointment · see the gallery and talk to us', ta: 'முன்பதிவு மூலம் · கேலரியைப் பார்த்து எங்களிடம் பேசுங்கள்' },
+  enquire: { en: 'Enquire', ta: 'விசாரிக்க' },
+  perMonth: { en: '/ month', ta: '/ மாதம்' },
+  plans: { en: 'Monthly plans, under agreement', ta: 'மாதாந்திரத் திட்டங்கள், ஒப்பந்தத்தின் கீழ்' },
+  option2: { en: 'Option 2 · {x}', ta: 'விருப்பம் 2 · {x}' },
   covered: { en: 'What’s covered', ta: 'படம்பிடிப்பவை' },
   quote: { en: 'Get a quote', ta: 'மதிப்பீடு பெறுக' },
 
@@ -77,7 +86,7 @@ const copy = {
   alPapers: { en: 'Papers', ta: 'தாள்கள்' },
   alColours: { en: 'Colours', ta: 'நிறங்கள்' },
   alSizes: { en: 'Sizes', ta: 'அளவுகள்' },
-  alSheets: { en: 'Signature includes 30 sheets, Heirloom 40. Extra sheets are {x} each.', ta: 'சிக்னேச்சரில் 30 தாள்கள், பரம்பரைப் பொக்கிஷத்தில் 40. கூடுதல் தாள் ஒவ்வொன்றும் {x}.' },
+  alSheets: { en: '25 sheets {a} · 35 sheets {b} · 45 sheets {c}. Move up from a package album and pay only the difference.', ta: '25 தாள் {a} · 35 தாள் {b} · 45 தாள் {c}. தொகுப்பு ஆல்பத்திலிருந்து மாறினால் வித்தியாசம் மட்டும்.' },
   alCap1: { en: 'Flat-lay spreads · no gutter loss', ta: 'தட்டையான பக்கங்கள் · மடிப்பு இழப்பில்லை' },
   alCap2: { en: 'Hand-finished in Madurai', ta: 'மதுரையில் கையால் முடிக்கப்பட்டது' },
 
@@ -388,6 +397,7 @@ const FAQ: FaqItem[] = [
 
 export default function Services() {
   useTitle(TITLE)
+  useSeo({ en: 'Wedding photography packages in Madurai: Bronze, Silver and Gold, candid styles, drone, albums and frames, with prices.', ta: 'மதுரையில் திருமணப் புகைப்படத் தொகுப்புகள்: பிரான்ஸ், சில்வர், கோல்ட், கேண்டிட், ட்ரோன், ஆல்பம், பிரேம், விலையுடன்.' })
   useDarkHero()
   return (
     <>
@@ -412,7 +422,8 @@ function Hero() {
   const c = useT(COMMON)
   const lenis = useLenis()
   const prices = usePrices()
-  const minPrice = Math.min(...EVENTS.map(e => startingPrice(e.key, prices)))
+  // Placeholder (₹786) packages and contact-only events never set the headline "from" price.
+  const minPrice = Math.min(...EVENTS.filter(e => e.bookable !== false && !tierPreset(e.tiers, 'basic').pending).map(e => startingPrice(e.key, prices)))
   const facts = [
     { k: t.factFrom, v: formatINR(minPrice) },
     { k: t.factHoursSub, v: t.factHours },
@@ -536,7 +547,7 @@ function EventsSection() {
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="t-label text-white/50">{t.from}</p>
-                      <p className="mt-1 font-display text-2xl text-white">{formatINR(startingPrice(ev.key, prices))}</p>
+                      <p className="mt-1 font-display text-2xl text-white">{ev.bookable === false ? t.contactUs : formatINR(startingPrice(ev.key, prices))}</p>
                     </div>
                   </motion.div>
                 </AnimatePresence>
@@ -596,13 +607,39 @@ function EventRow({ index, active, onActive }: { index: number; active: boolean;
         ))}
       </ul>
 
-      <div className="mt-7 flex flex-wrap items-end justify-between gap-x-6 gap-y-4 sm:justify-start md:mt-9 md:items-center">
-        <div>
-          <p className="t-label text-ink/40">{t.from}</p>
-          <p className="mt-1 font-display text-3xl leading-none text-ink">{formatINR(startingPrice(e.key, prices))}</p>
-          <p className="mt-1.5 text-xs text-ink/45">{t.perHour}</p>
+      {e.key === 'commercial' && (
+        <div className="mt-7 md:mt-9">
+          <p className="t-label text-ink/40">{t.plans}</p>
+          <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+            {(['commercial_brand', 'commercial_school'] as const).map(id => (
+              <li key={id} className="flex flex-col rounded-[20px] glass p-5">
+                <p className="font-medium text-ink">{CATALOGUE_BY_ID[id].name[lang]}</p>
+                <p className="mt-2 font-display text-2xl leading-none text-ink">{formatINR(prices[id])} <span className="text-sm text-ink/45">{t.perMonth}</span></p>
+                <div className="mt-4">
+                  <Button to={`/contact?plan=${id}`} variant="outline" size="sm" icon="arrowRight">{t.enquire}</Button>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
-        <Button to={`/book?event=${e.key}`} variant={active ? 'ruby' : 'outline'} icon="arrowRight">{t.quote}</Button>
+      )}
+
+      <div className="mt-7 flex flex-wrap items-end justify-between gap-x-6 gap-y-4 sm:justify-start md:mt-9 md:items-center">
+        {e.bookable === false ? (
+          <>
+            <p className="text-[14px] text-ink/55">{t.galleryOnly}</p>
+            <Button to="/contact" variant={active ? 'ruby' : 'outline'} icon="arrowRight">{t.contactUs}</Button>
+          </>
+        ) : (
+          <>
+            <div>
+              <p className="t-label text-ink/40">{t.from}</p>
+              <p className="mt-1 font-display text-3xl leading-none text-ink">{formatINR(startingPrice(e.key, prices))}</p>
+              <p className="mt-1.5 text-xs text-ink/45">{t.perHour}</p>
+            </div>
+            <Button to={`/book?event=${e.key}`} variant={active ? 'ruby' : 'outline'} icon="arrowRight">{t.quote}</Button>
+          </>
+        )}
       </div>
     </article>
   )
@@ -616,7 +653,8 @@ function Packages() {
   const t = useT(copy)
   const lang = useLang()
   const prices = usePrices()
-  const spec = eventByKey('wedding')!.tiers
+  // Bronze / Silver / Gold are the family-function packages; weddings get their own on the booking flow.
+  const spec = eventByKey('birthday')!.tiers
   return (
     <section id="packages" className="relative isolate overflow-hidden bg-mist py-24 md:py-36">
       <div className="ambient absolute inset-0 -z-10" />
@@ -629,8 +667,10 @@ function Packages() {
         <Stagger className="mx-auto mt-12 grid max-w-6xl gap-4 md:mt-20 md:gap-5 lg:grid-cols-3 lg:items-stretch" gap={0.12}>
           {TIERS.map(tier => {
             const meta = TIER_META[tier]
+            const name = presetName(spec, tier)
             const hi = !!meta.popular
             const includes = cartEntries(tierCart(spec, tier)).filter(e => e.item.unit !== 'included')
+            const variant = tierPreset(spec, tier).variants?.[0]
             return (
               <StaggerItem key={tier} className={hi ? 'lg:-my-4' : ''}>
                 <div
@@ -646,11 +686,16 @@ function Packages() {
                     <p className={`t-label ${hi ? 'text-white/55' : 'text-ink/45'}`}>{t.pkOne}</p>
                     {hi && <Badge tone="ruby">{t.popular}</Badge>}
                   </div>
-                  <h3 className="t-2 relative mt-3">{meta.name[lang]}</h3>
+                  <h3 className="t-2 relative mt-3">{name[lang]}</h3>
                   <p className={`relative mt-3 text-[15px] leading-relaxed ${hi ? 'text-white/65' : 'text-ink/60'}`}>{tierPitch(spec, tier)[lang]}</p>
 
                   <div className={`relative mt-6 border-t pt-5 md:mt-8 md:pt-6 ${hi ? 'border-white/10' : 'border-ink/10'}`}>
-                    <p className="font-display text-4xl leading-none md:text-5xl">{formatINR(tierPrice('wedding', tier, prices))}</p>
+                    <p className="font-display text-4xl leading-none md:text-5xl">{formatINR(tierPrice('birthday', tier, prices))}</p>
+                    {variant && (
+                      <p className={`mt-2 text-[13px] ${hi ? 'text-white/65' : 'text-ink/60'}`}>
+                        {t.option2.replace('{x}', variant.label[lang])} · {formatINR(variant.target)}
+                      </p>
+                    )}
                     <p className={`mt-2 text-xs ${hi ? 'text-white/45' : 'text-ink/45'}`}>{t.onTop}</p>
                   </div>
 
@@ -667,7 +712,7 @@ function Packages() {
 
                   <div className="relative mt-8 md:mt-10">
                     <Button to="/book" variant={hi ? 'ruby' : 'ink'} full icon="arrowRight">
-                      {t.choose.replace('{x}', meta.name[lang])}
+                      {t.choose.replace('{x}', name[lang])}
                     </Button>
                   </div>
                 </div>
@@ -675,6 +720,7 @@ function Packages() {
             )
           })}
         </Stagger>
+        <PackageAlbumNote className="mx-auto mt-8 max-w-3xl md:mt-12" />
       </Container>
     </section>
   )
@@ -686,7 +732,7 @@ function Addons() {
   const t = useT(copy)
   const lang = useLang()
   const prices = usePrices()
-  const addons = CATALOGUE.filter(i => i.section === 'addon')
+  const addons = CATALOGUE.filter(i => i.section === 'addon' && (addable(i) || i.onRequest))
   return (
     <section className="py-24 md:py-36">
       <Container wide>
@@ -707,7 +753,7 @@ function Addons() {
                     <span className="flex h-12 w-12 items-center justify-center rounded-2xl glass-ruby text-white transition-all duration-500 group-hover:scale-105">
                       <Icon name={a.icon} size={22} />
                     </span>
-                    <span className="font-display text-2xl text-ruby">{formatINR(prices[a.id])}</span>
+                    <span className="font-display text-2xl text-ruby">{a.onRequest ? t.askUs : prices[a.id] === 0 ? t.includedFree : formatINR(prices[a.id])}</span>
                   </div>
                   <h3 className="t-3 mt-5 text-ink sm:mt-8">{a.name[lang]}</h3>
                   <p className="mt-2 text-[15px] text-ink/55">{a.note?.[lang]}{a.pending ? ` · ${t.pending}` : ''}</p>
@@ -813,7 +859,7 @@ function StepCard({ i, step, compact = false }: { i: number; step: (typeof STEPS
         <Numeral n={i + 1} dark className={compact ? 'text-5xl' : 'text-7xl xl:text-8xl'} />
       </div>
       <div className={compact ? 'mt-6' : 'mt-auto'}>
-        <span className="inline-flex rounded-full bg-ruby/90 px-3 py-1 text-[11px] font-semibold tracking-wide text-white">{step.when[lang]}</span>
+        <span className="inline-flex rounded-full bg-ruby/90 px-3 py-1 text-[12px] font-semibold tracking-wide text-white">{step.when[lang]}</span>
         <h3 className="t-3 mt-4 text-white">{step.title[lang]}</h3>
         <p className="mt-3 text-[15px] leading-relaxed text-white/60">{step.body[lang]}</p>
       </div>
@@ -826,6 +872,7 @@ function StepCard({ i, step, compact = false }: { i: number; step: (typeof STEPS
 type AlbumTab = 'covers' | 'papers' | 'colours' | 'sizes'
 
 function AlbumCraft() {
+  const prices = usePrices()
   const t = useT(copy)
   const lang = useLang()
   const [tab, setTab] = useState<AlbumTab>('covers')
@@ -930,7 +977,7 @@ function AlbumCraft() {
             <Reveal>
               <p className="mt-6 flex items-start gap-2.5 text-[13.5px] text-ink/50">
                 <Icon name="info" size={16} className="mt-0.5 shrink-0 text-ruby" />
-                {t.alSheets.replace('{x}', formatINR(ALBUM.sheetPrice))} · {t.alCap1}
+                {t.alSheets.replace('{a}', formatINR(prices.album_25)).replace('{b}', formatINR(prices.album_35)).replace('{c}', formatINR(prices.album_45))} · {t.alCap1}
               </p>
             </Reveal>
           </div>
@@ -970,7 +1017,7 @@ function Districts() {
                   )}
                   <div className="absolute inset-x-2.5 bottom-2.5 rounded-[18px] p-3 md:inset-x-3 md:bottom-3 md:p-4 glass-dark">
                     <p className="font-display text-lg leading-tight text-white md:text-2xl">{d.name[lang]}</p>
-                    <p className="mt-1 line-clamp-2 text-[11.5px] leading-snug text-white/60 md:text-[13px]">{d.note[lang]}</p>
+                    <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-white/60 md:text-[13px]">{d.note[lang]}</p>
                     <span className="mt-2 hidden items-center gap-1 text-[12px] font-medium text-white/80 transition group-hover:text-white md:inline-flex">
                       {t.bookHere}
                       <Icon name="arrowUpRight" size={13} />

@@ -339,3 +339,34 @@ export async function geminiTranscribe(audio: Blob, lang: Lang, signal?: AbortSi
       }, signal)),
   )
 }
+
+// ─── Caricature (premium e-invite) ───────────────────────────────────────────
+
+const IMAGE_MODEL = env('VITE_GEMINI_IMAGE_MODEL') ?? 'gemini-2.5-flash-image'
+
+const CARICATURE_PROMPT =
+  'Turn the couple in this photo into a warm, playful wedding caricature for a Tamil wedding invitation. ' +
+  'Big heads and small bodies, shoulders up, both leaning in and smiling. Flat vector illustration with clean outlines and soft shading. ' +
+  'Keep each face clearly recognisable: face shape, skin tone, hairstyle, glasses, beard or moustache. ' +
+  'Unless they already wear wedding clothes, dress the bride in a maroon Kanjivaram silk saree with a gold zari border, jasmine in her hair and gold jewellery, ' +
+  'and the groom in a white shirt with a gold-bordered angavastram. ' +
+  'Plain solid off-white background, couple centred, square image. No text, no logos, no buildings.'
+
+/**
+ * Draws a caricature of the couple from one photo with Gemini's image model.
+ * Returns a data URL. Throws GeminiError (or Error) when the model sends no image.
+ */
+export async function geminiCaricature(photo: Blob, signal?: AbortSignal): Promise<string> {
+  const data = bytesToB64(new Uint8Array(await photo.arrayBuffer()))
+  const mime = (photo.type || 'image/jpeg').split(';')[0]
+  const json = await post(`models/${IMAGE_MODEL}:generateContent`, {
+    contents: [{ parts: [{ text: CARICATURE_PROMPT }, { inlineData: { mimeType: mime, data } }] }],
+    generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+  }, signal)
+  for (const o of walk(json)) {
+    const inline = (o.inlineData ?? o.inline_data) as { data?: string; mimeType?: string; mime_type?: string } | undefined
+    const m = inline?.mimeType ?? inline?.mime_type ?? ''
+    if (inline?.data && /^image\//i.test(m)) return `data:${m};base64,${inline.data}`
+  }
+  throw new Error(extractText(json) || 'The model sent no image')
+}

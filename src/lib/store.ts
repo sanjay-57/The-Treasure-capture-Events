@@ -6,7 +6,7 @@ import {
   type AlbumSpec, type CrowdKey, type DistrictKey, type EventKey, type GalleryCover, type OrderStatus, type VenueType, type Worker,
 } from './data'
 import {
-  EMPTY_CART, MAX_SESSIONS, MIN_SESSIONS, resolvePrices, setCartQty, tierCart,
+  EMPTY_CART, MAX_SESSIONS, MIN_SESSIONS, SESSION_HOURS, resolvePrices, sessionsForHours, setCartQty, tierCart,
   type Cart, type CatalogueId, type FixedTier, type PriceMap,
 } from './catalogue'
 import { computeQuote, type Adjustment, type Quote } from './pricing'
@@ -32,6 +32,8 @@ export interface BookingDraft {
   venueType: VenueType
   venueName: string
   venueAddress: string
+  /** Venue pin from a search result or "Use my location"; drives the travel estimate. Optional, so older saved drafts and orders still load. */
+  venueCoords?: { lat: number; lng: number }
   distanceKm: number
   date: string
   time: string
@@ -41,6 +43,16 @@ export interface BookingDraft {
   contact: string
   email: string
   notes: string
+  /** A spoken message for the studio, recorded on the package step. */
+  voiceNote?: VoiceNote
+}
+
+/** A short recording kept as a data URL until the backend can take uploads. */
+export interface VoiceNote {
+  url: string
+  mime: string
+  seconds: number
+  at: string
 }
 
 export const EMPTY_DRAFT: BookingDraft = {
@@ -112,6 +124,8 @@ export interface Order {
   venueType: VenueType
   venueName: string
   venueAddress: string
+  /** Venue pin from a search result or "Use my location"; drives the travel estimate. Optional, so older saved drafts and orders still load. */
+  venueCoords?: { lat: number; lng: number }
   distanceKm: number
   date: string
   time: string
@@ -121,6 +135,7 @@ export interface Order {
   /** Discounts and extras added by the studio after the consultation. */
   adjustments: Adjustment[]
   notes: string
+  voiceNote?: VoiceNote
   /** Snapshot: catalogue lines + travel + adjustments + tax. `total` is the billed amount. */
   quote: Quote
   invoice: InvoiceMeta
@@ -139,6 +154,8 @@ export interface Order {
   delivery?: { courier: string; tracking: string; dispatchedAt: string }
   /** Gallery cover set by the studio; the client dashboard falls back to defaults when absent. */
   cover?: GalleryCover
+  /** Where the quote was made: the public booking flow (default) or the studio showroom. */
+  source?: 'web' | 'showroom'
 }
 
 export interface OutboxMessage {
@@ -175,7 +192,12 @@ export interface CmsState {
   /** Studio contact info shown in the footer / contact page. */
   studio: { phone: string; whatsapp: string; email: string; addressEn: string; addressTa: string; googleReviewUrl: string }
   /** Rate card edits: price overrides per catalogue item and the default GST. */
-  catalogue: { prices: Partial<Record<CatalogueId, number>>; gstPct: number }
+  catalogue: {
+    prices: Partial<Record<CatalogueId, number>>
+    gstPct: number
+    /** Package savings the admin last reviewed, keyed `kind.tier.variant`. A different live value shows a drift warning. */
+    savings?: Record<string, number>
+  }
   /** Bank details printed on invoices. */
   bank: { upi: string; name: string; acc: string; ifsc: string; branchEn: string; branchTa: string }
 }
@@ -211,11 +233,15 @@ interface Actions {
   updateDraft: (patch: Partial<BookingDraft>) => void
   resetDraft: () => void
   /** Picks a fixed tier (expands to its preset cart) or switches to custom keeping the current items. */
-  setTier: (tier: FixedTier | 'custom') => void
+  setTier: (tier: FixedTier | 'custom', variant?: number) => void
+  /** Empties the cart (the customer tapped the active package again). */
+  clearCart: () => void
   setCartItem: (id: CatalogueId, qty: number) => void
   setSessions: (n: number) => void
   /** POST /enquiries → creates Order + draft invoice, WhatsApp ack. Returns the order id. */
   submitEnquiry: () => string | null
+  /** Showroom "Save as quote": Lead + ENQUIRY order + draft invoice + WhatsApp quote, without touching the visitor's session or draft. */
+  saveShowroomQuote: (d: BookingDraft) => string | null
 
   /** Client OTP login (mocked: any 4-digit code). Returns false when no order matches the number. */
   loginClient: (contact: string) => boolean
@@ -309,7 +335,7 @@ function seedOrder(p: {
   status: OrderStatus; created: number; paid: number[]; workers: string[]; selection?: string[]
 }): Order {
   const ev = eventByKey(p.eventType)!
-  let cart = tierCart(ev.tiers, p.tier, p.sessions ?? 1)
+  let cart = tierCart(ev.tiers, p.tier, p.sessions ?? sessionsForHours(p.hours), p.hours)
   for (const [id, qty] of Object.entries(p.extras ?? {})) cart = { ...setCartQty(cart, id as CatalogueId, qty as number), tier: cart.tier }
   if (p.extras) cart = { ...cart, tier: 'custom' }
   const adjustments: Adjustment[] = p.discount ? [{ id: uid(), label: 'Season discount', amount: -p.discount, at: daysAgo(p.created - 1) }] : []
@@ -419,6 +445,46 @@ export function statusMessage(order: Order, status: OrderStatus): string {
   return `வணக்கம் ${first}! ${meta.name.ta} / ${meta.name.en}.\n${meta.desc.en}${meta.cta ? `\n→ treasurecaptureevents.in${meta.cta.to}` : ''}\nRef: ${order.id}`
 }
 
+/** A new ENQUIRY order with its quote snapshot and draft invoice; null when the draft is missing required fields. */
+function buildOrder(d: BookingDraft, seq: number, priceMap: PriceMap, gstPct: number, source: Order['source']): Order | null {
+  if (!d.district || !d.eventType || !d.name || !d.contact) return null
+  const id = `TTC-${new Date().getFullYear()}-${String(seq).padStart(4, '0')}`
+  const invoice: InvoiceMeta = { issuedAt: now(), gstPct, schedule: DEFAULT_SCHEDULE, note: '' }
+  const quote = requote({ eventType: d.eventType, cart: d.cart, distanceKm: d.distanceKm, adjustments: [], invoice }, priceMap)
+  return {
+    id,
+    createdAt: now(),
+    client: { name: d.name, contact: d.contact, email: d.email || undefined },
+    district: d.district,
+    eventType: d.eventType,
+    durationHours: d.durationHours,
+    crowd: d.crowd,
+    venueType: d.venueType,
+    venueName: d.venueName,
+    venueAddress: d.venueAddress,
+    venueCoords: d.venueCoords,
+    distanceKm: d.distanceKm,
+    date: d.date,
+    time: d.time,
+    dateCertainty: d.dateCertainty,
+    cart: d.cart,
+    adjustments: [],
+    notes: d.notes,
+    voiceNote: d.voiceNote,
+    quote,
+    invoice,
+    quoteHistory: [{ at: now(), total: quote.total, note: source === 'showroom' ? 'Quote made in the showroom' : 'Quote generated from enquiry' }],
+    status: 'ENQUIRY',
+    history: [{ status: 'ENQUIRY', at: now() }],
+    payments: [],
+    customerId: 'CU-' + uid().slice(0, 5).toUpperCase(),
+    invoiceId: invoiceNumber(seq),
+    workerIds: [],
+    selection: [],
+    source,
+  }
+}
+
 /** WhatsApp body carrying the quote — what the customer receives on submit and when the studio re-sends. */
 export function quoteMessage(order: Order): string {
   const ev = eventByKey(order.eventType)
@@ -477,66 +543,44 @@ export const useStore = create<State & Actions>()(
             const draft = { ...s.draft, ...patch }
             const eventChanged = patch.eventType !== undefined && patch.eventType !== s.draft.eventType
             const ev = draft.eventType ? eventByKey(draft.eventType) : undefined
-            if (ev && (eventChanged || !Object.keys(draft.cart.items).length)) {
+            // A fresh cart fills from the package; a cart the customer cleared on purpose stays empty.
+            if (ev && (eventChanged || (!Object.keys(draft.cart.items).length && draft.cart.tier !== 'custom'))) {
               const tier = draft.cart.tier === 'custom' ? 'standard' : draft.cart.tier
-              draft.cart = tierCart(ev.tiers, tier, draft.cart.sessions)
+              draft.cart = tierCart(ev.tiers, tier, draft.cart.sessions, draft.durationHours)
             }
             return { draft }
           }),
         resetDraft: () => set(s => ({ draft: { ...EMPTY_DRAFT, name: s.lead?.name ?? '', contact: s.lead?.contact ?? '' } })),
-        setTier: tier =>
+        setTier: (tier, variant) =>
           set(s => {
             const ev = s.draft.eventType ? eventByKey(s.draft.eventType) : undefined
             if (tier === 'custom' || !ev) return { draft: { ...s.draft, cart: { ...s.draft.cart, tier: 'custom' } } }
-            return { draft: { ...s.draft, cart: tierCart(ev.tiers, tier, s.draft.cart.sessions) } }
+            return { draft: { ...s.draft, cart: tierCart(ev.tiers, tier, s.draft.cart.sessions, s.draft.durationHours, variant) } }
           }),
+        clearCart: () => set(s => ({ draft: { ...s.draft, cart: { ...s.draft.cart, tier: 'custom', variant: undefined, album: undefined, items: {} } } })),
         setCartItem: (id, qty) => set(s => ({ draft: { ...s.draft, cart: setCartQty(s.draft.cart, id, qty) } })),
-        setSessions: n => set(s => ({ draft: { ...s.draft, cart: { ...s.draft.cart, sessions: Math.min(MAX_SESSIONS, Math.max(MIN_SESSIONS, Math.round(n))) } } })),
+        setSessions: n => set(s => { const sessions = Math.min(MAX_SESSIONS, Math.max(MIN_SESSIONS, Math.round(n))); return { draft: { ...s.draft, durationHours: sessions * SESSION_HOURS, cart: { ...s.draft.cart, sessions, hours: sessions * SESSION_HOURS } } } }),
 
         submitEnquiry: () => {
           const d = get().draft
-          if (!d.district || !d.eventType || !d.name || !d.contact) return null
-          const seq = 170 + get().orders.length
-          const id = `TTC-${new Date().getFullYear()}-${String(seq).padStart(4, '0')}`
-          const invoice: InvoiceMeta = { issuedAt: now(), gstPct: get().cms.catalogue.gstPct, schedule: DEFAULT_SCHEDULE, note: '' }
-          const base = { eventType: d.eventType, cart: d.cart, distanceKm: d.distanceKm, adjustments: [], invoice }
-          const quote = requote(base, prices())
-          const order: Order = {
-            id,
-            createdAt: now(),
-            client: { name: d.name, contact: d.contact, email: d.email || undefined },
-            district: d.district,
-            eventType: d.eventType,
-            durationHours: d.durationHours,
-            crowd: d.crowd,
-            venueType: d.venueType,
-            venueName: d.venueName,
-            venueAddress: d.venueAddress,
-            distanceKm: d.distanceKm,
-            date: d.date,
-            time: d.time,
-            dateCertainty: d.dateCertainty,
-            cart: d.cart,
-            adjustments: [],
-            notes: d.notes,
-            quote,
-            invoice,
-            quoteHistory: [{ at: now(), total: quote.total, note: 'Quote generated from enquiry' }],
-            status: 'ENQUIRY',
-            history: [{ status: 'ENQUIRY', at: now() }],
-            payments: [],
-            customerId: 'CU-' + uid().slice(0, 5).toUpperCase(),
-            invoiceId: invoiceNumber(seq),
-            workerIds: [],
-            selection: [],
-          }
+          const order = buildOrder(d, 170 + get().orders.length, prices(), get().cms.catalogue.gstPct, 'web')
+          if (!order) return null
           set(s => ({
             orders: [order, ...s.orders],
-            session: { role: 'client', orderId: id, name: d.name, contact: d.contact },
+            session: { role: 'client', orderId: order.id, name: d.name, contact: d.contact },
             draft: { ...EMPTY_DRAFT, name: d.name, contact: d.contact },
           }))
-          pushMessage({ audience: 'client', to: d.contact, toName: d.name, template: 'quote_sent', body: quoteMessage(order), orderId: id })
-          return id
+          pushMessage({ audience: 'client', to: d.contact, toName: d.name, template: 'quote_sent', body: quoteMessage(order), orderId: order.id })
+          return order.id
+        },
+
+        saveShowroomQuote: d => {
+          const order = buildOrder(d, 170 + get().orders.length, prices(), get().cms.catalogue.gstPct, 'showroom')
+          if (!order) return null
+          const lead: Lead = { id: uid(), name: d.name, contact: d.contact, at: now(), source: 'showroom', lang: get().lang }
+          set(s => ({ orders: [order, ...s.orders], leads: [lead, ...s.leads] }))
+          pushMessage({ audience: 'client', to: d.contact, toName: d.name, template: 'quote_sent', body: quoteMessage(order), orderId: order.id })
+          return order.id
         },
 
         loginClient: contact => {
@@ -634,7 +678,7 @@ export const useStore = create<State & Actions>()(
             history: historyUpTo(status, (idx + 1) * 6),
             selection: pastSelection && x.selection.length < 12 ? proofs : !pastSelection && idx < STATUS_ORDER.indexOf('SELECT_PHOTOS') ? [] : x.selection,
             selectionSubmittedAt: pastSelection ? daysAgo(12) : undefined,
-            album: pastAlbum ? x.album ?? { ...DEFAULT_ALBUM, cover: 'silk', color: 'ruby', paper: 'lustre', sheets: 40, title: x.client.name, subtitle: '12 · 02 · 2026', submittedAt: daysAgo(8) } : idx < STATUS_ORDER.indexOf('ALBUM_CUSTOMIZATION') ? undefined : x.album,
+            album: pastAlbum ? x.album ?? { ...DEFAULT_ALBUM, cover: 'silk', color: 'ruby', paper: 'lustre', sheets: 35, title: x.client.name, subtitle: '12 · 02 · 2026', submittedAt: daysAgo(8) } : idx < STATUS_ORDER.indexOf('ALBUM_CUSTOMIZATION') ? undefined : x.album,
             delivery: delivered ? { courier: 'Blue Dart', tracking: 'BD' + x.id.slice(-4) + '7781', dispatchedAt: daysAgo(3) } : undefined,
             review: delivered ? x.review : undefined,
             payments: delivered && x.quote.total > paid
@@ -650,12 +694,13 @@ export const useStore = create<State & Actions>()(
     },
     {
       name: 'ttc-store-v2',
-      version: 4,
+      version: 5,
       storage: createJSONStorage(() => localStorage),
       // v1: new default hero slides (landscape frames only).
       // v2: billing ids no longer third-party prefixed.
       // v3: hero slides without faces; warmer default banner copy.
       // v4: catalogue-based cart and in-house billing — orders and the draft are reseeded.
+      // v5: phase 1 catalogue (hours, candid styles, packages with targets) — orders and the draft are reseeded again.
       migrate: (persisted, version) => {
         const p = persisted as State
         if (version < 4) {
@@ -664,6 +709,11 @@ export const useStore = create<State & Actions>()(
           p.draft = fresh.draft
           p.session = p.session?.role === 'admin' ? p.session : null
           p.cms = { ...fresh.cms, ...(p.cms ?? {}), catalogue: fresh.cms.catalogue, bank: fresh.cms.bank }
+        } else if (version < 5) {
+          const fresh = initialData()
+          p.orders = fresh.orders
+          p.draft = fresh.draft
+          p.cms = { ...p.cms, catalogue: { ...fresh.cms.catalogue, gstPct: p.cms?.catalogue?.gstPct ?? 0 } }
         }
         return p as State & Actions
       },

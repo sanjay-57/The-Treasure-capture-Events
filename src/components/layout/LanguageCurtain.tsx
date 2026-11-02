@@ -28,7 +28,7 @@ export function LanguageCurtain() {
       {target && (
         <motion.div
           key="curtain"
-          className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden"
+          className="fixed inset-0 z-[100] flex touch-none items-center justify-center overflow-hidden"
           initial={{ clipPath: 'inset(100% 0% 0% 0%)' }}
           animate={{ clipPath: 'inset(0% 0% 0% 0%)' }}
           exit={{ clipPath: 'inset(0% 0% 100% 0%)' }}

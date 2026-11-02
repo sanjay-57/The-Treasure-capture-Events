@@ -3,7 +3,7 @@ import { Link, NavLink, useLocation } from 'react-router'
 import { AnimatePresence, motion, useMotionValueEvent, useScroll } from 'motion/react'
 import { useLenis } from 'lenis/react'
 import { Icon } from '../Icon'
-import { Button } from '../ui'
+import { Button, useScrollLock } from '../ui'
 import { EASE } from '../motion'
 import { Thoranam } from '../tamil'
 import { COMMON, useLang, useT } from '../../lib/i18n'
@@ -110,7 +110,7 @@ function Banner() {
           sessionStorage.setItem('ttc-banner-closed', '1')
           setClosed(true)
         }}
-        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-white/50 transition hover:text-white cursor-pointer"
+        className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-white/50 sm:right-3 sm:h-auto sm:w-auto sm:p-1 transition hover:text-white cursor-pointer"
       >
         <Icon name="x" size={14} />
       </button>
@@ -142,6 +142,13 @@ export function Nav() {
     if (open) lenis?.stop()
     else lenis?.start()
   }, [open, lenis])
+  useScrollLock(open)
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
 
   // Clear glass over a dark hero, dark glass on fully dark pages, light glass otherwise.
   const onDark = navOnDark === 'page' || (navOnDark === 'hero' && !scrolled)
@@ -206,9 +213,9 @@ export function Nav() {
               <button
                 type="button"
                 onClick={() => setOpen(o => !o)}
-                aria-label="Menu"
+                aria-label={open ? (lang === 'ta' ? 'மூடு' : 'Close menu') : lang === 'ta' ? 'பட்டியல்' : 'Menu'}
                 aria-expanded={open}
-                className={`flex h-10 w-10 items-center justify-center rounded-full transition lg:hidden cursor-pointer ${onDark ? 'text-white hover:bg-white/10' : 'text-ink hover:bg-ink/5'}`}
+                className={`flex h-11 w-11 items-center justify-center rounded-full transition lg:hidden cursor-pointer ${onDark ? 'text-white hover:bg-white/10' : 'text-ink hover:bg-ink/5'}`}
               >
                 <Icon name={open ? 'x' : 'menu'} size={20} />
               </button>
@@ -252,7 +259,7 @@ function MobileMenu({ open, onClose, accountTo, accountLabel }: { open: boolean;
           transition={{ duration: 0.7, ease: EASE }}
         >
           <div className="ambient-dark grain absolute inset-0" />
-          <div className="relative flex h-full flex-col overflow-y-auto px-6 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-28 sm:px-7 sm:pt-32" data-lenis-prevent>
+          <div className="relative flex h-full flex-col overflow-y-auto overscroll-contain px-6 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-28 sm:px-7 sm:pt-32" data-lenis-prevent>
             <nav className="flex flex-1 flex-col" aria-label="Mobile">
               {LINKS.map((l, i) => (
                 <motion.div key={l.to} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.06, duration: 0.7, ease: EASE }}>

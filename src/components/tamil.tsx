@@ -330,6 +330,8 @@ const SKYLINE: Shape[] = [
 ]
 const SKY_PATH = SKYLINE.map(s => s.d).join('')
 const SKY_CUT = SKYLINE.map(s => s.cut).join('')
+/** The same skyline as raw path data, for canvas drawing (the invite's PNG download). */
+export const GOPURAM_SKYLINE = { w: SKY_W, h: SKY_H, path: SKY_PATH, cut: SKY_CUT }
 
 /**
  * Temple skyline silhouette. It sizes itself from its width (true proportions,

@@ -313,7 +313,8 @@ function BottomTabs({ order, label, shown }: { order: Order; label: string; show
       transition={{ duration: 0.5, ease: EASE }}
     >
       <div className="glass-strong mx-auto flex max-w-md gap-0.5 rounded-[24px] p-1">
-        {SECTIONS.map(s => {
+        {/* Six tabs is the most a phone bar holds; the e-invite is reached from the overview tiles there. */}
+        {SECTIONS.filter(s => s.key !== 'invite').map(s => {
           const state = sectionState(order, s.key)
           const promoted = s.key === 'review' && delivered && !order.review
           return (

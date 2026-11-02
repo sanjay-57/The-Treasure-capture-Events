@@ -6,6 +6,7 @@ import { EASE } from './motion'
 import { COMMON, formatDate, formatINR, useLang, useT } from '../lib/i18n'
 import { districtName, eventByKey } from '../lib/data'
 import { balanceDue, invoiceState, milestones, paidTotal, useStore, type MilestoneKey, type Order, type Payment } from '../lib/store'
+import { cartHours } from '../lib/catalogue'
 
 /*
  * The invoice as a document — the studio's own, no third-party billing.
@@ -29,6 +30,7 @@ const copy = {
   description: { en: 'Description', ta: 'விவரம்' },
   amount: { en: 'Amount', ta: 'தொகை' },
   sessions: { en: 'sessions', ta: 'அமர்வுகள்' },
+  hours: { en: 'h', ta: 'மணி நேரம்' },
   session: { en: 'session', ta: 'அமர்வு' },
   included: { en: 'Included', ta: 'அடங்கும்' },
   subtotal: { en: 'Subtotal', ta: 'கூட்டுத்தொகை' },
@@ -135,14 +137,14 @@ export function InvoiceDoc({ order, print = false, showPayments = true }: { orde
               <div className="flex items-baseline justify-between gap-3">
                 <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-ruby">
                   {sec.name[lang]}
-                  {sec.key === 'crew' && <span className="ml-1.5 normal-case tracking-normal text-ink/45">· {order.cart.sessions} {order.cart.sessions > 1 ? t.sessions : t.session}</span>}
+                  {sec.key === 'crew' && <span className="ml-1.5 normal-case tracking-normal text-ink/45">· {cartHours(order.cart)} {t.hours}</span>}
                 </p>
                 <p className="text-[13px] font-semibold tabular-nums">{formatINR(sec.amount)}</p>
               </div>
               <ul className="mt-1.5">
                 {sec.lines.map(l => (
                   <motion.li
-                    key={`${sec.key}-${l.id ?? l.label.en}`}
+                    key={`${sec.key}-${l.id ?? `${l.label.en}|${l.detail?.en ?? ''}`}`}
                     className="flex items-start justify-between gap-3 py-1.5 sm:gap-4"
                     initial={print ? false : { opacity: 0, x: -8 }}
                     whileInView={{ opacity: 1, x: 0 }}
@@ -153,7 +155,7 @@ export function InvoiceDoc({ order, print = false, showPayments = true }: { orde
                       <span className="block text-[14px] leading-snug sm:text-[14.5px]">{l.label[lang]}</span>
                       {l.detail && <span className="mt-0.5 block text-[12px] leading-snug text-ink/45">{l.detail[lang]}</span>}
                     </span>
-                    <span className={`shrink-0 text-[14px] tabular-nums sm:text-[14.5px] ${l.amount === 0 ? 'text-ink/40' : 'text-ink/80'}`}>{l.amount === 0 ? t.included : formatINR(l.amount)}</span>
+                    <span className={`shrink-0 text-[14px] tabular-nums sm:text-[14.5px] ${l.kind === 'saving' ? 'font-semibold text-ruby' : l.amount === 0 ? 'text-ink/40' : 'text-ink/80'}`}>{l.amount === 0 ? t.included : formatINR(l.amount)}</span>
                   </motion.li>
                 ))}
               </ul>

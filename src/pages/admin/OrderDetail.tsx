@@ -8,7 +8,7 @@ import {
   ALBUM, CROWDS, ROLES, STATUS_META, STATUS_ORDER, VENUES, districtName, eventByKey, statusName,
   type OrderStatus, type Worker,
 } from '../../lib/data'
-import { cartLabel } from '../../lib/catalogue'
+import { cartHours, cartLabel } from '../../lib/catalogue'
 import { formatDate, formatDateTime, formatINR, useLang, useT, useTx } from '../../lib/i18n'
 import type { ImgKey } from '../../lib/images'
 import { toast, useTitle } from '../../lib/ui'
@@ -206,8 +206,8 @@ export default function OrderDetail() {
           }
           actions={
             <>
-              <Button href={telHref(o.client.contact)} variant="outline" size="sm" iconLeft="phone" className="flex-1 max-md:!h-10 md:flex-none">{t.call}</Button>
-              <Button href={waHref(o.client.contact)} variant="outline" size="sm" iconLeft="whatsapp" className="flex-1 max-md:!h-10 md:flex-none">{t.whatsapp}</Button>
+              <Button href={telHref(o.client.contact)} variant="outline" size="sm" iconLeft="phone" className="flex-1 max-md:!h-11 md:flex-none">{t.call}</Button>
+              <Button href={waHref(o.client.contact)} variant="outline" size="sm" iconLeft="whatsapp" className="flex-1 max-md:!h-11 md:flex-none">{t.whatsapp}</Button>
               {next ? (
                 <Button size="sm" icon="arrowRight" onClick={() => setTarget(next)} className="w-full max-md:!h-11 md:w-auto">{t.advanceTo} {statusName(next, o.eventType, lang)}</Button>
               ) : (
@@ -276,13 +276,13 @@ function Stepper({ o, onPick }: { o: Order; onPick: (s: OrderStatus) => void }) 
   }, [idx])
   return (
     <Panel title={t.pipeline} subtitle={t.pipelineSub} icon="filter" kolam bodyClass="px-0 pb-5 pt-6 md:px-4">
-      <div ref={scroller} className="no-scrollbar overflow-x-auto px-2 max-md:[mask-image:linear-gradient(to_right,transparent,#000_20px,#000_calc(100%-20px),transparent)] md:px-0" data-lenis-prevent>
+      <div ref={scroller} className="no-scrollbar snap-x snap-proximity overflow-x-auto px-2 max-md:[mask-image:linear-gradient(to_right,transparent,#000_20px,#000_calc(100%-20px),transparent)] md:px-0" data-lenis-prevent>
         <ol className="relative flex min-w-[680px] md:min-w-[760px]">
           {STATUS_ORDER.map((s, i) => {
             const done = i < idx
             const current = i === idx
             return (
-              <li key={s} ref={current ? currentRef : undefined} className="relative flex flex-1 flex-col items-center px-1 text-center">
+              <li key={s} ref={current ? currentRef : undefined} className="relative flex flex-1 snap-center flex-col items-center px-1 text-center">
                 {i < STATUS_ORDER.length - 1 && (
                   <span className="absolute left-1/2 top-[15px] h-[2px] w-full bg-ink/10" aria-hidden="true">
                     <motion.span className="block h-full bg-ruby" initial={false} animate={{ width: i < idx ? '100%' : '0%' }} transition={{ duration: 0.6, ease: EASE, delay: i * 0.04 }} />
@@ -293,7 +293,7 @@ function Stepper({ o, onPick }: { o: Order; onPick: (s: OrderStatus) => void }) 
                   onClick={() => onPick(s)}
                   aria-current={current ? 'step' : undefined}
                   aria-label={statusName(s, o.eventType, lang)}
-                  className={`group relative z-10 flex h-8 w-8 items-center justify-center rounded-full text-[12px] font-semibold transition-all duration-300 cursor-pointer ${
+                  className={`group relative z-10 flex h-8 w-8 items-center justify-center rounded-full text-[12px] font-semibold transition-all duration-300 cursor-pointer before:absolute before:-inset-2 before:content-[''] ${
                     done ? 'bg-ruby text-white hover:scale-110' : current ? 'bg-white text-ruby ring-2 ring-ruby' : 'border border-ink/15 bg-white text-ink/40 hover:border-ink/40 hover:text-ink'
                   }`}
                 >
@@ -351,6 +351,11 @@ function DetailsPanel({ o }: { o: Order }) {
             <span className="block rounded-2xl bg-ink/[0.03] px-4 py-3 text-[13.5px] font-normal leading-relaxed text-ink/70">{o.notes}</span>
           </Meta>
         )}
+        {o.voiceNote && (
+          <Meta label={tx({ en: 'Voice note from the client', ta: 'வாடிக்கையாளரின் குரல் குறிப்பு' })} className="col-span-2 md:col-span-3">
+            <audio controls preload="none" src={o.voiceNote.url} className="mt-1 h-10 w-full max-w-md" />
+          </Meta>
+        )}
       </dl>
     </Panel>
   )
@@ -406,7 +411,7 @@ function QuotePanel({ o }: { o: Order }) {
         {itemSections.map(sec => (
           <div key={sec.key} className="px-5 py-3.5 md:px-6">
             <div className="flex items-center justify-between gap-3">
-              <p className="t-label text-ink/45">{tx(sec.name)}{sec.key === 'crew' ? ` · ${o.cart.sessions} ${t.sessions}` : ''}</p>
+              <p className="t-label text-ink/45">{tx(sec.name)}{sec.key === 'crew' ? ` · ${cartHours(o.cart)} ${t.hours}` : ''}</p>
               <p className="text-[13px] font-semibold tabular-nums text-ink">{formatINR(sec.amount)}</p>
             </div>
             <ul className="mt-2 space-y-1.5">
@@ -416,7 +421,7 @@ function QuotePanel({ o }: { o: Order }) {
                     {tx(l.label)}
                     {l.detail && <span className="ml-1.5 text-[12px] text-ink/40">{tx(l.detail)}</span>}
                   </span>
-                  <span className={`shrink-0 tabular-nums ${l.amount ? 'text-ink/70' : 'text-ink/30'}`}>{formatINR(l.amount)}</span>
+                  <span className={`shrink-0 tabular-nums ${l.kind === 'saving' ? 'font-semibold text-ruby' : l.amount ? 'text-ink/70' : 'text-ink/30'}`}>{formatINR(l.amount)}</span>
                 </li>
               ))}
             </ul>
@@ -572,7 +577,7 @@ function PaymentsPanel({ o }: { o: Order }) {
                       <p className="text-[14px] font-semibold tabular-nums text-ink">{formatINR(p.amount)}</p>
                       <p className="truncate text-[11.5px] text-ink/45">{MODE_LABEL[p.mode][lang]} · {formatDate(p.at, lang)}{p.note ? ` · ${p.note}` : ''}</p>
                     </div>
-                    <button type="button" onClick={() => setRemoving(p)} aria-label={t.remove} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink/30 opacity-100 transition md:h-8 md:w-8 hover:bg-ruby-soft hover:text-ruby md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100 cursor-pointer">
+                    <button type="button" onClick={() => setRemoving(p)} aria-label={t.remove} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink/30 transition md:h-8 md:w-8 hover:bg-ruby-soft hover:text-ruby [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100 cursor-pointer">
                       <Icon name="trash" size={15} />
                     </button>
                   </div>

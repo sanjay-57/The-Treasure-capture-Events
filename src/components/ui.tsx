@@ -224,13 +224,14 @@ export function LangImg({ pair, className = '', ...rest }: Omit<ImgProps, 'k' | 
 
 // ─── Form controls ───────────────────────────────────────────────────────────
 
-const fieldBase = 'w-full rounded-2xl border bg-white/80 px-4 text-base md:text-[15px] text-ink placeholder:text-ink/35 outline-none transition-all duration-200 focus:border-ruby focus:bg-white focus:ring-4 focus:ring-ruby/10'
+const fieldBase = 'w-full rounded-2xl border bg-white/80 px-4 text-[16px] md:text-[15px] text-ink placeholder:text-ink/35 outline-none transition-all duration-200 focus:border-ruby focus:bg-white focus:ring-4 focus:ring-ruby/10'
 
 export function Field({
-  label, value, onChange, type = 'text', placeholder, required, hint, error, rows, icon, autoFocus, inputMode, maxLength, dark = false, name,
+  label, value, onChange, type = 'text', placeholder, required, hint, error, rows, icon, autoFocus, inputMode, maxLength, dark = false, name, autoComplete, enterKeyHint,
 }: {
   label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string; required?: boolean; hint?: string; error?: string
   rows?: number; icon?: IconName; autoFocus?: boolean; inputMode?: 'text' | 'tel' | 'numeric' | 'email'; maxLength?: number; dark?: boolean; name?: string
+  autoComplete?: string; enterKeyHint?: 'next' | 'done' | 'send' | 'go'
 }) {
   const id = useId()
   const border = error ? 'border-ruby' : dark ? 'border-white/15' : 'border-ink/10'
@@ -244,9 +245,9 @@ export function Field({
       <div className="relative">
         {icon && <Icon name={icon} size={17} className={`pointer-events-none absolute left-4 top-[15px] ${dark ? 'text-white/40' : 'text-ink/35'}`} />}
         {rows ? (
-          <textarea id={id} name={name} rows={rows} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} required={required} maxLength={maxLength} className={`${fieldBase} ${border} ${darkCls} resize-none py-3.5 ${icon ? 'pl-11' : ''}`} />
+          <textarea id={id} name={name} rows={rows} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} required={required} maxLength={maxLength} autoComplete={autoComplete} enterKeyHint={enterKeyHint} className={`${fieldBase} ${border} ${darkCls} resize-none py-3.5 ${icon ? 'pl-11' : ''}`} />
         ) : (
-          <input id={id} name={name} type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} required={required} autoFocus={autoFocus} inputMode={inputMode} maxLength={maxLength} className={`${fieldBase} ${border} ${darkCls} h-[52px] ${icon ? 'pl-11' : ''}`} />
+          <input id={id} name={name} type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} required={required} autoFocus={autoFocus} inputMode={inputMode} maxLength={maxLength} autoComplete={autoComplete} enterKeyHint={enterKeyHint} className={`${fieldBase} ${border} ${darkCls} h-[52px] ${icon ? 'pl-11' : ''}`} />
         )}
       </div>
       {(error || hint) && <p className={`mt-1.5 text-xs ${error ? 'text-ruby' : dark ? 'text-white/45' : 'text-ink/45'}`}>{error || hint}</p>}
@@ -286,7 +287,7 @@ export function Segmented<T extends string>({ value, onChange, options, dark = f
             role="radio"
             aria-checked={active}
             onClick={() => onChange(o.value)}
-            className={`relative z-10 rounded-full font-medium transition-colors duration-300 cursor-pointer ${size === 'sm' ? 'h-7 px-3 text-xs' : 'h-10 px-4 text-sm md:h-9'} ${active ? (dark ? 'text-ink' : 'text-ink') : dark ? 'text-white/70 hover:text-white' : 'text-ink/55 hover:text-ink'}`}
+            className={`relative z-10 rounded-full font-medium transition-colors duration-300 cursor-pointer ${size === 'sm' ? 'h-10 px-3.5 text-xs md:h-7 md:px-3' : 'h-10 px-4 text-sm md:h-9'} ${active ? (dark ? 'text-ink' : 'text-ink') : dark ? 'text-white/70 hover:text-white' : 'text-ink/55 hover:text-ink'}`}
           >
             {active && <motion.span layoutId={`seg-${id}`} className="absolute inset-0 -z-10 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_14px_-4px_rgba(0,0,0,0.18)]" transition={{ type: 'spring', stiffness: 420, damping: 36 }} />}
             {o.label}
@@ -361,11 +362,29 @@ function useMedia(query: string) {
   return match
 }
 
+/**
+ * Locks native page scroll while `active`. Lenis.stop() only halts wheel
+ * smoothing; touch scrolling on phones is native, so the page behind a sheet
+ * or menu would still move. Counted, so stacked overlays unlock in order.
+ */
+let scrollLocks = 0
+export function useScrollLock(active: boolean) {
+  useEffect(() => {
+    if (!active) return
+    const root = document.documentElement
+    if (scrollLocks++ === 0) root.style.overflow = 'hidden'
+    return () => {
+      if (--scrollLocks === 0) root.style.overflow = ''
+    }
+  }, [active])
+}
+
 /** Glass sheet over a blurred backdrop; a bottom sheet on phones. Locks smooth-scroll while open. */
 export function Modal({ open, onClose, children, className = '', label }: { open: boolean; onClose: () => void; children: ReactNode; className?: string; label: string }) {
   const lenis = useLenis()
   const lang = useLang()
   const sheet = useMedia('(max-width: 639px)')
+  useScrollLock(open)
   useEffect(() => {
     if (!open) return
     lenis?.stop()
@@ -377,6 +396,8 @@ export function Modal({ open, onClose, children, className = '', label }: { open
     }
   }, [open, onClose, lenis])
 
+  // Portals can't render on the server (build-time prerender); the client mounts it after hydration.
+  if (typeof document === 'undefined') return null
   return createPortal(
     <AnimatePresence>
       {open && (
@@ -387,14 +408,14 @@ export function Modal({ open, onClose, children, className = '', label }: { open
             aria-modal="true"
             aria-label={label}
             data-lenis-prevent
-            className={`glass-strong relative max-h-[90svh] w-full max-w-lg overflow-y-auto rounded-t-[28px] sm:max-h-[92vh] sm:rounded-[28px] ${className}`}
+            className={`glass-strong relative max-h-[90svh] w-full max-w-lg overflow-y-auto overscroll-contain rounded-t-[28px] sm:max-h-[92vh] sm:rounded-[28px] ${className}`}
             initial={sheet ? { y: '100%' } : { opacity: 0, y: 40, scale: 0.97 }}
             animate={sheet ? { y: 0 } : { opacity: 1, y: 0, scale: 1 }}
             exit={sheet ? { y: '100%' } : { opacity: 0, y: 30, scale: 0.98 }}
             transition={{ duration: 0.5, ease: EASE }}
           >
             <span className="pointer-events-none absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-ink/15 sm:hidden" aria-hidden="true" />
-            <button type="button" onClick={onClose} aria-label={lang === 'ta' ? 'மூடு' : 'Close'} className="absolute right-4 top-4 z-10 flex h-10 w-10 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-ink/[0.06] text-ink/60 transition hover:bg-ink/10 hover:text-ink cursor-pointer">
+            <button type="button" onClick={onClose} aria-label={lang === 'ta' ? 'மூடு' : 'Close'} className="absolute right-3 top-3 z-10 flex h-11 w-11 sm:right-4 sm:top-4 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-ink/[0.06] text-ink/60 transition hover:bg-ink/10 hover:text-ink cursor-pointer">
               <Icon name="x" size={16} />
             </button>
             {children}
@@ -505,7 +526,7 @@ export function DatePicker({ value, onChange, min, lang = 'en', className = '' }
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const minDate = min ? fromISO(min) : today
   const selected = value ? fromISO(value) : null
-  const [view, setView] = useState(() => { const b = selected ?? today; return new Date(b.getFullYear(), b.getMonth(), 1) })
+  const [view, setView] = useState(() => { const b = selected ?? (minDate > today ? minDate : today); return new Date(b.getFullYear(), b.getMonth(), 1) })
   useEffect(() => { if (selected) setView(new Date(selected.getFullYear(), selected.getMonth(), 1)) }, [value]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const monthLabel = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(view)
@@ -529,11 +550,11 @@ export function DatePicker({ value, onChange, min, lang = 'en', className = '' }
   return (
     <div className={`flex flex-col rounded-[22px] border border-ruby/12 bg-white p-3 shadow-[0_1px_2px_rgba(155,17,30,0.04),0_14px_36px_-20px_rgba(155,17,30,0.25)] sm:p-4 ${className}`}>
       <div className="flex items-center justify-between px-1">
-        <button type="button" onClick={() => shift(-1)} disabled={!canPrev} aria-label="Previous month" className="flex h-9 w-9 items-center justify-center rounded-full text-ink/60 transition hover:bg-ruby-soft hover:text-ruby disabled:opacity-25 cursor-pointer disabled:cursor-default"><Icon name="chevronLeft" size={18} /></button>
+        <button type="button" onClick={() => shift(-1)} disabled={!canPrev} aria-label="Previous month" className="flex h-11 w-11 items-center justify-center rounded-full text-ink/60 transition hover:bg-ruby-soft sm:h-9 sm:w-9 hover:text-ruby disabled:opacity-25 cursor-pointer disabled:cursor-default"><Icon name="chevronLeft" size={18} /></button>
         <AnimatePresence mode="wait" initial={false}>
           <motion.p key={monthLabel} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }} className={`whitespace-nowrap font-display font-semibold text-ink ${lang === 'ta' ? 'text-[0.98rem]' : 'text-[1.15rem]'}`}>{monthLabel}</motion.p>
         </AnimatePresence>
-        <button type="button" onClick={() => shift(1)} aria-label="Next month" className="flex h-9 w-9 items-center justify-center rounded-full text-ink/60 transition hover:bg-ruby-soft hover:text-ruby cursor-pointer"><Icon name="chevronRight" size={18} /></button>
+        <button type="button" onClick={() => shift(1)} aria-label="Next month" className="flex h-11 w-11 items-center justify-center rounded-full text-ink/60 transition hover:bg-ruby-soft sm:h-9 sm:w-9 hover:text-ruby cursor-pointer"><Icon name="chevronRight" size={18} /></button>
       </div>
       <div className="mt-3 grid grid-cols-7 text-center">
         {weekdays.map((w, i) => <span key={i} className={`py-1 font-semibold uppercase tracking-wider text-ink/40 ${lang === 'ta' ? 'text-[10px]' : 'text-[11px]'}`}>{w}</span>)}

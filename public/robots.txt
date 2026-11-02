@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /book/
+Disallow: /i/
+Disallow: /login
+
+Sitemap: https://treasurecaptureevents.in/sitemap.xml

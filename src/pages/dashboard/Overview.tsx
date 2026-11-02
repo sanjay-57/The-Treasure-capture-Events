@@ -5,7 +5,7 @@ import { Badge, Button, Card, LangImg } from '../../components/ui'
 import { EASE, Reveal, Stagger, StaggerItem } from '../../components/motion'
 import { COMMON, formatDate, formatINR, useLang, useT, type Bi } from '../../lib/i18n'
 import { CROWDS, ROLES, STATUS_META, STATUS_ORDER, VENUES, districtName, eventByKey, statusName } from '../../lib/data'
-import { cartExtras, cartLabel, tierName } from '../../lib/catalogue'
+import { cartExtras, cartLabel, cartTierName } from '../../lib/catalogue'
 import { balanceDue, paidTotal, useMyOrder, useStore, type Order } from '../../lib/store'
 import { useTitle } from '../../lib/ui'
 import { Fact, ProgressRing, SECTIONS, StageBar, TamilCorners, formatTime, sectionState, stageIdx, stageSince, type SectionState } from './shared'
@@ -205,7 +205,7 @@ function DetailsCard({ order }: { order: Order }) {
           />
           <Fact icon={order.venueType === 'home' ? 'home' : 'building'} label={t.venue} value={order.venueName || venue?.name[lang] || '—'} sub={order.venueAddress} />
           <Fact icon="mapPin" label={t.district} value={districtName(order.district, lang)} sub={`${order.distanceKm} ${t.kmAway}`} />
-          <Fact icon="gem" label={t.pkg} value={tierName(order.cart.tier)[lang]} sub={cartLabel(order.cart)[lang]} />
+          <Fact icon="gem" label={t.pkg} value={cartTierName(order.cart)[lang]} sub={cartLabel(order.cart)[lang]} />
           <Fact icon="users" label={t.guests} value={crowd ? `${crowd.name[lang]} · ${crowd.range}` : '—'} sub={crowd?.note[lang]} />
         </div>
         {addons.length > 0 && (

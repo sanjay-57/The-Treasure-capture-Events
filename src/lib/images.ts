@@ -1,3 +1,4 @@
+import type { CatalogueId } from './catalogue'
 // Photo catalogue (Unsplash, free licence). Placeholder imagery until the studio's own work is uploaded via the Admin CMS.
 // Keys prefixed m_ are contemporary (English mode); t_ are traditional Tamil (Tamil mode).
 // w/h are the original pixel dimensions, used for masonry aspect ratios.
@@ -211,11 +212,49 @@ export const IMG = {
   e_commercial_2: { id: "1631573576452-a073df952614", w: 4000, h: 6000, alt: "A perfume bottle on a table in studio light" },
   e_corporate: { id: "1775113586139-b583cc93517f", w: 6000, h: 4000, alt: "A speaker at a podium during a corporate event" },
   e_corporate_2: { id: "1562649268-bd8fa4cf7ad7", w: 6000, h: 4000, alt: "A team standing together on a conference stage" },
+  // Bumpy Tales (maternity) and drone placeholders, picked 21 Oct 2026; photographers in docs/credits.md.
+  m_mat_blue: { id: "1662465362311-9cd96e8f10db", w: 2210, h: 3984, alt: "An expectant mother in a blue gown with a flower crown among leaves" },
+  m_mat_leaves: { id: "1662465375290-3c3162da65fd", w: 3984, h: 2656, alt: "An expectant mother in blue sitting on autumn leaves" },
+  m_mat_bench: { id: "1662465217423-de879dbb6b37", w: 3984, h: 2656, alt: "An expectant mother resting on a park bench, black and white" },
+  m_mat_lake: { id: "1590781829769-d32d5ad883a2", w: 3648, h: 5472, alt: "An expectant mother in white sitting on a boat by a lake" },
+  m_mat_field: { id: "1538678867871-8a43e7487746", w: 4016, h: 6016, alt: "An expectant mother in a sunlit field at golden hour" },
+  m_mat_door: { id: "1568043625493-2b0633c7c491", w: 5760, h: 3840, alt: "An expectant mother in green holding her bump before a wooden door" },
+  m_mat_bw: { id: "1663331336212-f2c7eeeedbfa", w: 3936, h: 2624, alt: "Hands cradling a baby bump, warm black and white" },
+  m_drone_couple: { id: "1640020107930-b5a8f9f91ccf", w: 2500, h: 2500, alt: "A drone filming a couple in a wheat field" },
+  m_aerial_night: { id: "1718624787946-addf7aedc3ae", w: 4032, h: 2268, alt: "An aerial view of a crowd around a lit stage at night" },
+  // Outdoor looks and Madurai outdoor venues (v_), picked 21 Oct 2026; photographers in docs/credits.md.
+  // Venue shots are generic scenes of the same kind of place, never the venue's own photos or signage.
+  t_look_kasavu: { id: "1774814324523-70073c02e6ad", w: 3863, h: 5150, alt: "A couple in a cream and gold silk saree and veshti, posed by an old tree" },
+  m_look_beach: { id: "1615966650071-855b15f29ad1", w: 3496, h: 2100, alt: "A couple silhouetted dancing on the shore at sunset" },
+  m_look_forest: { id: "1791138690664-445f9f7ac1a8", w: 4672, h: 7008, alt: "A couple embracing among trees in soft early light" },
+  v_wedding_lawn: { id: "1744805624890-9931ebb50428", w: 2656, h: 3984, alt: "A garden lawn set for a wedding with a floral arch and seating" },
+  v_madurai_rock: { id: "1696566904668-753b716e44d2", w: 6000, h: 4000, alt: "A rocky temple hill above the trees, Madurai" },
+  v_chettinad_court: { id: "1660915223003-7df0db2e57d8", w: 4928, h: 3264, alt: "A Chettinad-style courtyard with red tiled roofs and pillared verandas" },
+  v_resort_lawn: { id: "1717403129691-09ef4110c4b1", w: 3376, h: 6000, alt: "A green resort lawn with a tiled-roof cottage among trees" },
 } satisfies Record<string, Photo>
 
 export type ImgKey = keyof typeof IMG
 
 /** Build a sized Unsplash URL. Pass h to force a crop, otherwise the natural ratio is kept. */
+/**
+ * Stock photo for each option card in the cart. Placeholder imagery: Phase 5
+ * swaps these for curated shots, one line each.
+ */
+export const ITEM_PHOTO: Partial<Record<CatalogueId, ImgKey>> = {
+  trad_photo: 'm_cam_hands', trad_video: 'm_cam_lens',
+  candid_couple: 'm_couple_field', candid_family: 't_ritual_garland', candid_guests: 'm_rec_party',
+  vid_documentary: 'm_cam_dark', vid_moments: 'm_haldi_laugh', vid_cinematic: 'm_couple_mist',
+  portrait_hour: 'm_baby_family', candid_individual: 'm_bride_smile', couple_portrait_hour: 'm_couple_swing',
+  drone: 'm_drone_couple', drone_fpv: 'm_aerial_night', pendrive: 'm_cam_eye', semi_candid_video: 'm_couple_dance', reels: 'm_couple_yellow',
+  einvite: 't_kolam_door', einvite_premium: 't_rangoli_lamps', ledwall: 'm_rec_hall', photobooth: 'm_bday_hats', selfie360: 'm_rec_dance',
+  wooden_box: 'm_album_black', album_dual: 'm_album_linen',
+  frame_a4: 'm_couple_white', frame_a3: 'm_couple_royal', frame_12x18: 'm_bride_red', frame_16x24: 't_couple_garland', frame_20x30: 'm_couple_fort',
+  magazine: 'm_album_spread', minibook: 'm_album_open', calendar: 't_diya_rows',
+  prepost_wedding: 'm_couple_lake', outdoor_couple: 'm_couple_garden', outdoor_baby: 'm_baby_smile', outdoor_maternity: 'm_mat_blue',
+  model_portfolio: 'm_bride_studio', commercial_shoot: 'e_commercial',
+  look_temple: 't_look_kasavu', look_beach: 'm_look_beach', look_meadow: 'm_look_forest', outdoor_mini: 'm_cp_laugh',
+}
+
 export function photoUrl(key: ImgKey, w: number, h?: number, q = 72): string {
   const p = IMG[key]
   const crop = h ? `&h=${h}&fit=crop&crop=faces,entropy` : ''

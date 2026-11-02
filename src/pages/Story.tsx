@@ -12,7 +12,7 @@ import { GALLERY, STORIES } from '../lib/gallery'
 import type { ImgKey } from '../lib/images'
 import { formatDate, useLang, useT } from '../lib/i18n'
 import { useStore } from '../lib/store'
-import { useDarkHero, useTitle } from '../lib/ui'
+import { useDarkHero, useSeo, useTitle } from '../lib/ui'
 import NotFound from './NotFound'
 
 const copy = {
@@ -61,6 +61,14 @@ export default function Story() {
   const story = STORIES.find(s => s.slug === slug)
   useDarkHero(story ? 'hero' : false)
   useTitle(story ? story.title : { en: 'Story', ta: 'கதை' })
+  useSeo(
+    story
+      ? {
+          en: `${story.title.en}: ${story.event.en.toLowerCase()} of ${story.names.en} at ${story.venue.en}, ${districtName(story.district, 'en')}, photographed by our Madurai studio.`,
+          ta: `${story.title.ta}: ${story.venue.ta}, ${districtName(story.district, 'ta')} — ${story.names.ta} ${story.event.ta}, எங்கள் மதுரை ஸ்டுடியோ எடுத்த படங்கள்.`,
+        }
+      : { en: 'Wedding and family function stories photographed by our Madurai studio.', ta: 'எங்கள் மதுரை ஸ்டுடியோ படம்பிடித்த திருமண, குடும்ப விழாக் கதைகள்.' },
+  )
   if (!story) return <NotFound />
   return <StoryView key={story.slug} slug={story.slug} />
 }

@@ -1,4 +1,5 @@
 import type { Bi, Lang } from '../../lib/i18n'
+import { PACKAGE_ALBUM_NOTE } from '../../lib/packageNote.ts'
 
 /*
  * The default narration the voice guide speaks on each booking step, in both
@@ -39,8 +40,8 @@ export const GUIDE_CLIPS: Record<ClipId, Bi> = {
     ta: 'மூன்றாம் படி. விழா வீட்டிலா, மண்டபத்திலா? இடத்தின் பெயரையும் முகவரியையும் உள்ளிட்டு, தேதியையும் நேரத்தையும் தேர்ந்தெடுங்கள். தேதி இன்னும் உறுதியாகவில்லை என்றால் அதைச் சொல்லுங்கள்; அழைப்பில் உறுதிசெய்வோம்.',
   },
   'step-package': {
-    en: 'Step four. Pick a package, or build your own: add drone coverage, an LED wall, albums and more. You can also simply tell the assistant what you want, like, add drone, or, what is my total.',
-    ta: 'நான்காம் படி. ஒரு தொகுப்பைத் தேர்ந்தெடுங்கள், அல்லது உங்களுக்கேற்ப அமையுங்கள்: ட்ரோன் படப்பிடிப்பு, LED திரை, ஆல்பங்கள் என்று சேர்க்கலாம். ட்ரோன் சேர், அல்லது மொத்தம் எவ்வளவு, என்று உதவியாளரிடம் சொன்னாலே போதும்.',
+    en: `Step four. There are three packages. For a family function, Bronze is traditional photography for one four-hour session. Silver adds a portrait hour with close family, candid shots, an A4 album, a calendar and a frame. Gold adds a semi-candid film, the ten by twenty-eight album in a wooden box, and a bigger frame. Weddings and outdoor shoots have their own three. Tap a package, then add or remove anything in the list below. ${PACKAGE_ALBUM_NOTE.en} You can also simply tell the assistant what you want, like, add drone, or, what is in Gold.`,
+    ta: `நான்காம் படி. மூன்று தொகுப்புகள் உள்ளன. குடும்ப விழாவுக்கு, பிரான்ஸ் தொகுப்பில் நான்கு மணி நேர பாரம்பரியப் புகைப்படம். சில்வரில் இதோடு, நெருங்கிய குடும்பத்துடன் ஒரு மணி நேரப் போர்ட்ரெய்ட், கேண்டிட் படங்கள், A4 ஆல்பம், காலண்டர், ஒரு பிரேம். கோல்டில் இன்னும் செமி-கேண்டிட் வீடியோ, மரப்பெட்டியில் பத்துக்கு இருபத்தெட்டு ஆல்பம், பெரிய பிரேம். திருமணத்துக்கும் அவுட்டோர் ஷூட்டுக்கும் தனியாக மூன்று தொகுப்புகள் உள்ளன. ஒரு தொகுப்பைத் தொட்டு, கீழே உள்ள பட்டியலில் எதையும் சேர்க்கலாம், நீக்கலாம். ${PACKAGE_ALBUM_NOTE.ta} ட்ரோன் சேர், அல்லது கோல்டில் என்ன இருக்கு, என்று உதவியாளரிடம் சொன்னாலே போதும்.`,
   },
   'step-details': {
     en: 'Last step. Tell me your name and mobile number, and I will fill them in for you. Say, read my summary, to hear everything you have chosen with the estimated total. When you are ready, say, send my enquiry. No payment is taken online; we will call you within twenty-four hours.',

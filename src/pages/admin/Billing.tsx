@@ -146,13 +146,13 @@ export default function Billing() {
       </div>
 
       <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+        <div className="no-scrollbar -mx-4 flex scroll-px-4 gap-1.5 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0" data-lenis-prevent>
           {STATES.map(s => (
             <button
               key={s}
               type="button"
               onClick={() => setState(s)}
-              className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-medium transition cursor-pointer ${state === s ? 'bg-ink text-white' : 'bg-white text-ink/60 border border-ink/10 hover:border-ink/30'}`}
+              className={`inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[12.5px] md:h-9 font-medium transition cursor-pointer ${state === s ? 'bg-ink text-white' : 'bg-white text-ink/60 border border-ink/10 hover:border-ink/30'}`}
             >
               {t[s]}
               <span className={`tabular-nums ${state === s ? 'text-white/60' : 'text-ink/35'}`}>{counts[s]}</span>
@@ -320,7 +320,7 @@ function ItemsPanel({ o }: { o: Order }) {
   }
   return (
     <Panel title={t.items} subtitle={t.itemsSub} icon="grid" bodyClass="p-4 md:p-5">
-      <CartBuilder cart={cart} shootItem={eventByKey(o.eventType)?.tiers.shootItem} onChange={setCart} />
+      <CartBuilder cart={cart} spec={eventByKey(o.eventType)?.tiers} onChange={setCart} />
       <AnimatePresence>
         {dirty && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.3, ease: EASE }} className="sticky bottom-3 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-ink p-3 text-white shadow-[0_18px_40px_-16px_rgba(10,10,11,0.5)]">

@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Link } from 'react-router'
 import { Icon } from '../Icon'
 import { Button, Container } from '../ui'
@@ -6,7 +7,10 @@ import { GopuramSkyline, TamilOnly, TempleBorder } from '../tamil'
 import { Logo, LangToggle } from './Nav'
 import { COMMON, useLang, useT } from '../../lib/i18n'
 import { DISTRICTS, EVENTS } from '../../lib/data'
-import { useStore } from '../../lib/store'
+import { usePrices, useStore } from '../../lib/store'
+import { TIER_META } from '../../lib/catalogue'
+import { tierPrice } from '../../lib/pricing'
+import { landingPath, studioJsonLd } from '../../lib/seo'
 
 const copy = {
   cta: { en: 'Let’s make something\nworth treasuring.', ta: 'போற்றிப் பாதுகாக்கும்\nநினைவுகளை உருவாக்குவோம்.' },
@@ -14,28 +18,37 @@ const copy = {
   whatsapp: { en: 'WhatsApp us', ta: 'வாட்ஸ்அப்' },
   explore: { en: 'Explore', ta: 'பார்வையிட' },
   events: { en: 'Events', ta: 'நிகழ்வுகள்' },
-  districts: { en: 'Districts', ta: 'மாவட்டங்கள்' },
+  districts: { en: 'Areas we cover', ta: 'நாங்கள் வரும் இடங்கள்' },
   studio: { en: 'Studio', ta: 'ஸ்டுடியோ' },
   staff: { en: 'Staff login', ta: 'பணியாளர் நுழைவு' },
   hours: { en: 'Mon–Sat · 9:30 am – 8 pm', ta: 'திங்கள்–சனி · காலை 9:30 – இரவு 8' },
 }
 
-export function Footer() {
+/** `ctaBar`: the phone CTA bar is pinned over this page, so leave room for it below the last row. */
+export function Footer({ ctaBar = false }: { ctaBar?: boolean }) {
   const lang = useLang()
   const t = useT(copy)
   const c = useT(COMMON)
   const studio = useStore(s => s.cms.studio)
   const wa = studio.whatsapp.replace(/\D/g, '')
+  const prices = usePrices()
+  // Business details for search engines, from the same CMS values shown below.
+  const jsonLd = useMemo(() => JSON.stringify(studioJsonLd(
+    studio,
+    DISTRICTS.map(d => d.name.en),
+    (['basic', 'standard', 'premium'] as const).map(tier => ({ name: `${TIER_META[tier].name.en} photography package`, price: tierPrice('birthday', tier, prices) })),
+  )).replace(/</g, '\\u003c'), [studio, prices])
 
   return (
     <footer className="relative mt-auto overflow-hidden bg-ink text-white">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
       <TamilOnly>
         <TempleBorder flip />
         <GopuramSkyline className="pointer-events-none absolute inset-x-0 top-3" color="var(--color-ruby)" opacity={0.16} />
       </TamilOnly>
       <div className="ambient-dark grain absolute inset-0 opacity-80" />
 
-      <Container className="relative pb-[calc(2rem+env(safe-area-inset-bottom))] pt-20 md:pb-10 md:pt-32">
+      <Container className={`relative pt-20 ${ctaBar ? 'pb-[calc(6rem+env(safe-area-inset-bottom))]' : 'pb-[calc(2rem+env(safe-area-inset-bottom))]'} md:pb-10 md:pt-32`}>
         <div className="grid gap-8 border-b border-white/10 pb-12 md:gap-10 md:pb-16 md:grid-cols-[1.4fr_1fr] md:items-end">
           <div>
             <RevealText text={t.cta} className="t-1 text-white" />
@@ -55,7 +68,7 @@ export function Footer() {
             <p className="mt-5 max-w-xs text-sm leading-relaxed text-white/50">{c.tagline}</p>
             <div className="mt-6 flex gap-2">
               {(['instagram', 'youtube', 'whatsapp'] as const).map(n => (
-                <a key={n} href={n === 'whatsapp' ? `https://wa.me/${wa}` : '#'} aria-label={n} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/12 text-white/60 transition hover:border-white/40 hover:text-white">
+                <a key={n} href={n === 'whatsapp' ? `https://wa.me/${wa}` : '#'} aria-label={n} className="flex h-11 w-11 items-center justify-center rounded-full border border-white/12 md:h-10 md:w-10 text-white/60 transition hover:border-white/40 hover:text-white">
                   <Icon name={n} size={17} />
                 </a>
               ))}
@@ -81,16 +94,17 @@ export function Footer() {
         </div>
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-white/10 py-6 text-[13px] text-white/40 md:items-start md:gap-y-2">
-          <span className="t-label w-full py-1 text-white/30 md:w-auto md:py-0">{t.districts}</span>
-          {DISTRICTS.map(d => <Link key={d.key} to={`/book?district=${d.key}`} className="py-1.5 transition hover:text-white md:py-0">{d.name[lang]}</Link>)}
+          <Link to="/photography" className="t-label w-full py-1 text-white/30 transition hover:text-white md:w-auto md:py-0">{t.districts}</Link>
+          {/* Each district's wedding page; the rest of its events are linked from there and from /photography. */}
+          {DISTRICTS.map(d => <Link key={d.key} to={landingPath(d.key, 'wedding')} className="py-1.5 transition hover:text-white md:py-0">{d.name[lang]}</Link>)}
         </div>
 
         <div className="flex flex-col gap-4 border-t border-white/10 pt-6 text-[13px] text-white/40 md:flex-row md:items-center md:justify-between">
           <p>© {new Date().getFullYear()} {c.brand}. {c.copyright}</p>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-            <Link to="/terms" className="hover:text-white">{c.terms}</Link>
-            <Link to="/privacy" className="hover:text-white">{c.privacy}</Link>
-            <Link to="/admin/login" className="flex items-center gap-1.5 hover:text-white"><Icon name="lock" size={13} />{t.staff}</Link>
+            <Link to="/terms" className="py-1.5 hover:text-white md:py-0">{c.terms}</Link>
+            <Link to="/privacy" className="py-1.5 hover:text-white md:py-0">{c.privacy}</Link>
+            <Link to="/admin/login" className="flex items-center gap-1.5 py-1.5 hover:text-white md:py-0"><Icon name="lock" size={13} />{t.staff}</Link>
             <LangToggle dark />
           </div>
         </div>

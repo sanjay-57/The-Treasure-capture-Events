@@ -1,8 +1,8 @@
 import type { Bi, Lang } from './i18n'
-import type { DistrictKey } from './data'
+import type { DistrictKey, EventKey } from './data'
 import type { ImgKey } from './images'
 
-export type GalleryCat = 'weddings' | 'prewedding' | 'engagement' | 'reception' | 'ceremonies' | 'little' | 'culture'
+export type GalleryCat = 'weddings' | 'prewedding' | 'engagement' | 'reception' | 'ceremonies' | 'little' | 'cradle' | 'bumpy' | 'culture'
 
 export const GALLERY_CATS: { key: GalleryCat | 'all'; name: Bi }[] = [
   { key: 'all', name: { en: 'All work', ta: 'அனைத்தும்' } },
@@ -11,9 +11,33 @@ export const GALLERY_CATS: { key: GalleryCat | 'all'; name: Bi }[] = [
   { key: 'engagement', name: { en: 'Engagements', ta: 'நிச்சயதார்த்தம்' } },
   { key: 'reception', name: { en: 'Receptions & décor', ta: 'வரவேற்பு & அலங்காரம்' } },
   { key: 'ceremonies', name: { en: 'Family ceremonies', ta: 'குடும்ப விழாக்கள்' } },
-  { key: 'little', name: { en: 'Birthdays & babies', ta: 'பிறந்தநாள் & குழந்தைகள்' } },
+  { key: 'little', name: { en: 'Birthdays', ta: 'பிறந்தநாள்' } },
+  { key: 'cradle', name: { en: 'Cradle Captures', ta: 'Cradle Captures' } },
+  { key: 'bumpy', name: { en: 'Bumpy Tales', ta: 'Bumpy Tales' } },
   { key: 'culture', name: { en: 'Temple & culture', ta: 'கோயில் & பண்பாடு' } },
 ]
+
+/** Sub-brands shown as gallery categories, with their own header and a Contact us CTA instead of Book. */
+export const SUB_BRANDS: Partial<Record<GalleryCat, { wordmark: string; tagline: Bi; note: Bi }>> = {
+  cradle: {
+    wordmark: 'Cradle Captures',
+    tagline: { en: 'Newborn and toddler portraits', ta: 'பிறந்த குழந்தை & சிறு குழந்தைப் படங்கள்' },
+    note: { en: 'Gentle, unhurried sessions at home or in the studio. Tell us your baby’s age and we’ll plan the rest.', ta: 'வீட்டிலோ ஸ்டுடியோவிலோ, அவசரமில்லாத மென்மையான படப்பிடிப்பு. குழந்தையின் வயதைச் சொல்லுங்கள், மற்றதை நாங்கள் பார்த்துக்கொள்கிறோம்.' },
+  },
+  bumpy: {
+    wordmark: 'Bumpy Tales',
+    tagline: { en: 'Maternity portraits', ta: 'கர்ப்பகாலப் படங்கள்' },
+    note: { en: 'Portraits of the months before, outdoors or at home. Ask us to see the full set from our own shoots.', ta: 'குழந்தை வருவதற்கு முந்தைய மாதங்களின் படங்கள், வெளியிலோ வீட்டிலோ. எங்கள் படப்பிடிப்புகளின் முழுத் தொகுப்பைப் பார்க்க எங்களைக் கேளுங்கள்.' },
+  },
+}
+
+/** Which gallery category holds photos like each event, for the booking flow's photo strip. */
+export const EVENT_GALLERY_CAT: Record<EventKey, GalleryCat> = {
+  wedding: 'weddings', engagement: 'engagement', reception: 'reception',
+  puberty: 'ceremonies', earpiercing: 'ceremonies', naming: 'ceremonies', babyshower: 'ceremonies',
+  birthday: 'little', babyshoot: 'cradle',
+  prewedding: 'prewedding', outdoor: 'prewedding', model: 'weddings', commercial: 'culture', corporate: 'reception',
+}
 
 /** modern → shown in English, traditional → shown in Tamil, both → always. */
 export type Tone = 'modern' | 'traditional' | 'both'
@@ -147,12 +171,20 @@ export const GALLERY: GalleryItem[] = [
   g('m_mehndi_smile', 'ceremonies', 'modern', 'Show us your hands', 'கைகளைக் காட்டு', 'coimbatore', 'turmeric-henna-coimbatore'),
 
   // ── Birthdays & babies ──
-  g('m_baby_wrap', 'little', 'both', 'Seven days old', 'ஏழு நாள் குழந்தை', 'madurai'),
-  g('m_baby_smile', 'little', 'both', 'First smile', 'முதல் புன்னகை', 'chennai'),
-  g('m_baby_hands', 'little', 'modern', 'Held by many hands', 'பல கைகளில்', 'salem'),
-  g('m_baby_bw', 'little', 'modern', 'Tiny, in black and white', 'சின்னஞ்சிறு', 'madurai'),
-  g('m_baby_hat', 'little', 'modern', 'Sleepy portrait', 'தூக்கத்தில்', 'coimbatore'),
-  g('m_baby_family', 'little', 'modern', 'New parents', 'புதிய பெற்றோர்', 'chennai'),
+  g('m_baby_wrap', 'cradle', 'both', 'Seven days old', 'ஏழு நாள் குழந்தை', 'madurai'),
+  g('m_baby_smile', 'cradle', 'both', 'First smile', 'முதல் புன்னகை', 'chennai'),
+  g('m_baby_hands', 'cradle', 'modern', 'Held by many hands', 'பல கைகளில்', 'salem'),
+  g('m_baby_bw', 'cradle', 'modern', 'Tiny, in black and white', 'சின்னஞ்சிறு', 'madurai'),
+  g('m_baby_hat', 'cradle', 'modern', 'Sleepy portrait', 'தூக்கத்தில்', 'coimbatore'),
+  g('m_baby_family', 'cradle', 'modern', 'New parents', 'புதிய பெற்றோர்', 'chennai'),
+  // ── Bumpy Tales (maternity), stock until the studio sends its own ──
+  g('m_mat_blue', 'bumpy', 'both', 'Waiting, in bloom', 'மலரும் காத்திருப்பு', 'madurai'),
+  g('m_mat_leaves', 'bumpy', 'both', 'Autumn, and almost', 'இலையுதிர் காலம், இன்னும் சில நாள்', 'theni'),
+  g('m_mat_bench', 'bumpy', 'both', 'A quiet afternoon', 'அமைதியான மதியம்', 'coimbatore'),
+  g('m_mat_lake', 'bumpy', 'modern', 'By the water', 'நீர்க்கரையில்', 'theni'),
+  g('m_mat_field', 'bumpy', 'modern', 'Golden hour, nine months', 'பொன் மாலை, ஒன்பது மாதம்', 'dindigul'),
+  g('m_mat_door', 'bumpy', 'modern', 'At the door', 'வாசலில்', 'madurai'),
+  g('m_mat_bw', 'bumpy', 'modern', 'Held close', 'அணைத்தபடி', 'salem'),
   g('m_bday_girl', 'little', 'modern', 'Make a wish', 'ஒரு ஆசை', 'chennai'),
   g('m_bday_kids', 'little', 'modern', 'Blow!', 'ஊது!', 'salem'),
   g('m_bday_candles', 'little', 'both', 'Candles and cake', 'மெழுகுவர்த்தியும் கேக்கும்', 'madurai'),
@@ -223,6 +255,14 @@ export function galleryForLang(lang: Lang, items: GalleryItem[] = GALLERY): Gall
     })
     .sort((a, b) => a.rank - b.rank)
     .map(r => r.i)
+}
+
+/** Up to `n` photos for an event, in the current language's order; padded from all work when the category is thin. */
+export function eventGallery(event: EventKey | '', lang: Lang, n = 10): GalleryItem[] {
+  if (!event) return []
+  const all = galleryForLang(lang)
+  const own = all.filter(i => i.cat === EVENT_GALLERY_CAT[event])
+  return [...own, ...all.filter(i => !own.includes(i))].slice(0, n)
 }
 
 // ─── Stories ─────────────────────────────────────────────────────────────────

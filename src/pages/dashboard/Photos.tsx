@@ -490,8 +490,9 @@ function ProofTile({ id, index, selected, onToggle, onOpen, feature = false, cla
             <Watermark size={feature ? 'md' : 'sm'} />
           </motion.div>
         </button>
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-ink/40 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-        <span className="pointer-events-none absolute left-2.5 top-2.5 font-mono text-[10.5px] text-white/85 opacity-0 transition-opacity duration-300 group-hover:opacity-100">{proofFile(id)}</span>
+        {/* Touch screens have no hover, so the file name (what families quote back to us) stays visible there. */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-ink/40 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 [@media(hover:none)]:opacity-100" />
+        <span className="pointer-events-none absolute left-2.5 top-2.5 max-w-[calc(100%-4rem)] truncate font-mono text-[12px] text-white/85 opacity-0 transition-opacity duration-300 group-hover:opacity-100 md:text-[10.5px] [@media(hover:none)]:opacity-100">{proofFile(id)}</span>
         <div className="absolute right-2 top-2">
           <Heart selected={selected} onToggle={onToggle} label={`${selected ? t.unselect : t.select}: ${proofFile(id)}`} size={feature ? 42 : 34} />
         </div>

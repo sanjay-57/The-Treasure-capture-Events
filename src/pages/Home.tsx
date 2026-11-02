@@ -12,7 +12,7 @@ import { IMG, photoUrl, type ImgKey, DISTRICT_GALLERY } from '../lib/images'
 import { formatINR, useLang, useT, type Bi } from '../lib/i18n'
 import { startingPrice } from '../lib/pricing'
 import { useStore } from '../lib/store'
-import { useDarkHero, useTitle } from '../lib/ui'
+import { useDarkHero, useTitle, useSeo } from '../lib/ui'
 
 const copy = {
   eyebrow: { en: 'Madurai · Est. 2018 · Eight districts', ta: 'மதுரை · 2018 முதல் · எட்டு மாவட்டங்கள்' },
@@ -38,6 +38,7 @@ const copy = {
   eventsEyebrow: { en: 'What we photograph', ta: 'நாங்கள் படம்பிடிப்பவை' },
   eventsTitle: { en: 'Every ceremony,\nevery family.', ta: 'ஒவ்வொரு சடங்கும்,\nஒவ்வொரு குடும்பமும்.' },
   from: { en: 'from', ta: 'முதல்' },
+  contactUs: { en: 'Contact us', ta: 'தொடர்பு கொள்ள' },
   stat1: { en: 'Events captured', ta: 'படம்பிடித்த நிகழ்வுகள்' },
   stat2: { en: 'Districts served', ta: 'சேவை மாவட்டங்கள்' },
   stat3: { en: 'Albums delivered', ta: 'வழங்கிய ஆல்பங்கள்' },
@@ -101,6 +102,7 @@ const HOME_MOSAIC: Bi<ImgKey[]> = {
 export default function Home() {
   useDarkHero('hero')
   useTitle({ en: 'Wedding & Ceremony Photography in Tamil Nadu', ta: 'தமிழ்நாட்டில் திருமண & விழா புகைப்படக் கலை' })
+  useSeo({ en: 'Wedding photographer in Madurai: candid photography, wedding videography, drone and albums for weddings and family functions across Tamil Nadu.', ta: 'மதுரையில் திருமணப் புகைப்படக் கலைஞர்: கேண்டிட் படங்கள், திருமண வீடியோ, ட்ரோன், ஆல்பம். தமிழ்நாடு முழுவதும் திருமணமும் குடும்ப விழாக்களும்.' })
   return (
     <>
       <Hero />
@@ -303,12 +305,12 @@ function DistrictGateway() {
               <button type="button" onClick={() => choose(d.key)} className={`group relative block w-full overflow-hidden rounded-3xl text-left cursor-pointer ${n === 0 ? 'aspect-[4/5] md:aspect-auto md:h-full' : 'aspect-[4/5]'}`}>
                 <CrossfadeImg keys={DISTRICT_GALLERY[d.key] ?? [d.img]} offset={n * 900} w={700} ratio={4 / 5} sizes="(max-width: 768px) 50vw, 25vw" className="absolute inset-0" imgClassName="transition-transform duration-[1.4s] ease-out group-hover:scale-[1.07]" />
                 <span className="absolute inset-0 bg-gradient-to-t from-ink/75 via-ink/5 to-transparent" />
-                {n === 0 && <span className="glass-ruby absolute left-2.5 top-2.5 rounded-full px-2.5 py-1 text-[10.5px] font-semibold md:left-3 md:top-3 md:px-3 md:text-[11px]">{lang === 'ta' ? 'தலைமையகம்' : 'Head studio'}</span>}
+                {n === 0 && <span className="glass-ruby absolute left-2.5 top-2.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold md:left-3 md:top-3 md:px-3 md:text-[11px]">{lang === 'ta' ? 'தலைமையகம்' : 'Head studio'}</span>}
                 <span className="absolute inset-x-2.5 bottom-2.5 md:inset-x-3 md:bottom-3">
                   <span className="glass flex items-center justify-between gap-2 rounded-2xl px-3 py-2.5 transition-all md:px-3.5 md:py-3 duration-500 group-hover:bg-white/90">
                     <span className="min-w-0">
                       <span className="block font-display text-base leading-tight text-ink [overflow-wrap:anywhere] md:truncate md:text-xl">{d.name[lang]}</span>
-                      <span className="mt-0.5 block truncate text-[11px] text-ink/55 md:mt-0 md:text-[11.5px]">{d.note[lang]}</span>
+                      <span className="mt-0.5 block truncate text-[12px] text-ink/55 md:mt-0 md:text-[11.5px]">{d.note[lang]}</span>
                     </span>
                     <span className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink text-white sm:flex transition-colors duration-300 group-hover:bg-ruby">
                       <Icon name="arrowUpRight" size={15} />
@@ -349,8 +351,8 @@ function Stories() {
   }, [lang])
 
   return (
-    <section ref={section} className="relative bg-ink text-white" style={{ height: distance ? `calc(100vh + ${distance}px)` : undefined }}>
-      <div className={`${distance ? 'sticky top-0 h-screen' : ''} flex flex-col justify-center overflow-hidden py-20 md:py-24`}>
+    <section ref={section} className="relative bg-ink text-white" style={{ height: distance ? `calc(100svh + ${distance}px)` : undefined }}>
+      <div className={`${distance ? 'sticky top-0 h-[100svh]' : ''} flex flex-col justify-center overflow-hidden py-20 md:py-24`}>
         <Container wide className="mb-8 flex items-end justify-between gap-6 md:mb-10">
           <div>
             <Reveal><Eyebrow dark>{t.storiesEyebrow}</Eyebrow></Reveal>
@@ -406,7 +408,7 @@ function Events() {
             {EVENTS.map((ev, n) => (
               <li key={ev.key} onMouseEnter={() => setHover(n)}>
                 <Reveal delay={n * 0.04}>
-                  <Link to={`/book?event=${ev.key}`} className="group flex items-center gap-4 border-b border-ink/10 py-4 md:py-6">
+                  <Link to={ev.bookable === false ? '/contact' : `/book?event=${ev.key}`} className="group flex items-center gap-4 border-b border-ink/10 py-4 md:py-6">
                     <span className="hidden w-8 text-[12px] tabular-nums text-ink/35 md:block">{String(n + 1).padStart(2, '0')}</span>
                     <span className="h-14 w-14 shrink-0 overflow-hidden rounded-xl md:hidden">
                       <Img k={HOME_EVENT_IMG[ev.key][lang]} w={160} ratio={1} className="h-full w-full" />
@@ -414,9 +416,11 @@ function Events() {
                     <span className="min-w-0 flex-1">
                       <span className="block font-display text-[1.4rem] leading-tight transition-colors duration-300 group-hover:text-ruby md:text-[2.1rem]">{ev.name[lang]}</span>
                       <span className="mt-1 block text-[13px] leading-snug text-ink/50 md:mt-0.5 md:leading-normal">{ev.blurb[lang]}</span>
+                      {/* The price column is hidden on phones, so the starting price rides under the blurb. */}
+                      <span className="mt-1 block text-[13px] font-semibold text-ruby sm:hidden">{ev.bookable === false ? t.contactUs : `${t.from} ${formatINR(startingPrice(ev.key))}`}</span>
                     </span>
                     <span className="hidden text-right text-[13px] text-ink/50 sm:block">
-                      {t.from}<br /><span className="text-base font-semibold text-ruby">{formatINR(startingPrice(ev.key))}</span>
+                      {ev.bookable === false ? <span className="text-base font-semibold text-ruby">{t.contactUs}</span> : <>{t.from}<br /><span className="text-base font-semibold text-ruby">{formatINR(startingPrice(ev.key))}</span></>}
                     </span>
                     <Icon name="arrowUpRight" size={20} className="shrink-0 text-ink/30 transition-all duration-300 group-hover:rotate-45 group-hover:text-ruby" />
                   </Link>
@@ -534,7 +538,7 @@ function GalleryMosaic() {
             <ImageReveal key={it.id} delay={(n % 4) * 0.08} className={`rounded-2xl md:rounded-3xl ${spans[n]}`}>
               <Link to={`/gallery?photo=${it.id}`} className="group relative block h-full w-full">
                 <Img k={it.img!} w={1000} sizes="(max-width: 768px) 50vw, 33vw" className="h-full w-full" imgClassName="transition-transform duration-[1.4s] group-hover:scale-[1.05]" />
-                <span className="glass-dark absolute bottom-3 left-3 translate-y-2 rounded-full px-3 py-1.5 text-[12px] opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100">{it.title[lang]}</span>
+                <span className="glass-dark absolute bottom-3 left-3 rounded-full px-3 py-1.5 max-w-[calc(100%-1.5rem)] truncate text-[12px] transition-all duration-500 [@media(hover:hover)]:translate-y-2 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:translate-y-0 [@media(hover:hover)]:group-hover:opacity-100">{it.title[lang]}</span>
               </Link>
             </ImageReveal>
           ))}

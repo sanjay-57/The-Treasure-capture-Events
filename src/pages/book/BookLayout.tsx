@@ -10,6 +10,7 @@ import { DISTRICTS, EVENTS } from '../../lib/data'
 import { STEP_LABELS, STEP_PATHS, normalizePath, stepIndexOf } from './shared'
 import { MobileQuoteBar, QuotePanel } from './Summary'
 import { VoiceGuide } from './VoiceGuide'
+import { EventBackdrop, PictorialTales } from './EventBackdrop'
 
 /**
  * Chrome for the five booking steps: progress, the inner animated outlet
@@ -33,7 +34,8 @@ export default function BookLayout() {
     if (!d && !e) return
     const patch: Partial<BookingDraft> = {}
     const district = DISTRICTS.find(x => x.key === d)
-    const event = EVENTS.find(x => x.key === e)
+    // Contact-only events (newborn / toddler) never enter the booking draft.
+    const event = EVENTS.find(x => x.key === e && x.bookable !== false)
     if (district) patch.district = district.key
     if (event) patch.eventType = event.key
     if (Object.keys(patch).length) updateDraft(patch)
@@ -43,6 +45,7 @@ export default function BookLayout() {
 
   return (
     <div className="relative isolate min-h-screen">
+      {!confirmed && <EventBackdrop />}
       {/* Ambient light for the glass to refract, plus a faint kolam field in Tamil */}
       <div aria-hidden="true" className="ambient pointer-events-none absolute inset-0 -z-10" />
       <AnimatePresence>
@@ -77,6 +80,7 @@ export default function BookLayout() {
                 </div>
               </div>
             </div>
+            <PictorialTales />
           </Container>
           <MobileQuoteBar />
         </div>

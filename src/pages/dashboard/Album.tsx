@@ -5,9 +5,11 @@ import { Button, Card, ChoiceCard, Field, Segmented } from '../../components/ui'
 import { EASE, Reveal } from '../../components/motion'
 import { formatDateTime, formatINR, useLang, useT, type Bi } from '../../lib/i18n'
 import { photoUrl, type ImgKey } from '../../lib/images'
+import { PackageAlbumNote } from '../../components/PackageAlbumNote'
+import { GRAIN, Surface, isLight } from '../../components/AlbumSurface'
 import { ALBUM, DEFAULT_ALBUM, PROOF_SETS, type AlbumSpec } from '../../lib/data'
-import { tierName } from '../../lib/catalogue'
-import { useMyOrder, useStore, type Order } from '../../lib/store'
+import { albumUpgradeCost, cartTierName } from '../../lib/catalogue'
+import { useMyOrder, usePrices, useStore, type Order } from '../../lib/store'
 import { toast, useTitle } from '../../lib/ui'
 import { FloatingBar, includedSheets, LockedPanel, PageIntro, TamilCorners, albumEditable, albumUnlocked, isProof } from './shared'
 
@@ -35,7 +37,11 @@ const copy = {
   pages: { en: 'pages', ta: 'பக்கங்கள்' },
   included: { en: 'Included', ta: 'அடங்கும்' },
   inPkg: { en: 'sheets included in your package', ta: 'தாள்கள் உங்கள் தொகுப்பில் அடங்கும்' },
-  noneInPkg: { en: 'Album sheets are charged separately on the Essential package.', ta: 'எசென்ஷியல் தொகுப்பில் ஆல்பத் தாள்களுக்குத் தனிக் கட்டணம்.' },
+  noneInPkg: { en: 'No album in your package yet; pick a size to add one.', ta: 'உங்கள் தொகுப்பில் இன்னும் ஆல்பம் இல்லை; ஒரு அளவைத் தேர்ந்தெடுங்கள்.' },
+  payDiff: { en: 'Move up and pay only the difference.', ta: 'பெரிய ஆல்பத்திற்கு மாறினால் வித்தியாசம் மட்டும் செலுத்துங்கள்.' },
+  sLayout: { en: 'Page layout', ta: 'பக்க அமைப்பு' },
+  sLayoutNote: { en: 'Sample layouts. The real ones from our album maker arrive soon.', ta: 'மாதிரி அமைப்புகள். ஆல்பம் தயாரிப்பாளரின் உண்மையான அமைப்புகள் விரைவில்.' },
+  sample: { en: 'Sample', ta: 'மாதிரி' },
   s6: { en: 'Typography', ta: 'எழுத்துரு' },
   s7: { en: 'Cover text', ta: 'அட்டை வாசகம்' },
   titleLabel: { en: 'Title', ta: 'தலைப்பு' },
@@ -78,96 +84,6 @@ function shade(hex: string, amt: number) {
   const mix = (c: number) => Math.round(amt < 0 ? c * (1 + amt) : c + (255 - c) * amt)
   return `rgb(${mix((n >> 16) & 255)}, ${mix((n >> 8) & 255)}, ${mix(n & 255)})`
 }
-const isLight = (hex: string) => {
-  const n = parseInt(hex.slice(1), 16)
-  return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) > 170
-}
-
-const noise = (freq: number, alpha: number) =>
-  `url("data:image/svg+xml,${encodeURIComponent(
-    `<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='${freq}' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 ${alpha} 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>`,
-  ).replace(/%2523/g, '%23')}")`
-const GRAIN = noise(0.9, 0.9)
-const FIBRE = noise(2.2, 0.6)
-
-function zari(band: string, motif: string) {
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='24' height='30'><rect width='24' height='30' fill='${band}'/><path d='M0 2.5h24M0 27.5h24' stroke='${motif}' stroke-width='1'/><path d='M0 23 L6 9 L12 23 L18 9 L24 23' fill='none' stroke='${motif}' stroke-width='1.3'/><circle cx='6' cy='19' r='1.4' fill='${motif}'/><circle cx='18' cy='19' r='1.4' fill='${motif}'/><circle cx='12' cy='7' r='1.1' fill='${motif}'/><circle cx='0' cy='7' r='1.1' fill='${motif}'/><circle cx='24' cy='7' r='1.1' fill='${motif}'/></svg>`
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
-}
-
-/** The cover's material, drawn in CSS. Used for the big preview and the small swatches. */
-function Surface({ cover, hex, photo, children, mini = false }: { cover: string; hex: string; photo?: ImgKey; children?: ReactNode; mini?: boolean }) {
-  const light = isLight(hex)
-  const layer = 'pointer-events-none absolute inset-0'
-  if (cover === 'acrylic') {
-    return (
-      <div className="absolute inset-0 overflow-hidden" style={{ background: hex }}>
-        {photo && <img src={photoUrl(photo, mini ? 120 : 900)} alt="" className="absolute inset-0 h-full w-full object-cover" draggable={false} />}
-        {!mini && <div className={`${layer} bg-gradient-to-t from-black/55 via-black/5 to-transparent`} />}
-        <div className={layer} style={{ background: 'linear-gradient(115deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.12) 24%, transparent 38%, transparent 72%, rgba(255,255,255,0.14) 100%)' }} />
-        <div className={`${layer} rounded-[inherit]`} style={{ boxShadow: 'inset 0 0 0 1.5px rgba(255,255,255,0.55), inset 0 0 18px rgba(255,255,255,0.18)' }} />
-        {children}
-      </div>
-    )
-  }
-
-  const base: CSSProperties = { background: hex }
-  return (
-    <div className="absolute inset-0 overflow-hidden" style={base}>
-      {cover === 'leather' && (
-        <>
-          <div className={layer} style={{ backgroundImage: GRAIN, backgroundSize: mini ? '90px' : '160px', mixBlendMode: light ? 'multiply' : 'soft-light', opacity: light ? 0.18 : 0.55 }} />
-          <div className={layer} style={{ background: 'radial-gradient(120% 90% at 25% 15%, rgba(255,255,255,0.16), transparent 55%)' }} />
-          {!mini && <div className="pointer-events-none absolute inset-[12px] rounded-[3px] border border-dashed" style={{ borderColor: light ? 'rgba(10,10,11,0.22)' : 'rgba(255,255,255,0.28)' }} />}
-        </>
-      )}
-      {cover === 'velvet' && (
-        <>
-          <div className={layer} style={{ backgroundImage: FIBRE, backgroundSize: '120px', mixBlendMode: 'soft-light', opacity: 0.5 }} />
-          <div className={layer} style={{ background: 'radial-gradient(ellipse 70% 60% at var(--mx, 35%) var(--my, 30%), rgba(255,255,255,0.28), transparent 60%)', mixBlendMode: 'soft-light' }} />
-          <div className={layer} style={{ background: 'radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.32))' }} />
-        </>
-      )}
-      {cover === 'linen' && (
-        <>
-          <div
-            className={layer}
-            style={{
-              backgroundImage: `repeating-linear-gradient(0deg, rgba(0,0,0,${light ? 0.07 : 0.16}) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(255,255,255,${light ? 0.35 : 0.07}) 0 1px, transparent 1px 3px)`,
-            }}
-          />
-          <div className={layer} style={{ backgroundImage: GRAIN, backgroundSize: '200px', mixBlendMode: 'multiply', opacity: 0.08 }} />
-        </>
-      )}
-      {cover === 'silk' && <SilkLayers hex={hex} mini={mini} />}
-      {children}
-    </div>
-  )
-}
-
-function SilkLayers({ hex, mini }: { hex: string; mini: boolean }) {
-  const redBase = hex === '#9e1233' || hex === '#5a0a1c'
-  const band = redBase ? '#ffffff' : '#9b111e'
-  const motif = redBase ? '#9e1233' : '#ffffff'
-  const bandH = mini ? 8 : 30
-  return (
-    <>
-      {/* buttas across the body */}
-      <div className="pointer-events-none absolute inset-0" style={{ backgroundImage: `radial-gradient(circle, ${isLight(hex) ? 'rgba(155,17,30,0.35)' : 'rgba(255,255,255,0.28)'} 1.1px, transparent 1.6px)`, backgroundSize: mini ? '8px 8px' : '22px 22px' }} />
-      {/* moving silk sheen */}
-      <motion.div
-        className="pointer-events-none absolute inset-0"
-        style={{ background: 'linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.22) 48%, transparent 64%)', backgroundSize: '250% 100%' }}
-        animate={{ backgroundPosition: ['100% 0%', '0% 0%'] }}
-        transition={{ duration: 5, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut' }}
-      />
-      {/* zari borders */}
-      <div className="pointer-events-none absolute inset-x-0 top-[7%]" style={{ height: bandH, backgroundImage: zari(band, motif), backgroundSize: `${(bandH / 30) * 24}px ${bandH}px` }} />
-      <div className="pointer-events-none absolute inset-x-0 bottom-[7%] scale-y-[-1]" style={{ height: bandH, backgroundImage: zari(band, motif), backgroundSize: `${(bandH / 30) * 24}px ${bandH}px` }} />
-    </>
-  )
-}
-
 // ─── Geometry ────────────────────────────────────────────────────────────────
 
 /** Closed page dimensions (w/h ratio and height factor) for each album size. */
@@ -232,8 +148,9 @@ function Studio({ order }: { order: Order }) {
 
   const dirty = !savedSpec || JSON.stringify(savedSpec) !== JSON.stringify(spec)
   const included = includedSheets(order)
-  const extra = Math.max(0, spec.sheets - included) * ALBUM.sheetPrice
-  const pkgName = tierName(order.cart.tier)[lang]
+  const prices = usePrices()
+  const extra = albumUpgradeCost(order.cart, spec.sheets, prices)
+  const pkgName = cartTierName(order.cart)[lang]
 
   // Client's own picks first, padded with proofs so the preview is never empty.
   const photos = useMemo(() => {
@@ -266,6 +183,7 @@ function Studio({ order }: { order: Order }) {
           <Reveal>
             <Preview spec={spec} photos={photos} view={view} onView={setView} />
           </Reveal>
+          <PackageAlbumNote className="mt-5" />
           {!editable && (
             <Reveal delay={0.05}>
               <div className="glass-ruby-tint mt-5 flex items-start gap-3 rounded-3xl p-5">
@@ -367,7 +285,7 @@ function Studio({ order }: { order: Order }) {
               <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4" role="radiogroup" aria-label={t.s5}>
                 {ALBUM.sheetOptions.map(n => {
                   const active = spec.sheets === n
-                  const delta = Math.max(0, n - included) * ALBUM.sheetPrice
+                  const delta = albumUpgradeCost(order.cart, n, prices)
                   return (
                     <button
                       key={n}
@@ -389,11 +307,30 @@ function Studio({ order }: { order: Order }) {
                 })}
               </div>
               <p className="mt-3 text-[12.5px] text-ink/50">
-                {included > 0 ? `${pkgName} · ${included} ${t.inPkg}` : t.noneInPkg} · {formatINR(ALBUM.sheetPrice)}/{t.s5}
+                {included > 0 ? `${pkgName} · ${included} ${t.inPkg}` : t.noneInPkg} · {t.payDiff}
               </p>
             </Group>
 
-            <Group n={6} title={t.s6}>
+            <Group n={6} title={t.sLayout} note={t.sLayoutNote}>
+              <div className="grid grid-cols-2 gap-3">
+                {ALBUM.layouts.map(l => (
+                  <ChoiceCard key={l.key} active={(spec.layout ?? 'classic') === l.key} onClick={() => set('layout', l.key)}>
+                    <div className="p-3 pr-10 sm:p-4 sm:pr-11">
+                      <span className="relative block aspect-[2/1] overflow-hidden rounded-md bg-ink/[0.05]">
+                        <span className="absolute inset-y-0 left-1/2 w-px bg-ink/10" />
+                        {l.cells.map(([x, y, w, h], n) => (
+                          <span key={n} className="absolute overflow-hidden rounded-[2px] bg-cover bg-center" style={{ left: `${x}%`, top: `${y}%`, width: `${w}%`, height: `${h}%`, backgroundImage: photos[n] ? `url(${photoUrl(photos[n], 240)})` : undefined }} />
+                        ))}
+                      </span>
+                      <span className="mt-2 block text-[12.5px] font-medium leading-snug text-ink/70">{l.name[lang]}</span>
+                      {l.sample && <span className="mt-1 inline-block rounded-full bg-ink/[0.06] px-2 py-0.5 text-[11.5px] font-semibold text-ink/50 md:text-[10.5px]">{t.sample}</span>}
+                    </div>
+                  </ChoiceCard>
+                ))}
+              </div>
+            </Group>
+
+            <Group n={7} title={t.s6}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {ALBUM.fonts.map(f => (
                   <ChoiceCard key={f.key} active={spec.font === f.key} onClick={() => set('font', f.key)}>
@@ -408,7 +345,7 @@ function Studio({ order }: { order: Order }) {
               </div>
             </Group>
 
-            <Group n={7} title={t.s7}>
+            <Group n={8} title={t.s7}>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label={t.titleLabel} value={spec.title} onChange={v => set('title', v)} maxLength={40} name="album-title" />
                 <Field label={t.subtitleLabel} value={spec.subtitle} onChange={v => set('subtitle', v)} maxLength={48} hint={t.subtitleHint} name="album-subtitle" />
@@ -427,6 +364,7 @@ function Studio({ order }: { order: Order }) {
                   [t.s3, ALBUM.sizes.find(s => s.key === spec.size)?.name],
                   [t.s4, ALBUM.papers.find(p => p.key === spec.paper)?.name[lang]],
                   [t.s5, `${spec.sheets} · ${spec.sheets * 2} ${t.pages}`],
+                  [t.sLayout, ALBUM.layouts.find(l => l.key === (spec.layout ?? 'classic'))?.name[lang]],
                   [t.s6, fontOf(spec.font).name[lang]],
                   [t.titleLabel, spec.title || '—'],
                   [t.subtitleLabel, spec.subtitle || '—'],
@@ -747,13 +685,13 @@ function SpreadStage({ spec, photos, width }: { spec: AlbumSpec; photos: ImgKey[
       </div>
 
       <div className="mt-6 flex items-center gap-3">
-        <button type="button" onClick={() => go(-1)} aria-label={t.prevSpread} className="glass flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-white cursor-pointer">
+        <button type="button" onClick={() => go(-1)} aria-label={t.prevSpread} className="glass flex h-11 w-11 items-center justify-center rounded-full transition hover:bg-white cursor-pointer md:h-10 md:w-10">
           <Icon name="chevronLeft" size={18} />
         </button>
         <span className="min-w-[88px] text-center text-[12.5px] tabular-nums text-ink/55">
           {t.spread} {idx + 1} / {spreads}
         </span>
-        <button type="button" onClick={() => go(1)} aria-label={t.nextSpread} className="glass flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-white cursor-pointer">
+        <button type="button" onClick={() => go(1)} aria-label={t.nextSpread} className="glass flex h-11 w-11 items-center justify-center rounded-full transition hover:bg-white cursor-pointer md:h-10 md:w-10">
           <Icon name="chevronRight" size={18} />
         </button>
       </div>

@@ -10,7 +10,7 @@ import { DISTRICTS } from '../../lib/data'
 import type { Quote } from '../../lib/pricing'
 import { geminiText, hasGemini, parseJsonLoose, type ChatTurn } from '../../lib/gemini'
 import { say, stopSpeaking, unlockAudio, useListener, usePlayer, voiceEngine } from '../../lib/speech'
-import { STEP_LABELS, STEP_PATHS, normalizePath, stepIndexOf, useQuote, useStepAction } from './shared'
+import { MIC_BLOCKED, STEP_LABELS, STEP_PATHS, micBlocked, normalizePath, stepIndexOf, useQuote, useStepAction, useTypingInField } from './shared'
 import { GUIDE_CLIPS, STEP_CLIPS, spokenINR, type ClipId } from './voiceScripts'
 import { useVoicePage, type ActionArgs, type VoiceAction, type VoicePage, type VoiceReply } from './voicePage'
 
@@ -206,6 +206,10 @@ export function VoiceGuide() {
   const clipId: ClipId | null = confirmed ? 'confirmed' : step >= 0 ? STEP_CLIPS[step] : null
 
   const [open, setOpen] = useState(false)
+  const [micDenied, setMicDenied] = useState(false)
+  // Phones: sit clear of the bottom dock (taller while it shows a hint) and step aside while the keyboard is up.
+  const dockHint = useStepAction(s => !!(s.action?.disabled && s.action.hint))
+  const fieldFocused = useTypingInField()
   const [enabled, setEnabled] = useState(() => {
     try {
       return localStorage.getItem(STORAGE_KEY) === '1'
@@ -442,6 +446,7 @@ export function VoiceGuide() {
     if (listener.listening) return listener.stop()
     stopSpeaking()
     listener.start()
+    void micBlocked().then(setMicDenied)
   }
 
   const submit = (e: FormEvent) => {
@@ -476,7 +481,7 @@ export function VoiceGuide() {
   const caption = mine && player.caption ? player.caption : clipId ? GUIDE_CLIPS[clipId][lang] : ''
 
   return (
-    <div className="pointer-events-none fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-3 z-50 flex flex-col items-end gap-3 md:bottom-[5.5rem] md:right-5 lg:bottom-6 lg:right-6">
+    <div className={`pointer-events-none fixed ${dockHint ? 'bottom-[calc(8.25rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(5.75rem+env(safe-area-inset-bottom))]'} right-3 z-50 flex flex-col items-end gap-3 md:bottom-[5.5rem] md:right-5 lg:bottom-6 lg:right-6`}>
       <AnimatePresence>
         {open && (
           <motion.section
@@ -616,6 +621,7 @@ export function VoiceGuide() {
                         onChange={e => setInput(e.target.value)}
                         placeholder={t.placeholder}
                         autoComplete="off"
+                        enterKeyHint="send"
                         autoFocus
                         className="h-11 min-w-0 flex-1 rounded-full border border-ink/10 bg-white/80 px-4 text-base text-ink outline-none transition placeholder:text-ink/35 focus:border-ruby focus:ring-4 focus:ring-ruby/10 md:text-[14px]"
                       />
@@ -650,13 +656,19 @@ export function VoiceGuide() {
                 </button>
                 <p className="justify-self-end max-w-[110px] text-right text-[11.5px] leading-tight text-ink/45">{listener.supported ? (listener.listening ? t.listening : t.hint) : t.noMic}</p>
               </div>
+              {micDenied && !listener.listening && (
+                <p role="alert" className="mt-2 flex items-start gap-2 rounded-2xl bg-ruby-soft/70 px-3 py-2 text-[12px] leading-snug text-ruby-deep">
+                  <Icon name="info" size={14} className="mt-px shrink-0" />
+                  {MIC_BLOCKED[lang]}
+                </p>
+              )}
             </div>
           </motion.section>
         )}
       </AnimatePresence>
 
       {/* Launcher */}
-      <div className="pointer-events-auto flex items-center gap-2">
+      <div className={`pointer-events-auto flex items-center gap-2 ${fieldFocused && !open ? 'max-md:hidden' : ''}`}>
         <AnimatePresence>
           {!open && !enabled && (
             <motion.button
@@ -679,7 +691,7 @@ export function VoiceGuide() {
           onClick={() => (open ? setOpen(false) : enabled ? setOpen(true) : startGuide())}
           aria-expanded={open}
           aria-label={open ? t.close : t.open}
-          className={`relative flex h-14 w-14 items-center justify-center rounded-full text-white shadow-ruby transition-all duration-300 cursor-pointer active:scale-95 ${open ? 'bg-ink' : 'bg-ruby hover:bg-ruby-bright'}`}
+          className={`relative flex h-12 w-12 items-center justify-center rounded-full text-white shadow-ruby sm:h-14 sm:w-14 transition-all duration-300 cursor-pointer active:scale-95 ${open ? 'bg-ink' : 'bg-ruby hover:bg-ruby-bright'}`}
         >
           {busy && !open && <span className="absolute inset-0 rounded-full bg-ruby/50 animate-pulse-ring" />}
           {open ? <Icon name="x" size={22} className="relative" /> : talking ? <Bars className="relative" /> : <Icon name="mic" size={22} className="relative" />}

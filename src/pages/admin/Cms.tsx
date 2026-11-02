@@ -9,7 +9,7 @@ import { IMG, type ImgKey } from '../../lib/images'
 import { COMMON, useLang, useT, type Lang } from '../../lib/i18n'
 import { toast, useTitle } from '../../lib/ui'
 import { usePrices, useStore, type CmsState } from '../../lib/store'
-import { CATALOGUE, DEFAULT_PRICES, SECTION_META, type CatalogueId, type Section } from '../../lib/catalogue'
+import { CATALOGUE, DEFAULT_PRICES, PRESET_KINDS, SECTION_META, pendingItems, presetName, presetSaving, presetSum, presetTarget, tierPreset, type CatalogueId, type FixedTier, type PresetKind, type Section } from '../../lib/catalogue'
 import { formatINR } from '../../lib/i18n'
 import { AC, FormSelect, PageHeader, Panel, SaveBar, SearchInput, Switch, Tabs, TextInput } from './kit'
 
@@ -28,10 +28,28 @@ const copy = {
   perItem: { en: 'each', ta: 'ஒன்றுக்கு' },
   perShoot: { en: 'per shoot', ta: 'ஒரு படப்பிடிப்புக்கு' },
   includedUnit: { en: 'included', ta: 'அடங்கும்' },
+  perMonth: { en: 'per month', ta: 'மாதத்திற்கு' },
   listPrice: { en: 'Sheet price', ta: 'தாள் விலை' },
   overridden: { en: 'Edited', ta: 'மாற்றியது' },
   pendingPrice: { en: 'To confirm', ta: 'உறுதி செய்ய' },
   resetPrice: { en: 'Reset to sheet price', ta: 'தாள் விலைக்கு மீட்டமை' },
+  packages: { en: 'Packages', ta: 'தொகுப்புகள்' },
+  packagesSub: { en: 'Options add up to the target; the gap is the "Package saving" line.', ta: 'விருப்பங்கள் இலக்கு விலைக்குச் சேரும்; வித்தியாசம் "தொகுப்புச் சேமிப்பு" வரி.' },
+  pkgOptions: { en: 'options', ta: 'விருப்பங்கள்' },
+  pkgTarget: { en: 'target', ta: 'இலக்கு' },
+  pkgSaving: { en: 'saving', ta: 'சேமிப்பு' },
+  pkgDrift: { en: '{name} no longer adds up: options {sum}, target {target}.', ta: '{name} சரியாகச் சேரவில்லை: விருப்பங்கள் {sum}, இலக்கு {target}.' },
+  toConfirm: { en: 'Prices to confirm', ta: 'உறுதி செய்ய வேண்டிய விலைகள்' },
+  toConfirmSub: { en: 'Placeholders at ₹786 and items the studio has not priced yet.', ta: '₹786 இடம்பிடிப்பு விலைகளும், இன்னும் விலை இடாத பொருட்களும்.' },
+  allConfirmed: { en: 'Every price is confirmed.', ta: 'எல்லா விலைகளும் உறுதி.' },
+  pkgChanged: { en: '{name} saving changed from {old} to {now} since you last reviewed it.', ta: '{name} சேமிப்பு {old}-இலிருந்து {now}-ஆக மாறியுள்ளது.' },
+  allItems: { en: 'All items', ta: 'அனைத்தும்' },
+  pkgReview: { en: 'Mark savings as reviewed', ta: 'சேமிப்புகளைச் சரிபார்த்ததாகக் குறி' },
+  pkgReviewed: { en: 'Savings recorded', ta: 'சேமிப்புகள் பதிவாயின' },
+  pkgPending: { en: 'target to confirm', ta: 'இலக்கு உறுதி செய்ய வேண்டும்' },
+  kind_family: { en: 'Family functions', ta: 'குடும்ப விழாக்கள்' },
+  kind_wedding: { en: 'Wedding, engagement, reception', ta: 'திருமணம், நிச்சயதார்த்தம், வரவேற்பு' },
+  kind_outdoor: { en: 'Outdoor shoot', ta: 'வெளிப்புறப் படப்பிடிப்பு' },
   priceSaved: { en: 'Price updated — live for new quotes', ta: 'விலை புதுப்பிக்கப்பட்டது — புதிய மதிப்பீடுகளுக்கு' },
   gstDefault: { en: 'Default GST on new quotes', ta: 'புதிய மதிப்பீடுகளில் இயல்பு GST' },
   gstNone: { en: 'Not charged', ta: 'வசூலிக்கப்படவில்லை' },
@@ -330,7 +348,7 @@ function HeroEditor() {
               <li key={k}>
                 <button type="button" onClick={() => toggle(k)} aria-pressed={on} title={IMG[k].alt} className={`group relative block aspect-square w-full overflow-hidden rounded-xl transition cursor-pointer ${on ? 'ring-[3px] ring-ruby ring-offset-2' : 'hover:opacity-90'}`}>
                   <Img k={k} w={220} ratio={1} sizes="120px" className="absolute inset-0 h-full w-full" imgClassName="transition-transform duration-700 group-hover:scale-105" />
-                  <span className={`absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold transition ${on ? 'bg-ruby text-white' : 'bg-white/80 text-transparent opacity-0 group-hover:opacity-100 group-hover:text-ink'}`}>
+                  <span className={`absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold transition ${on ? 'bg-ruby text-white' : 'bg-white/80 text-ink/70 [@media(hover:hover)]:text-transparent [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-hover:text-ink'}`}>
                     {on ? idx + 1 : <Icon name="plus" size={13} />}
                   </span>
                 </button>
@@ -435,11 +453,11 @@ function GalleryManager() {
                     </span>
                     <span className="flex gap-1">
                       {r.custom && (
-                        <button type="button" onClick={() => del(r.id)} aria-label={t.delete} title={t.delete} className="glass-dark flex h-8 w-8 items-center justify-center rounded-full text-white/85 transition hover:text-white md:opacity-0 md:group-hover:opacity-100 cursor-pointer">
+                        <button type="button" onClick={() => del(r.id)} aria-label={t.delete} title={t.delete} className="glass-dark flex h-10 w-10 items-center justify-center rounded-full text-white/85 transition hover:text-white md:h-8 md:w-8 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100 cursor-pointer">
                           <Icon name="trash" size={14} />
                         </button>
                       )}
-                      <button type="button" onClick={() => toggle(r.id)} aria-pressed={!off} aria-label={off ? t.show : t.hide} title={off ? t.show : t.hide} className={`relative flex h-8 w-8 items-center justify-center rounded-full transition cursor-pointer ${off ? 'bg-ruby text-white shadow-ruby' : 'glass-dark text-white/85 hover:text-white md:opacity-0 md:group-hover:opacity-100'}`}>
+                      <button type="button" onClick={() => toggle(r.id)} aria-pressed={!off} aria-label={off ? t.show : t.hide} title={off ? t.show : t.hide} className={`relative flex h-10 w-10 items-center justify-center rounded-full transition md:h-8 md:w-8 cursor-pointer ${off ? 'bg-ruby text-white shadow-ruby' : 'glass-dark text-white/85 hover:text-white [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100'}`}>
                         <Icon name="eye" size={15} />
                         {off && <span className="absolute h-[1.5px] w-4 rotate-45 rounded-full bg-white" />}
                       </button>
@@ -559,7 +577,7 @@ function StudioEditor({ value, onChange }: { value: CmsState['studio']; onChange
 // ─── Rate card ───────────────────────────────────────────────────────────────
 
 const SECTIONS: Section[] = ['crew', 'addon', 'deliverable', 'special']
-const UNIT_KEY = { session: 'perSession', each: 'perItem', shoot: 'perShoot', included: 'includedUnit' } as const
+const UNIT_KEY = { session: 'perSession', each: 'perItem', shoot: 'perShoot', included: 'includedUnit', month: 'perMonth' } as const
 
 function RateCardEditor() {
   const t = useT(copy)
@@ -571,12 +589,21 @@ function RateCardEditor() {
   const setCataloguePrice = useStore(s => s.setCataloguePrice)
   const updateCms = useStore(s => s.updateCms)
   const [bankDraft, setBankDraft] = useState(bank)
+  const [onlyPending, setOnlyPending] = useState(false)
+  const pendingIds = new Set(pendingItems(prices).map(i => i.id))
   const bankDirty = JSON.stringify(bankDraft) !== JSON.stringify(bank)
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
       <Panel title={t.rateCard} subtitle={t.rateCardSub} icon="rupee" bodyClass="p-0">
-        {SECTIONS.map(sec => (
+        <div className="flex flex-wrap gap-2 border-b hairline px-5 py-3 md:px-6">
+          {[false, true].map(v => (
+            <button key={String(v)} type="button" onClick={() => setOnlyPending(v)} className={`h-9 rounded-full px-4 text-[12.5px] font-medium transition cursor-pointer ${onlyPending === v ? 'bg-ink text-white' : 'bg-ink/[0.05] text-ink/65 hover:bg-ink/[0.09]'}`}>
+              {v ? `${t.toConfirm} · ${pendingIds.size}` : t.allItems}
+            </button>
+          ))}
+        </div>
+        {SECTIONS.filter(sec => !onlyPending || CATALOGUE.some(i => i.section === sec && pendingIds.has(i.id))).map(sec => (
           <div key={sec} className="border-b hairline last:border-b-0">
             <div className="flex items-center gap-2.5 bg-ink/[0.025] px-5 py-2.5 md:px-6">
               <Icon name={SECTION_META[sec].icon} size={14} className="text-ruby" />
@@ -584,7 +611,7 @@ function RateCardEditor() {
               <p className="hidden text-[12px] text-ink/40 sm:block">· {SECTION_META[sec].blurb[lang]}</p>
             </div>
             <ul className="divide-y divide-ink/[0.05]">
-              {CATALOGUE.filter(i => i.section === sec).map(item => (
+              {CATALOGUE.filter(i => i.section === sec && (!onlyPending || pendingIds.has(i.id))).map(item => (
                 <PriceRow key={item.id} id={item.id} name={item.name[lang]} unit={t[UNIT_KEY[item.unit]]} pending={!!item.pending} included={item.unit === 'included'} value={prices[item.id]} edited={item.id in overrides} onChange={v => { setCataloguePrice(item.id, v); if (v !== null) toast(t.priceSaved) }} />
               ))}
             </ul>
@@ -593,10 +620,27 @@ function RateCardEditor() {
       </Panel>
 
       <div className="space-y-5">
+        <PackagesPanel />
+
+        <Panel title={t.toConfirm} subtitle={t.toConfirmSub} icon="rupee">
+          {pendingItems(prices).length === 0 ? (
+            <p className="text-[13px] text-ink/50">{t.allConfirmed}</p>
+          ) : (
+            <ul className="divide-y divide-ink/[0.05]">
+              {pendingItems(prices).map(item => (
+                <li key={item.id} className="flex items-center justify-between gap-3 py-2 text-[13px]">
+                  <span className="text-ink/80">{item.name[lang]}</span>
+                  <span className="tabular-nums text-ink/50">{formatINR(prices[item.id])}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
         <Panel title={t.gstDefault} icon="receipt">
           <div className="flex flex-wrap gap-2">
             {[0, 5, 12, 18].map(p => (
-              <button key={p} type="button" onClick={() => updateCms({ catalogue: { prices: overrides, gstPct: p } })} className={`h-10 rounded-full px-4 text-[13px] font-medium transition cursor-pointer ${gstPct === p ? 'bg-ink text-white' : 'border border-ink/10 bg-white text-ink/60 hover:border-ink/30'}`}>
+              <button key={p} type="button" onClick={() => updateCms({ catalogue: { ...useStore.getState().cms.catalogue, prices: overrides, gstPct: p } })} className={`h-10 rounded-full px-4 text-[13px] font-medium transition cursor-pointer ${gstPct === p ? 'bg-ink text-white' : 'border border-ink/10 bg-white text-ink/60 hover:border-ink/30'}`}>
                 {p === 0 ? t.gstNone : `${p}%`}
               </button>
             ))}
@@ -617,6 +661,77 @@ function RateCardEditor() {
         </Panel>
       </div>
     </div>
+  )
+}
+
+/** Packages with a target, grouped by kind, each variant on its own row. */
+function PackagesPanel() {
+  const t = useT(copy)
+  const lang = useLang()
+  const prices = usePrices()
+  const catalogue = useStore(s => s.cms.catalogue)
+  const updateCms = useStore(s => s.updateCms)
+  const reviewed = catalogue.savings ?? {}
+  const rows = PRESET_KINDS.flatMap(kind =>
+    (['basic', 'standard', 'premium'] as FixedTier[]).flatMap(tier => {
+      const spec = { kind }
+      const preset = tierPreset(spec, tier)
+      if (preset.target === undefined) return []
+      return [undefined, ...(preset.variants ?? []).map((_, i) => i)].map(variant => {
+        const v = variant === undefined ? undefined : preset.variants![variant]
+        const name = v ? `${presetName(spec, tier)[lang]} · ${v.label[lang]}` : presetName(spec, tier)[lang]
+        return {
+          key: `${kind}.${tier}.${variant ?? 'base'}`, kind, name, pending: !!preset.pending,
+          sum: presetSum(spec, tier, prices, variant), target: presetTarget(spec, tier, variant)!, saving: presetSaving(spec, tier, prices, variant),
+        }
+      })
+    }),
+  )
+  const markReviewed = () => {
+    updateCms({ catalogue: { ...catalogue, savings: Object.fromEntries(rows.map(r => [r.key, r.saving])) } })
+    toast(t.pkgReviewed)
+  }
+  let lastKind: PresetKind | null = null
+  return (
+    <Panel title={t.packages} subtitle={t.packagesSub} icon="gem">
+      <ul className="space-y-2.5">
+        {rows.map(r => {
+          const header = r.kind !== lastKind
+          lastKind = r.kind
+          const old = reviewed[r.key]
+          const changed = old !== undefined && old !== r.saving
+          return (
+            <li key={r.key}>
+              {header && <p className="mb-1.5 mt-3 text-[11.5px] font-semibold uppercase tracking-[0.12em] text-ink/45 first:mt-0">{t[`kind_${r.kind}` as 'kind_family']}</p>}
+              <div className="rounded-2xl border hairline px-4 py-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <p className="font-semibold text-ink">
+                    {r.name}
+                    {r.pending && <span className="ml-2 rounded-full bg-amber-50 px-1.5 py-px text-[10.5px] font-semibold text-amber-800">{t.pkgPending}</span>}
+                  </p>
+                  <p className="text-[12.5px] tabular-nums text-ink/60">
+                    {t.pkgOptions} {formatINR(r.sum)} · {t.pkgTarget} {formatINR(r.target)} · {t.pkgSaving} <span className={r.saving < 0 ? 'font-semibold text-ruby' : ''}>{formatINR(Math.abs(r.saving))}</span>
+                  </p>
+                </div>
+                {r.saving > 0 && !r.pending && (
+                  <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-[12.5px] text-amber-800">
+                    {t.pkgDrift.replace('{name}', r.name).replace('{sum}', formatINR(r.sum)).replace('{target}', formatINR(r.target))}
+                  </p>
+                )}
+                {changed && (
+                  <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-[12.5px] text-amber-800">
+                    {t.pkgChanged.replace('{name}', r.name).replace('{old}', formatINR(Math.abs(old))).replace('{now}', formatINR(Math.abs(r.saving)))}
+                  </p>
+                )}
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+      <div className="mt-4">
+        <Button variant="ghost" onClick={markReviewed}>{t.pkgReview}</Button>
+      </div>
+    </Panel>
   )
 }
 

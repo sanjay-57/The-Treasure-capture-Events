@@ -1,14 +1,17 @@
 import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { Icon, type IconName } from '../components/Icon'
 import { Button, Container, Eyebrow, Field, Select } from '../components/ui'
 import { EASE, Reveal, RevealText, Stagger, StaggerItem } from '../components/motion'
 import { Kolam, KolamCorner, TamilOnly } from '../components/tamil'
+import { MapGate } from '../components/MapEmbed'
 import { COMMON, useLang, useT } from '../lib/i18n'
 import { DISTRICTS, EVENTS, type DistrictKey, type EventKey } from '../lib/data'
 import { useStore } from '../lib/store'
-import { toast, useTitle } from '../lib/ui'
+import { CATALOGUE_BY_ID, type CatalogueId } from '../lib/catalogue'
+import { SUB_BRANDS, type GalleryCat } from '../lib/gallery'
+import { toast, useTitle, useSeo } from '../lib/ui'
 import { FaqList, useTopPad, type FaqItem } from './content/shared'
 
 const TITLE = { en: 'Contact', ta: 'தொடர்புக்கு' }
@@ -112,6 +115,7 @@ function normalisePhone(raw: string): string | null {
 
 export default function Contact() {
   useTitle(TITLE)
+  useSeo({ en: 'Call or WhatsApp our Madurai studio on West Masi Street to book wedding and function photography.', ta: 'திருமணம், விழாப் புகைப்படப் பதிவுக்கு மதுரை மேல மாசி வீதி ஸ்டுடியோவை அழையுங்கள் அல்லது WhatsApp செய்யுங்கள்.' })
   const t = useT(copy)
   const lang = useLang()
   const pad = useTopPad()
@@ -195,13 +199,15 @@ export default function Contact() {
           <Reveal y={40} delay={0.1} className="flex flex-col gap-6">
             <div className="glass-strong relative flex flex-1 flex-col overflow-hidden rounded-[28px] p-2 md:rounded-[32px]">
               <div className="relative min-h-[260px] flex-1 overflow-hidden rounded-[22px] bg-mist md:min-h-[320px] md:rounded-[26px]">
-                <iframe
-                  title={t.mapTitle}
-                  src="https://www.google.com/maps?q=West+Masi+Street+Madurai&output=embed"
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  className="absolute inset-0 h-full w-full border-0 grayscale contrast-[1.08]"
-                />
+                <MapGate>
+                  <iframe
+                    title={t.mapTitle}
+                    src="https://www.google.com/maps?q=West+Masi+Street+Madurai&output=embed"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    className="absolute inset-0 h-full w-full border-0 grayscale contrast-[1.08]"
+                  />
+                </MapGate>
                 <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-ink/5" />
                 <span className="glass-ruby pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold">
                   <Icon name="mapPin" size={14} />
@@ -268,13 +274,23 @@ function ContactForm() {
   const captureLead = useStore(s => s.captureLead)
   const updateDraft = useStore(s => s.updateDraft)
   const lead = useStore(s => s.lead)
+  // ?plan= (monthly commercial plans) and ?brand= (Cradle Captures, Bumpy Tales) prefill the event and message.
+  const [params] = useSearchParams()
+  const plan = params.get('plan') as CatalogueId | null
+  const planItem = plan && CATALOGUE_BY_ID[plan]?.unit === 'month' ? CATALOGUE_BY_ID[plan] : undefined
+  const brand = SUB_BRANDS[params.get('brand') as GalleryCat]
+  const preset = planItem
+    ? { event: 'commercial' as EventKey, message: lang === 'ta' ? `${planItem.name.ta} பற்றி அறிய விரும்புகிறேன்.` : `I'd like to know more about the ${planItem.name.en}.` }
+    : brand
+      ? { event: (params.get('brand') === 'cradle' ? 'babyshoot' : 'babyshower') as EventKey, message: `${brand.wordmark}: ${brand.tagline[lang]}. ` }
+      : undefined
 
   const [name, setName] = useState(lead?.name ?? '')
   const [phone, setPhone] = useState(lead?.contact ?? '')
-  const [event, setEvent] = useState<EventKey | ''>('')
+  const [event, setEvent] = useState<EventKey | ''>(preset?.event ?? '')
   const [date, setDate] = useState('')
   const [district, setDistrict] = useState<DistrictKey | 'other' | ''>('')
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState(preset?.message ?? '')
   const [errors, setErrors] = useState<{ name?: string; phone?: string }>({})
   const [sent, setSent] = useState<{ name: string; phone: string } | null>(null)
 
@@ -288,7 +304,13 @@ function ContactForm() {
     if (n.length < 2) errs.name = t.errName
     if (!p) errs.phone = t.errPhone
     setErrors(errs)
-    if (Object.keys(errs).length || !p) return
+    if (Object.keys(errs).length || !p) {
+      // Bring the first bad field (and its message) into view, above the phone keyboard.
+      const bad = (e.currentTarget as HTMLFormElement).querySelector<HTMLInputElement>(`[name="${errs.name ? 'name' : 'phone'}"]`)
+      bad?.focus({ preventScroll: true })
+      bad?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
     const pretty = `+91 ${p.slice(0, 5)} ${p.slice(5)}`
     captureLead(n, pretty, 'contact')
     // Prefill the booking flow so the quote picks up where this form left off.
@@ -347,7 +369,7 @@ function ContactForm() {
             <p className="mt-2 text-[15px] text-ink/55">{t.formLead}</p>
 
             <div className="mt-7 grid gap-5 sm:mt-8 sm:grid-cols-2">
-              <Field label={t.name} value={name} onChange={v => { setName(v); if (errors.name) setErrors(e => ({ ...e, name: undefined })) }} placeholder={t.namePh} required icon="users" error={errors.name} name="name" maxLength={60} />
+              <Field label={t.name} value={name} onChange={v => { setName(v); if (errors.name) setErrors(e => ({ ...e, name: undefined })) }} placeholder={t.namePh} required icon="users" error={errors.name} name="name" maxLength={60} autoComplete="name" enterKeyHint="next" />
               <Field
                 label={t.phone}
                 value={phone}
@@ -361,6 +383,8 @@ function ContactForm() {
                 hint={t.phoneHint}
                 name="phone"
                 maxLength={16}
+                autoComplete="tel"
+                enterKeyHint="next"
               />
               <Select
                 label={t.event}
@@ -409,7 +433,7 @@ function DateField({ label, value, onChange, min, hint }: { label: string; value
           value={value}
           min={min}
           onChange={e => onChange(e.target.value)}
-          className="block h-[52px] w-full min-w-0 appearance-none rounded-2xl border border-ink/10 bg-white/80 pl-11 pr-4 text-left [&::-webkit-date-and-time-value]:text-left text-[15px] text-ink outline-none transition-all duration-200 focus:border-ruby focus:bg-white focus:ring-4 focus:ring-ruby/10"
+          className="block h-[52px] w-full min-w-0 appearance-none rounded-2xl border border-ink/10 bg-white/80 pl-11 pr-4 text-left [&::-webkit-date-and-time-value]:text-left text-[16px] text-ink md:text-[15px] outline-none transition-all duration-200 focus:border-ruby focus:bg-white focus:ring-4 focus:ring-ruby/10"
         />
       </div>
       {hint && <p className="mt-1.5 text-xs text-ink/45">{hint}</p>}

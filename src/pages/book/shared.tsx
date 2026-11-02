@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router'
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react'
 import { create } from 'zustand'
@@ -35,7 +35,7 @@ export function stepIndexOf(pathname: string): number {
 export function firstIncomplete(d: BookingDraft): number {
   if (!d.district) return 0
   if (!d.eventType) return 1
-  if (!d.venueAddress.trim() || !d.date) return 2
+  if (!d.venueAddress.trim() || !d.date || d.date < earliestEventISO()) return 2
   return 5
 }
 
@@ -115,6 +115,44 @@ export function useDockAction(a: StepAction) {
   useEffect(() => () => useStepAction.setState({ action: null }), [])
 }
 
+const isTextField = (el: EventTarget | null) =>
+  el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || (el instanceof HTMLInputElement && !['checkbox', 'radio', 'range', 'button', 'submit'].includes(el.type))
+
+/** True while a text field has focus, i.e. the on-screen keyboard is likely up on a phone. */
+export function useTypingInField(): boolean {
+  const [typing, setTyping] = useState(false)
+  useEffect(() => {
+    const onIn = (e: FocusEvent) => isTextField(e.target) && setTyping(true)
+    const onOut = (e: FocusEvent) => isTextField(e.target) && setTyping(false)
+    document.addEventListener('focusin', onIn)
+    document.addEventListener('focusout', onOut)
+    return () => {
+      document.removeEventListener('focusin', onIn)
+      document.removeEventListener('focusout', onOut)
+    }
+  }, [])
+  return typing
+}
+
+export const MIC_BLOCKED: Bi = {
+  en: 'The microphone is blocked for this site. Allow it in your browser’s site settings (the icon beside the address bar), then tap the mic again, or type instead.',
+  ta: 'இந்தத் தளத்திற்கு மைக் அனுமதி இல்லை. உலாவியின் தள அமைப்புகளில் (முகவரிப் பட்டைக்கு அருகிலுள்ள குறி) அனுமதி தந்து மீண்டும் மைக்கைத் தொடுங்கள், அல்லது தட்டச்சு செய்யுங்கள்.',
+}
+
+/**
+ * Whether the browser reports the microphone as denied. The listener swallows
+ * permission errors, so the voice UIs ask this after starting to explain a silent mic.
+ * Browsers without the Permissions API (or without the "microphone" name) report false.
+ */
+export async function micBlocked(): Promise<boolean> {
+  try {
+    const p = await navigator.permissions?.query({ name: 'microphone' as PermissionName })
+    return p?.state === 'denied'
+  } catch {
+    return false
+  }
+}
+
 const headCopy = {
   step: { en: 'Step', ta: 'படி' },
   of: { en: 'of', ta: '/' },
@@ -186,6 +224,17 @@ export const hoursLabel = (h: number, lang: 'en' | 'ta') => (lang === 'ta' ? `${
 
 export const todayISO = () => {
   const d = new Date()
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+  return d.toISOString().slice(0, 10)
+}
+
+/** The studio needs this many days to plan a shoot; nothing sooner can be booked online. */
+export const LEAD_DAYS = 15
+
+/** The earliest event date the booking flow accepts: today + LEAD_DAYS, local time. */
+export const earliestEventISO = () => {
+  const d = new Date()
+  d.setDate(d.getDate() + LEAD_DAYS)
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
   return d.toISOString().slice(0, 10)
 }

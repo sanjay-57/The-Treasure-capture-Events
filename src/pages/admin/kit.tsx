@@ -23,6 +23,7 @@ export const AC = {
   messages: { en: 'Messages', ta: 'செய்திகள்' },
   leads: { en: 'Leads', ta: 'வாய்ப்புகள்' },
   billing: { en: 'Billing', ta: 'கட்டணம்' },
+  showroom: { en: 'Showroom', ta: 'ஷோரூம்' },
   console: { en: 'Studio console', ta: 'ஸ்டுடியோ நிர்வாகம்' },
   search: { en: 'Search', ta: 'தேடு' },
   cancel: { en: 'Cancel', ta: 'ரத்து' },
@@ -254,7 +255,7 @@ export function AvatarStack({ names, max = 3, size = 28, empty }: { names: strin
 
 export function SearchInput({ value, onChange, placeholder, className = '', autoFocus }: { value: string; onChange: (v: string) => void; placeholder: string; className?: string; autoFocus?: boolean }) {
   return (
-    <label className={`group relative flex h-10 items-center rounded-full border border-ink/10 bg-white pl-10 pr-3 transition focus-within:border-ruby focus-within:ring-4 focus-within:ring-ruby/10 ${className}`}>
+    <label className={`group relative flex h-11 items-center rounded-full md:h-10 border border-ink/10 bg-white pl-10 pr-3 transition focus-within:border-ruby focus-within:ring-4 focus-within:ring-ruby/10 ${className}`}>
       <Icon name="search" size={16} className="pointer-events-none absolute left-3.5 text-ink/35 transition group-focus-within:text-ruby" />
       <span className="sr-only">{placeholder}</span>
       <input
@@ -285,7 +286,7 @@ export function MiniSelect<T extends string>({ value, onChange, options, label, 
         id={id}
         value={value}
         onChange={e => onChange(e.target.value as T)}
-        className={`h-10 w-full cursor-pointer appearance-none rounded-full border bg-white pr-9 text-[13.5px] font-medium outline-none transition focus:border-ruby focus:ring-4 focus:ring-ruby/10 ${icon ? 'pl-9' : 'pl-4'} ${active ? 'border-ruby/40 text-ink' : 'border-ink/10 text-ink/70'}`}
+        className={`h-11 w-full cursor-pointer appearance-none rounded-full border bg-white pr-9 text-[16px] font-medium md:h-10 md:text-[13.5px] outline-none transition focus:border-ruby focus:ring-4 focus:ring-ruby/10 ${icon ? 'pl-9' : 'pl-4'} ${active ? 'border-ruby/40 text-ink' : 'border-ink/10 text-ink/70'}`}
       >
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>

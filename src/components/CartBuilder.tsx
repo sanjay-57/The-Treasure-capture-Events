@@ -1,175 +1,230 @@
+import { useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Icon } from './Icon'
-import { Stagger, StaggerItem, Reveal, EASE } from './motion'
-import { formatINR, useLang, useT } from '../lib/i18n'
+import { Reveal, EASE } from './motion'
+import { Button, Chip, Img, Modal } from './ui'
+import { Surface, isLight } from './AlbumSurface'
+import { formatINR, useLang, useT, type Bi } from '../lib/i18n'
 import { usePrices } from '../lib/store'
-import { CATALOGUE, MAX_SESSIONS, MIN_SESSIONS, setCartQty, type Cart, type CatalogueId, type CatalogueItem } from '../lib/catalogue'
+import { ITEM_PHOTO } from '../lib/images'
+import { ALBUM_LINES, ALBUM_PHOTO_GUIDE, defaultAlbumChoice, type AlbumLine } from '../lib/data'
+import {
+  ALBUM_SHEETS, ALBUM_SHEET_TIERS, ALBUM_TIERS, BUNDLES, CATALOGUE, MAX_HOURS, MIN_HOURS, addable, albumDelta, albumIn, bundleItems, bundlePrice, cartHours, cartPackageItems, cartSpec,
+  coverageFor, droneMultiplier, hasOutdoor, hoursMultiplier, presetName, presetSaving, setCartHours, setCartQty,
+  type AlbumChoice, type BundleGroup, type Cart, type CatalogueId, type CatalogueItem, type PriceMap, type TierSpec,
+} from '../lib/catalogue'
 
 /*
- * The cart configurator: sessions, crew headcount, add-on toggles, album
- * tier, frames & prints, special shoots. Used by the booking flow (bound to
- * the draft) and by the admin billing screen (bound to an order re-quote).
+ * The cart configurator: one scrolling list of options in the order the
+ * studio talks a family through them — hours, traditional crew, candid photo
+ * styles, candid video styles, add-ons, album, frames and prints, special
+ * shoots, then what is included. Used by the booking flow (bound to the
+ * draft) and by the admin billing screen (bound to an order re-quote).
+ *
+ * Any change that would end the cart's package (a main item removed, the
+ * package album swapped) asks first, then switches the cart to custom.
  */
 
 const copy = {
-  cart: { en: 'Fine-tune your cart', ta: 'உங்கள் பட்டியலை மாற்றுங்கள்' },
-  cartNote: { en: 'Prices shown are what each change adds to your total.', ta: 'காட்டப்படும் விலை ஒவ்வொரு மாற்றமும் மொத்தத்தில் சேர்ப்பது.' },
-  sessions: { en: 'Sessions', ta: 'அமர்வுகள்' },
-  sessionsNote: { en: 'One session is about five hours. A morning muhurtham and an evening reception are two sessions.', ta: 'ஒரு அமர்வு சுமார் ஐந்து மணி. காலை முகூர்த்தமும் மாலை வரவேற்பும் இரண்டு அமர்வுகள்.' },
-  session: { en: 'session', ta: 'அமர்வு' },
-  sessionsPl: { en: 'sessions', ta: 'அமர்வுகள்' },
-  crew: { en: 'Crew per session', ta: 'ஒரு அமர்வுக்கான குழு' },
-  crewNote: { en: 'How many of each you would like on the day. Soft copies of every photo are always included.', ta: 'அன்று ஒவ்வொன்றிலும் எத்தனை பேர் வேண்டும். அனைத்துப் படங்களின் சாஃப்ட் காப்பி எப்போதும் அடங்கும்.' },
+  hours: { en: 'Hours of coverage', ta: 'படப்பிடிப்பு நேரம்' },
+  hoursNote: { en: 'From the first ritual to the last photo. A session is 4 hours; extra hours are charged as part of a session.', ta: 'முதல் சடங்கு முதல் கடைசிப் படம் வரை. ஒரு அமர்வு 4 மணி நேரம்; கூடுதல் மணி நேரம் அமர்வின் பகுதியாகக் கணக்கிடப்படும்.' },
+  hoursUnit: { en: 'h', ta: 'மணி' },
+  portraitHourNote: { en: 'The portrait hour before the event is its own item, so it is not counted here.', ta: 'விழாவுக்கு முந்தைய படப்பிடிப்பு நேரம் தனிப் பொருள், அதனால் இங்கே சேர்க்கப்படவில்லை.' },
+  trad: { en: 'Traditional photo & video', ta: 'பாரம்பரிய படம் & வீடியோ' },
+  tradNote: { en: 'How many of each you would like on the day. Soft copies of every photo are always included.', ta: 'அன்று ஒவ்வொன்றிலும் எத்தனை பேர் வேண்டும். அனைத்துப் படங்களின் சாஃப்ட் காப்பி எப்போதும் அடங்கும்.' },
+  candidPhoto: { en: 'Candid photography styles', ta: 'கேண்டிட் புகைப்படப் பாணிகள்' },
+  candidVideo: { en: 'Candid video styles', ta: 'கேண்டிட் வீடியோ பாணிகள்' },
+  bundleSaving: { en: 'Bundle saving', ta: 'தொகுப்புச் சேமிப்பு' },
   crewSubtotal: { en: 'Crew subtotal', ta: 'குழு கூட்டுத்தொகை' },
-  perSession: { en: 'per session', ta: 'ஒரு அமர்வுக்கு' },
+  perSession: { en: 'per 4 h session', ta: 'ஒரு 4 மணி அமர்வுக்கு' },
+  perShoot: { en: 'per shoot', ta: 'ஒரு படப்பிடிப்புக்கு' },
+  each: { en: 'each', ta: 'ஒன்றுக்கு' },
   addons: { en: 'Add-ons for the day', ta: 'விழா நாள் கூடுதல்கள்' },
   addonsNote: { en: 'Optional. Toggle any on or off.', ta: 'விருப்பத்திற்கு ஏற்ப. இயக்கலாம் அல்லது நிறுத்தலாம்.' },
+  askUs: { en: 'Ask us', ta: 'எங்களைக் கேளுங்கள்' },
+  needsOutdoor: { en: 'Add an outdoor shoot first', ta: 'முதலில் வெளிப்புறப் படப்பிடிப்பைச் சேர்க்கவும்' },
   album: { en: 'Album', ta: 'ஆல்பம்' },
-  albumNote: { en: 'One hard-copy album, by sheet count — or choose soft copies only.', ta: 'தாள் எண்ணிக்கைப்படி ஒரு ஆல்பம் — அல்லது சாஃப்ட் காப்பி மட்டும்.' },
+  albumNote: { en: 'Pick a line, then its size, sheets, colour and box. Moving up from your package album costs only the difference.', ta: 'ஒரு வகையைத் தேர்ந்து, அளவு, தாள், நிறம், பெட்டியைத் தேர்ந்தெடுங்கள். தொகுப்பு ஆல்பத்திலிருந்து பெரியதற்கு மாறினால் வித்தியாசம் மட்டும்.' },
   softOnly: { en: 'Soft copies only', ta: 'சாஃப்ட் காப்பி மட்டும்' },
   softOnlyNote: { en: 'No printed album', ta: 'அச்சிட்ட ஆல்பம் இல்லை' },
-  sheets: { en: 'sheets', ta: 'தாள்கள்' },
+  packageAlbum: { en: 'Package album', ta: 'தொகுப்பு ஆல்பம்' },
+  heirloom: { en: '10×28 heirloom', ta: '10×28 சிறப்பு ஆல்பம்' },
+  heirloomNote: { en: 'Wooden box, personalised cover', ta: 'மரப் பெட்டி, உங்கள் பெயருடன் அட்டை' },
+  selected: { en: 'Selected', ta: 'தேர்வு' },
+  samePrice: { en: 'Same price', ta: 'அதே விலை' },
+  toConfirm: { en: 'Details to confirm', ta: 'விவரம் உறுதி செய்ய' },
+  size: { en: 'Size', ta: 'அளவு' },
+  orientation: { en: 'Orientation', ta: 'திசை' },
+  landscape: { en: 'Landscape', ta: 'கிடைமட்டம்' },
+  portrait: { en: 'Portrait', ta: 'நெடுக்கு' },
+  sheets: { en: 'sheets', ta: 'தாள்' },
+  sheetsTitle: { en: 'Sheets', ta: 'தாள்கள்' },
+  colour: { en: 'Colour', ta: 'நிறம்' },
+  coloursPending: { en: 'Colours arrive with the catalogue.', ta: 'நிறங்கள் பட்டியல் வந்ததும் சேர்க்கப்படும்.' },
+  sizesPending: { en: 'Sizes arrive with the catalogue.', ta: 'அளவுகள் பட்டியல் வந்ததும் சேர்க்கப்படும்.' },
+  box: { en: 'Wooden box', ta: 'மரப் பெட்டி' },
+  boxIncluded: { en: 'Matching box included', ta: 'பொருந்தும் பெட்டி அடங்கும்' },
   frames: { en: 'Frames & prints', ta: 'பிரேம்கள் & அச்சுகள்' },
-  framesNote: { en: 'Any quantity. Premium frames have an acrylic or glass finish.', ta: 'எத்தனை வேண்டுமானாலும். பிரீமியம் பிரேம்கள் அக்ரிலிக் / கண்ணாடி.' },
+  framesNote: { en: 'Any quantity.', ta: 'எத்தனை வேண்டுமானாலும்.' },
   special: { en: 'Special shoots', ta: 'சிறப்புப் படப்பிடிப்புகள்' },
-  specialNote: { en: 'Separate half-day sessions before or after the event.', ta: 'நிகழ்வுக்கு முன்னோ பின்னோ தனி அரை நாள் அமர்வுகள்.' },
+  specialNote: { en: 'Separate sessions before or after the event.', ta: 'நிகழ்வுக்கு முன்னோ பின்னோ தனி அமர்வுகள்.' },
   included: { en: 'Included with your booking', ta: 'உங்கள் பதிவில் அடங்கியவை' },
   free: { en: 'Included', ta: 'அடங்கும்' },
   pending: { en: 'Price to be confirmed', ta: 'விலை உறுதி செய்யப்பட வேண்டும்' },
-  each: { en: 'each', ta: 'ஒன்றுக்கு' },
   less: { en: 'Fewer', ta: 'குறை' },
   more: { en: 'More', ta: 'கூட்டு' },
+  endsTitle: { en: 'End the package?', ta: 'தொகுப்பை முடிக்கவா?' },
+  keep: { en: 'Keep the package', ta: 'தொகுப்பை வைத்திரு' },
+  goOn: { en: 'Continue', ta: 'தொடர்க' },
 }
 
-// ─── Cart builder ────────────────────────────────────────────────────────────
-
 const by = (section: CatalogueItem['section'], pred: (i: CatalogueItem) => boolean = () => true) => CATALOGUE.filter(i => i.section === section && pred(i))
+const TRAD = by('crew', i => !i.bundle)
 const CREW = by('crew')
 const ADDONS = by('addon')
-const ALBUMS = by('deliverable', i => i.group === 'album')
-const PRINTS = by('deliverable', i => !i.group && i.unit !== 'included')
+const PRINTS = by('deliverable', i => !i.group && i.unit !== 'included' && i.id !== 'wooden_box')
 const INCLUDED = by('deliverable', i => i.unit === 'included')
-const SPECIAL = by('special')
+const SPECIAL = by('special', i => i.unit !== 'month')
+const STD_ALBUMS = new Set<CatalogueId>(ALBUM_TIERS.map(t => t.id))
+const is1028 = (id?: CatalogueId) => !!id && id.startsWith('album_1028_') && id !== 'album_1028_pkg_25'
 
-export function CartBuilder({ cart, shootItem, onChange }: { cart: Cart; shootItem?: CatalogueItem['id']; onChange: (cart: Cart) => void }) {
+/** Cover material the preview draws for each line. */
+const LINE_COVER: Record<AlbumLine['key'], string> = { pixel_passage: 'leather', aura: 'leather', acroluxe: 'linen', allura: 'velvet' }
+/** Lines that ship with their own box; the others offer the wooden box for 12×36 and 12×15. */
+const BOX_INCLUDED = new Set<AlbumLine['key']>(['pixel_passage', 'aura'])
+const BOX_SIZES = ['12×36', '12×15']
+
+const lineOf = (key: AlbumLine['key']) => ALBUM_LINES.find(l => l.key === key) ?? ALBUM_LINES[0]
+
+const defaultChoice = defaultAlbumChoice
+
+/** "Candid · couple portraits" → "couple portraits" for the chips. */
+const shortName = (name: Bi): Bi => ({ en: name.en.split(' · ')[1] ?? name.en, ta: name.ta.split(' · ')[1] ?? name.ta })
+
+/** Signed difference for upgrade cards: "+₹5,000", "−₹1,500". */
+const signed = (n: number) => (n > 0 ? `+${formatINR(n)}` : formatINR(n))
+
+export function CartBuilder({ cart, spec, onChange }: { cart: Cart; spec?: TierSpec; onChange: (cart: Cart) => void }) {
   const lang = useLang()
   const t = useT(copy)
   const prices = usePrices()
-  const setCartItem = (id: CatalogueId, n: number) => onChange(setCartQty(cart, id, n))
-  const setSessions = (n: number) => onChange({ ...cart, sessions: Math.min(MAX_SESSIONS, Math.max(MIN_SESSIONS, Math.round(n))) })
-  const qty = (id: CatalogueItem['id']) => cart.items[id] ?? 0
-  const crewSubtotal = CREW.reduce((s, i) => s + prices[i.id] * qty(i.id) * cart.sessions, 0)
+  const [confirm, setConfirm] = useState<{ next: Cart; item: CatalogueItem; removing: boolean } | null>(null)
+
+  const pspec = cartSpec(cart, spec)
+  const pkgItems = cartPackageItems(cart, spec)
+  const pkgName = cart.tier === 'custom' ? undefined : presetName(pspec, cart.tier)
+  const qty = (id: CatalogueId) => cart.items[id] ?? 0
+  const inPkg = (id: CatalogueId) => (pkgItems[id] ?? 0) > 0
+
+  /** Sets a quantity, asking first when the change would end the package. */
+  const apply = (id: CatalogueId, n: number, album?: AlbumChoice | null) => {
+    let next = setCartQty(cart, id, n)
+    if (next === cart) return
+    if (album !== undefined) next = { ...next, album: album ?? undefined }
+    const item = CATALOGUE.find(i => i.id === id)!
+    if (cart.tier !== 'custom' && next.tier === 'custom') setConfirm({ next, item, removing: n === 0 })
+    else onChange(next)
+  }
+
+  const hours = cartHours(cart)
+  const mult = hoursMultiplier(hours)
+  // Same maths as the engine: per-session items × the hours multiplier, bundles saved before the multiplier.
+  const crewLine = (i: CatalogueItem) => (i.unit === 'session' ? Math.round(prices[i.id] * qty(i.id) * (i.noMini ? droneMultiplier(hours) : mult)) : prices[i.id] * qty(i.id))
+  const bundleSaving = (g: BundleGroup) => {
+    const ids = bundleItems(g).filter(i => qty(i.id) > 0).map(i => i.id)
+    return ids.length < 2 ? 0 : Math.round(bundlePrice(g, ids, prices).saving * mult)
+  }
+  const crewSubtotal = CREW.reduce((s, i) => s + crewLine(i), 0) - bundleSaving('candid_photo') - bundleSaving('candid_video')
+
+  // Customers toggle what they may add on their own; package items stay visible so a removed one can come back.
+  const shown = (i: CatalogueItem) => addable(i) || qty(i.id) > 0 || inPkg(i.id)
   const included = INCLUDED.filter(i => qty(i.id) > 0)
   // Special-shoot events lead with their own shoot; other events offer the shoots as extras.
-  const specials = shootItem ? [...SPECIAL.filter(i => i.id === shootItem), ...SPECIAL.filter(i => i.id !== shootItem)] : SPECIAL
+  const specials = (spec?.shootItem ? [...SPECIAL.filter(i => i.id === spec.shootItem), ...SPECIAL.filter(i => i.id !== spec.shootItem)] : SPECIAL).filter(shown)
+  const outdoor = hasOutdoor(cart.items)
+
+  const card = (item: CatalogueItem, opts: { note?: string; disabled?: boolean } = {}) => (
+    <OptionCard
+      key={item.id}
+      item={item}
+      n={qty(item.id)}
+      price={prices[item.id]}
+      pkgName={inPkg(item.id) ? pkgName : undefined}
+      note={opts.note}
+      disabled={opts.disabled}
+      onChange={v => apply(item.id, v)}
+    />
+  )
+
+  const saving = cart.tier === 'custom' ? 0 : -presetSaving(pspec, cart.tier, prices, cart.variant)
+  const endsMsg: Bi | null = confirm && pkgName
+    ? {
+        en: `${confirm.removing ? 'Removing' : 'Switching to'} ${confirm.item.name.en} ends the ${pkgName.en} package${saving > 0 ? ` and its ${formatINR(saving)} saving` : ''}. Continue?`,
+        ta: `${confirm.item.name.ta} ${confirm.removing ? 'நீக்கினால்' : 'என மாற்றினால்'} ${pkgName.ta} தொகுப்பு${saving > 0 ? `ம் அதன் ${formatINR(saving)} சேமிப்பும்` : ''} முடிவடையும். தொடரலாமா?`,
+      }
+    : null
 
   return (
-    <div className="space-y-5">
-      {/* Sessions + crew */}
+    <div className="space-y-8">
+      {/* Coverage hours */}
       <Reveal>
         <section className="rounded-[28px] border hairline bg-white/70 p-5 shadow-soft sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h3 className="font-display text-[1.15rem] font-semibold text-ink">{t.sessions}</h3>
-              <p className="mt-1 max-w-md text-[13px] leading-snug text-ink/55">{t.sessionsNote}</p>
+              <h3 className="font-display text-[1.15rem] font-semibold text-ink">{t.hours}</h3>
+              <p className="mt-1 max-w-md text-[13px] leading-snug text-ink/55">{t.hoursNote}</p>
             </div>
-            <Stepper value={cart.sessions} min={MIN_SESSIONS} max={MAX_SESSIONS} onChange={setSessions} label={t.sessions} big unit={cart.sessions > 1 ? t.sessionsPl : t.session} />
+            <Stepper value={hours} min={MIN_HOURS} max={MAX_HOURS} onChange={h => onChange(setCartHours(cart, h))} label={t.hours} big unit={t.hoursUnit} />
           </div>
-
-          <div className="mt-6 border-t hairline pt-5">
-            <h3 className="font-display text-[1.15rem] font-semibold text-ink">{t.crew}</h3>
-            <p className="mt-1 max-w-md text-[13px] leading-snug text-ink/55">{t.crewNote}</p>
-            <ul className="mt-4 space-y-1.5">
-              {CREW.map(item => {
-                const n = qty(item.id)
-                const unit = prices[item.id]
-                return (
-                  <li key={item.id} className={`grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3.5 gap-y-2 rounded-2xl px-3 py-3 transition-colors duration-300 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] ${n ? 'bg-ruby-soft/45' : 'hover:bg-ink/[0.025]'}`}>
-                    <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-colors duration-300 ${n ? 'bg-ruby text-white shadow-ruby' : 'bg-ink/[0.05] text-ink/60'}`}>
-                      <Icon name={item.icon} size={20} />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-[14.5px] font-medium leading-snug text-ink">{item.name[lang]}</span>
-                      <span className="mt-0.5 block text-[12px] leading-snug text-ink/50">{item.note?.[lang]}</span>
-                    </span>
-                    <span className="col-start-2 text-[13px] leading-tight tabular-nums sm:col-start-3 sm:text-right">
-                      <span className={`font-semibold ${n ? 'text-ruby' : 'text-ink/70'}`}>{n > 1 ? `${formatINR(unit * n)}` : formatINR(unit)}</span>
-                      <span className="block text-[11px] text-ink/45">{n > 1 ? `${formatINR(unit)} ${t.each} · ${t.perSession}` : t.perSession}</span>
-                    </span>
-                    <span className="col-start-3 row-start-1 sm:col-start-4">
-                      <Stepper value={n} min={0} max={item.max ?? 4} onChange={v => setCartItem(item.id, v)} label={item.name[lang]} />
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-            <div className="mt-3 flex items-center justify-between gap-4 rounded-2xl bg-ink px-4 py-3.5 text-white">
-              <span className="text-[13px] font-medium text-white/70">
-                {t.crewSubtotal} · {cart.sessions} {cart.sessions > 1 ? t.sessionsPl : t.session}
-              </span>
-              <span className="font-display text-[1.4rem] font-semibold tabular-nums">{formatINR(crewSubtotal)}</span>
-            </div>
-          </div>
+          <p className="mt-4 rounded-2xl bg-ruby-soft/60 px-4 py-3 text-[13.5px] font-medium leading-snug text-ruby-deep">{coverageFor(hours).label[lang]}</p>
+          {inPkg('portrait_hour') && <p className="mt-2 text-[12px] leading-snug text-ink/50">{t.portraitHourNote}</p>}
         </section>
       </Reveal>
+
+      {/* Traditional crew */}
+      <section>
+        <SectionHead title={t.trad} note={t.tradNote} />
+        <div className="grid gap-3">{TRAD.filter(shown).map(i => card(i))}</div>
+      </section>
+
+      {/* Candid styles */}
+      <CandidGroup group="candid_photo" title={t.candidPhoto} cart={cart} prices={prices} mult={mult} saving={bundleSaving('candid_photo')} pkgName={pkgName} inPkg={inPkg} onToggle={(id, on) => apply(id, on ? 1 : 0)} />
+      <CandidGroup group="candid_video" title={t.candidVideo} cart={cart} prices={prices} mult={mult} saving={bundleSaving('candid_video')} pkgName={pkgName} inPkg={inPkg} onToggle={(id, on) => apply(id, on ? 1 : 0)} />
+
+      <div className="flex items-center justify-between gap-4 rounded-2xl bg-ink px-4 py-3.5 text-white">
+        <span className="min-w-0 text-[13px] font-medium text-white/70">
+          {t.crewSubtotal} · × {mult.toFixed(2)} ({hours} {t.hoursUnit})
+        </span>
+        <span className="shrink-0 font-display text-[1.4rem] font-semibold tabular-nums">{formatINR(crewSubtotal)}</span>
+      </div>
 
       {/* Add-ons */}
-      <Reveal>
-        <section>
-          <SectionHead title={t.addons} note={t.addonsNote} />
-          <Stagger className="grid gap-3 sm:grid-cols-2" gap={0.05}>
-            {ADDONS.map(item => (
-              <StaggerItem key={item.id}>
-                <ToggleRow item={item} on={qty(item.id) > 0} price={prices[item.id]} onToggle={() => setCartItem(item.id, qty(item.id) ? 0 : 1)} />
-              </StaggerItem>
-            ))}
-          </Stagger>
-        </section>
-      </Reveal>
+      <section>
+        <SectionHead title={t.addons} note={t.addonsNote} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          {ADDONS.filter(i => shown(i) || i.onRequest).map(i => card(i, i.requiresOutdoor && !outdoor ? { note: t.needsOutdoor, disabled: qty(i.id) === 0 } : {}))}
+        </div>
+      </section>
 
       {/* Album */}
-      <Reveal>
-        <section>
-          <SectionHead title={t.album} note={t.albumNote} />
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-            <AlbumCard active={!ALBUMS.some(a => qty(a.id) > 0)} title={t.softOnly} sub={t.softOnlyNote} price={t.free} onClick={() => ALBUMS.forEach(a => qty(a.id) && setCartItem(a.id, 0))} />
-            {ALBUMS.map(a => (
-              <AlbumCard
-                key={a.id}
-                active={qty(a.id) > 0}
-                title={`${a.name.en.match(/\d+/)?.[0]} ${t.sheets}`}
-                sub={a.id === 'album_25' ? (lang === 'ta' ? 'வரை' : 'up to') : ''}
-                price={formatINR(prices[a.id])}
-                onClick={() => setCartItem(a.id, 1)}
-              />
-            ))}
-          </div>
-        </section>
-      </Reveal>
+      <section>
+        <SectionHead title={t.album} note={t.albumNote} />
+        <AlbumPicker cart={cart} prices={prices} pkgItems={pkgItems} pkgName={pkgName} apply={apply} onSpec={album => onChange({ ...cart, album })} />
+      </section>
 
       {/* Frames & prints */}
-      <Reveal>
-        <section>
-          <SectionHead title={t.frames} note={t.framesNote} />
-          <ul className="divide-y divide-ink/[0.06] rounded-[26px] border hairline bg-white/70 px-4 shadow-soft sm:px-5">
-            {PRINTS.map(item => (
-              <QtyRow key={item.id} item={item} qty={qty(item.id)} price={prices[item.id]} onChange={v => setCartItem(item.id, v)} />
-            ))}
-          </ul>
-        </section>
-      </Reveal>
+      <section>
+        <SectionHead title={t.frames} note={t.framesNote} />
+        <div className="grid gap-3 sm:grid-cols-2">{PRINTS.filter(shown).map(i => card(i))}</div>
+      </section>
 
       {/* Special shoots */}
-      <Reveal>
+      {specials.length > 0 && (
         <section>
           <SectionHead title={t.special} note={t.specialNote} />
-          <ul className="divide-y divide-ink/[0.06] rounded-[26px] border hairline bg-white/70 px-4 shadow-soft sm:px-5">
-            {specials.map(item => (
-              <QtyRow key={item.id} item={item} qty={qty(item.id)} price={prices[item.id]} onChange={v => setCartItem(item.id, v)} />
-            ))}
-          </ul>
+          <div className="grid gap-3 sm:grid-cols-2">{specials.map(i => card(i))}</div>
         </section>
-      </Reveal>
+      )}
 
       {/* Included */}
       <AnimatePresence initial={false}>
@@ -190,22 +245,392 @@ export function CartBuilder({ cart, shootItem, onChange }: { cart: Cart; shootIt
           </motion.section>
         )}
       </AnimatePresence>
+
+      <Modal open={!!confirm} onClose={() => setConfirm(null)} label={t.endsTitle}>
+        <div className="p-6 pt-9 sm:p-7">
+          <p className="t-3 text-ink">{t.endsTitle}</p>
+          <p className="mt-2 text-[14.5px] leading-relaxed text-ink/70">{endsMsg?.[lang]}</p>
+          {/* Stacked, thumb-sized actions on phones; the safe choice sits nearest the thumb */}
+          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+            <Button variant="outline" onClick={() => setConfirm(null)} className="w-full sm:w-auto">{t.keep}</Button>
+            <Button
+              className="w-full sm:w-auto"
+              onClick={() => {
+                if (confirm) onChange(confirm.next)
+                setConfirm(null)
+              }}
+            >
+              {t.goOn}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
 
-function SectionHead({ title, note }: { title: string; note: string }) {
+function SectionHead({ title, note }: { title: string; note?: string }) {
   return (
-    <div className="mb-3 mt-2">
+    <div className="mb-3">
       <h3 className="font-display text-[1.15rem] font-semibold text-ink">{title}</h3>
-      <p className="mt-1 max-w-xl text-[13px] leading-snug text-ink/55">{note}</p>
+      {note && <p className="mt-1 max-w-xl text-[13px] leading-snug text-ink/55">{note}</p>}
     </div>
   )
 }
+
+/** "In Gold" while a package item is in the cart, "Taken out of Gold" once removed. */
+function PackageBadge({ name, on }: { name: Bi; on: boolean }) {
+  const lang = useLang()
+  const label = on ? { en: `In ${name.en}`, ta: `${name.ta}-ல் உள்ளது` } : { en: `Taken out of ${name.en}`, ta: `${name.ta}-லிருந்து நீக்கப்பட்டது` }
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${on ? 'bg-gold text-white' : 'bg-ink/[0.06] text-ink/55'}`}>
+      <Icon name={on ? 'gem' : 'minus'} size={10} strokeWidth={2.4} />
+      {label[lang]}
+    </span>
+  )
+}
+
+/** One option: stock photo, name, one-line note, price, and a toggle or stepper. */
+function OptionCard({ item, n, price, pkgName, note, disabled, onChange }: { item: CatalogueItem; n: number; price: number; pkgName?: Bi; note?: string; disabled?: boolean; onChange: (v: number) => void }) {
+  const lang = useLang()
+  const t = useT(copy)
+  const photo = ITEM_PHOTO[item.id]
+  const max = item.max ?? 10
+  // Gold while it is part of the package; ruby when the customer added it on top.
+  const gold = !!pkgName && n > 0
+  const priceText = item.onRequest ? t.askUs : price === 0 ? t.free : item.unit === 'session' ? `${formatINR(price)} ${t.perSession}` : item.unit === 'shoot' ? `${formatINR(price)} ${t.perShoot}` : max > 1 ? `+${formatINR(price)} ${t.each}` : `+${formatINR(price)}`
+  return (
+    <div
+      id={`opt-${item.id}`}
+      data-in-package={pkgName && n > 0 ? 'true' : undefined}
+      className={`flex scroll-mt-40 items-center gap-3.5 rounded-[22px] border p-3 transition-colors duration-300 sm:p-3.5 ${gold ? 'border-gold/50 bg-gold-soft' : n ? 'border-ruby/40 bg-ruby-soft/50' : 'border-ink/[0.08] bg-white/70'} ${disabled ? 'opacity-60' : ''}`}
+    >
+      <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-ink/[0.05] sm:h-16 sm:w-16">
+        {photo ? <Img k={photo} w={160} ratio={1} sizes="64px" className="absolute inset-0" /> : <Icon name={item.icon} size={22} className="absolute inset-0 m-auto text-ink/40" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        {pkgName && (
+          <span className="mb-1 block">
+            <PackageBadge name={pkgName} on={n > 0} />
+          </span>
+        )}
+        <span className="block text-[14.5px] font-medium leading-snug text-ink [overflow-wrap:anywhere]">{item.name[lang]}</span>
+        {(note ?? item.note?.[lang]) && <span className="mt-0.5 block text-[12px] leading-snug text-ink/50">{note ?? item.note?.[lang]}</span>}
+        <span className={`mt-1 block text-[12.5px] font-semibold tabular-nums ${gold ? 'text-gold-deep' : n ? 'text-ruby' : 'text-ink/70'}`}>
+          {priceText}
+          {item.pending && !item.onRequest && <Pending label={t.pending} />}
+        </span>
+      </span>
+      {item.onRequest ? null : max > 1 ? (
+        <Stepper value={n} min={0} max={max} onChange={onChange} label={item.name[lang]} />
+      ) : (
+        <Toggle on={n > 0} disabled={disabled} onToggle={() => onChange(n ? 0 : 1)} label={item.name[lang]} />
+      )}
+    </div>
+  )
+}
+
+function CandidGroup({ group, title, cart, prices, mult, saving, pkgName, inPkg, onToggle }: {
+  group: BundleGroup; title: string; cart: Cart; prices: PriceMap; mult: number; saving: number; pkgName?: Bi; inPkg: (id: CatalogueId) => boolean; onToggle: (id: CatalogueId, on: boolean) => void
+}) {
+  const lang = useLang()
+  const t = useT(copy)
+  const rule = BUNDLES[group]
+  const hint: Bi = 'pctOff' in rule.two
+    ? { en: `Pick any 2 and save ${rule.two.pctOff} %. All 3 for ${formatINR(rule.three)}.`, ta: `ஏதேனும் 2 தேர்ந்தால் ${rule.two.pctOff} % சேமிப்பு. மூன்றும் ${formatINR(rule.three)}.` }
+    : { en: `Any 2 for ${formatINR(rule.two.flat)}. All 3 for ${formatINR(rule.three)}.`, ta: `ஏதேனும் 2: ${formatINR(rule.two.flat)}. மூன்றும் ${formatINR(rule.three)}.` }
+  return (
+    <section>
+      <SectionHead title={title} note={`${hint[lang]} ${lang === 'ta' ? 'விலை' : 'Prices are'} ${t.perSession}${mult !== 1 ? ` × ${mult.toFixed(2)}` : ''}.`} />
+      {/* Phones: a swipeable row with snap so all three styles sit side by side; a grid from sm up */}
+      <div className="no-scrollbar -my-1 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain py-1 sm:grid sm:grid-cols-3 sm:overflow-visible" data-lenis-prevent-wheel>
+        {bundleItems(group).map(item => {
+          const on = (cart.items[item.id] ?? 0) > 0
+          const gold = on && !!pkgName && inPkg(item.id)
+          const photo = ITEM_PHOTO[item.id]
+          return (
+            <button
+              key={item.id}
+              id={`opt-${item.id}`}
+              type="button"
+              aria-pressed={on}
+              data-in-package={pkgName && on && inPkg(item.id) ? 'true' : undefined}
+              onClick={() => onToggle(item.id, !on)}
+              className={`group relative flex w-[72%] shrink-0 snap-start scroll-mt-40 flex-col overflow-hidden rounded-[22px] border text-left sm:w-auto transition-all duration-300 cursor-pointer active:scale-[0.99] ${gold ? 'border-gold bg-gold-soft' : on ? 'border-ruby bg-ruby-soft/60 shadow-ruby' : 'border-ink/[0.08] bg-white/70 hover:border-ink/20'}`}
+            >
+              <span className="relative block aspect-[16/10] w-full overflow-hidden bg-ink/[0.05]">
+                {photo && <Img k={photo} w={400} ratio={1.6} sizes="(min-width: 640px) 30vw, 100vw" className="absolute inset-0" />}
+                <span className={`absolute right-2.5 top-2.5 flex h-7 w-7 items-center justify-center rounded-full border transition-all duration-300 ${gold ? 'border-gold bg-gold text-white' : on ? 'border-ruby bg-ruby text-white' : 'border-white/70 bg-white/80 text-transparent'}`} aria-hidden="true">
+                  <Icon name="check" size={15} strokeWidth={2.4} />
+                </span>
+              </span>
+              <span className="block p-3.5">
+                {pkgName && inPkg(item.id) && (
+                  <span className="mb-1 block">
+                    <PackageBadge name={pkgName} on={on} />
+                  </span>
+                )}
+                <span className="block text-[14px] font-semibold capitalize leading-snug text-ink [overflow-wrap:anywhere]">{shortName(item.name)[lang]}</span>
+                {item.note && <span className="mt-0.5 block text-[12px] leading-snug text-ink/50">{item.note[lang]}</span>}
+                <span className={`mt-1.5 block text-[12.5px] font-semibold tabular-nums ${gold ? 'text-gold-deep' : on ? 'text-ruby' : 'text-ink/70'}`}>{formatINR(prices[item.id])}</span>
+              </span>
+            </button>
+          )
+        })}
+      </div>
+      <AnimatePresence initial={false}>
+        {saving > 0 && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.4, ease: EASE }} className="overflow-hidden">
+            <motion.p
+              initial={{ scale: 0.96 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 22 }}
+              className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-ruby/25 bg-white/80 px-4 py-3 text-[13.5px] font-medium text-ruby"
+            >
+              <span className="flex items-center gap-2">
+                <Icon name="sparkle" size={15} />
+                {t.bundleSaving} · {rule.name[lang]}
+              </span>
+              <span className="font-semibold tabular-nums">{formatINR(-saving)}</span>
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </section>
+  )
+}
+
+// ─── Album configurator ──────────────────────────────────────────────────────
+
+function AlbumPicker({ cart, prices, pkgItems, pkgName, apply, onSpec }: {
+  cart: Cart; prices: PriceMap; pkgItems: Cart['items']; pkgName?: Bi
+  apply: (id: CatalogueId, n: number, album?: AlbumChoice | null) => void
+  onSpec: (album: AlbumChoice) => void
+}) {
+  const lang = useLang()
+  const t = useT(copy)
+  const current = albumIn(cart)
+  const isStd = !!current && STD_ALBUMS.has(current.id)
+  const heirloom = is1028(current?.id)
+  // The package's own album (A4, 10×28 paperback) stays offered so the customer can go back to it.
+  const pkgAlbum = CATALOGUE.find(i => i.group === 'album' && i.packageOnly && ((pkgItems[i.id] ?? 0) > 0 || (cart.items[i.id] ?? 0) > 0))
+  const choice: AlbumChoice | undefined = isStd ? (cart.album ?? defaultChoice('pixel_passage')) : undefined
+  const line = choice ? lineOf(choice.line) : undefined
+  const colour = line?.colours.find(c => c.name === choice?.colour) ?? line?.colours[0]
+
+  /** Price text for a card that would put `id` in the cart. */
+  const upgrade = (id: CatalogueId) => (current ? (current.id === id ? t.selected : albumDelta(cart, id, prices) === 0 ? t.samePrice : signed(albumDelta(cart, id, prices))) : formatINR(prices[id]))
+  const sheetsId = (n: number): CatalogueId => (heirloom ? `album_1028_${n}` : `album_${n}`) as CatalogueId
+  const boxOn = (cart.items.wooden_box ?? 0) > 0
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <AlbumCard active={!current} title={t.softOnly} sub={t.softOnlyNote} price={t.free} onClick={() => current && apply(current.id, 0, null)} />
+        {pkgAlbum && (
+          <AlbumCard
+            active={current?.id === pkgAlbum.id}
+            gold={!!pkgName && (pkgItems[pkgAlbum.id] ?? 0) > 0}
+            title={pkgAlbum.name[lang]}
+            sub={pkgName ? `${t.packageAlbum} · ${pkgName[lang]}` : t.packageAlbum}
+            price={upgrade(pkgAlbum.id)}
+            onClick={() => apply(pkgAlbum.id, 1, null)}
+          />
+        )}
+        {ALBUM_LINES.map(l => (
+          <AlbumCard
+            key={l.key}
+            active={isStd && choice?.line === l.key}
+            title={l.name[lang]}
+            sub={l.pending ? t.toConfirm : l.sizes.join(' · ')}
+            price={isStd ? (choice?.line === l.key ? t.selected : t.samePrice) : upgrade('album_25')}
+            cover={<Surface cover={LINE_COVER[l.key]} hex={l.colours[0]?.hex ?? '#7d6450'} mini />}
+            onClick={() => apply(isStd ? current!.id : 'album_25', 1, { ...defaultChoice(l.key), ...(choice?.line === l.key ? choice : {}) })}
+          />
+        ))}
+        <AlbumCard
+          active={heirloom}
+          title={t.heirloom}
+          sub={t.heirloomNote}
+          price={heirloom ? t.selected : upgrade('album_1028_25')}
+          cover={<Surface cover="velvet" hex="#5a0a1c" mini />}
+          onClick={() => !heirloom && apply('album_1028_25', 1, null)}
+        />
+      </div>
+
+      <AnimatePresence initial={false} mode="popLayout">
+        {(isStd || heirloom) && current && (
+          <motion.div
+            key={heirloom ? 'heirloom' : 'line'}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.4, ease: EASE }}
+            className="grid gap-6 rounded-[26px] border hairline bg-white/70 p-5 shadow-soft sm:p-6 md:grid-cols-[180px_minmax(0,1fr)]"
+          >
+            <CoverPreview
+              cover={line ? LINE_COVER[line.key] : 'velvet'}
+              hex={colour?.hex ?? (heirloom ? '#5a0a1c' : '#7d6450')}
+              title={line ? line.name[lang] : '10×28'}
+              size={choice?.size || '10×28'}
+              orientation={choice?.orientation ?? 'landscape'}
+            />
+            <div className="min-w-0 space-y-5">
+              {line && choice && (
+                <>
+                  <Field label={t.size}>
+                    {line.sizes.length ? line.sizes.map(s => <Chip key={s} active={choice.size === s} onClick={() => onSpec({ ...choice, size: s })}>{s}</Chip>) : <p className="text-[13px] text-ink/55">{t.sizesPending}</p>}
+                  </Field>
+                  {line.orientations.length > 1 && (
+                    <Field label={t.orientation}>
+                      {line.orientations.map(o => <Chip key={o} active={choice.orientation === o} onClick={() => onSpec({ ...choice, orientation: o })}>{t[o]}</Chip>)}
+                    </Field>
+                  )}
+                </>
+              )}
+              <div>
+                <p className="t-label text-ink/55">{t.sheetsTitle}</p>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {ALBUM_SHEET_TIERS.map(n => {
+                    const id = sheetsId(n)
+                    const on = current.id === id
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => !on && apply(id, 1, choice ?? null)}
+                        className={`rounded-2xl border px-3 py-2.5 text-left transition-all duration-300 cursor-pointer ${on ? 'border-ruby bg-ruby-soft/60' : 'border-ink/[0.08] bg-white hover:border-ink/20'}`}
+                      >
+                        <span className="block text-[14px] font-semibold text-ink">{n} {t.sheets}</span>
+                        <span className={`block text-[12px] font-semibold tabular-nums ${on ? 'text-ruby' : 'text-ink/60'}`}>{on ? t.selected : signed(albumDelta(cart, id, prices))}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="mt-2 text-[12px] leading-snug text-ink/55">
+                  {ALBUM_PHOTO_GUIDE[(ALBUM_SHEETS[current.id] ?? 25) as 25 | 35 | 45]?.[choice?.orientation ?? 'landscape'][lang]}
+                </p>
+              </div>
+              {line && choice && (
+                <>
+                  <Field label={t.colour}>
+                    {line.colours.length ? (
+                      line.colours.map(c => (
+                        <button
+                          key={c.name}
+                          type="button"
+                          aria-pressed={choice.colour === c.name}
+                          aria-label={c.name}
+                          title={c.name}
+                          onClick={() => onSpec({ ...choice, colour: c.name })}
+                          className={`h-11 w-11 rounded-full border-2 transition cursor-pointer sm:h-10 sm:w-10 ${choice.colour === c.name ? 'border-ruby ring-2 ring-ruby/25 ring-offset-2' : 'border-white shadow-[0_1px_4px_rgba(10,10,11,0.2)]'}`}
+                          style={{ background: c.hex }}
+                        />
+                      ))
+                    ) : (
+                      <p className="text-[13px] text-ink/55">{t.coloursPending}</p>
+                    )}
+                  </Field>
+                  {colour && <p className="-mt-3 text-[12px] text-ink/50">{colour.name}</p>}
+                  {BOX_INCLUDED.has(line.key) ? (
+                    <p className="flex items-center gap-2 text-[13px] text-ink/70">
+                      <Icon name="check" size={14} strokeWidth={2.4} className="text-ruby" />
+                      {t.boxIncluded}
+                    </p>
+                  ) : (
+                    BOX_SIZES.includes(choice.size) && (
+                      <div className="flex items-center justify-between gap-3 rounded-2xl bg-ink/[0.03] px-4 py-3">
+                        <span className="text-[13.5px] font-medium text-ink">
+                          {t.box} <span className="font-semibold tabular-nums text-ink/60">+{formatINR(prices.wooden_box)}</span>
+                          <Pending label={t.pending} />
+                        </span>
+                        <Toggle on={boxOn} onToggle={() => apply('wooden_box', boxOn ? 0 : 1, { ...choice, box: !boxOn })} label={t.box} />
+                      </div>
+                    )
+                  )}
+                  {line.includes.length > 0 && (
+                    <ul className="space-y-1">
+                      {line.includes.map(inc => (
+                        <li key={inc.en} className="flex items-start gap-2 text-[12.5px] leading-snug text-ink/60">
+                          <Icon name="check" size={13} strokeWidth={2.4} className="mt-0.5 text-ruby" />
+                          {inc[lang]}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <p className="t-label text-ink/55">{label}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">{children}</div>
+    </div>
+  )
+}
+
+/** Mini 3D cover, drawn with the album studio's material surfaces. */
+function CoverPreview({ cover, hex, title, size, orientation }: { cover: string; hex: string; title: string; size: string; orientation: 'landscape' | 'portrait' }) {
+  const [a, b] = size.split('×').map(Number)
+  const long = Math.max(a || 12, b || 15)
+  const short = Math.min(a || 12, b || 15)
+  const ratio = orientation === 'portrait' ? short / long : long / short
+  const light = isLight(hex)
+  return (
+    <div className="flex items-center justify-center py-2 [perspective:900px]">
+      <motion.div
+        key={`${size}-${orientation}`}
+        initial={{ rotateY: -8, opacity: 0.6 }}
+        animate={{ rotateY: -22, opacity: 1 }}
+        transition={{ duration: 0.7, ease: EASE }}
+        className="relative w-full max-w-[180px] overflow-hidden rounded-[6px] shadow-[18px_22px_40px_-18px_rgba(10,10,11,0.55)] [transform-style:preserve-3d]"
+        style={{ aspectRatio: ratio, rotateX: 8 }}
+      >
+        <Surface cover={cover} hex={hex} mini>
+          <span className={`absolute inset-x-3 bottom-3 text-center font-display text-[13px] font-semibold tracking-wide ${light ? 'text-ink/70' : 'text-white/85'}`}>{title}</span>
+        </Surface>
+        <span className="pointer-events-none absolute inset-y-0 left-0 w-2.5 bg-gradient-to-r from-black/30 to-transparent" aria-hidden="true" />
+      </motion.div>
+    </div>
+  )
+}
+
+function AlbumCard({ active, gold = false, title, sub, price, onClick, cover }: { active: boolean; gold?: boolean; title: string; sub: string; price: string; onClick: () => void; cover?: ReactNode }) {
+  const g = active && gold
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`flex flex-col items-start overflow-hidden rounded-[20px] border text-left transition-all duration-300 cursor-pointer ${g ? 'border-gold bg-gold-soft' : active ? 'border-ruby bg-ruby-soft/60 shadow-ruby' : 'border-ink/[0.08] bg-white/70 hover:border-ink/20'}`}
+    >
+      <span className="relative block h-16 w-full overflow-hidden bg-ink/[0.04]">
+        {cover ?? <Icon name="book" size={20} className="absolute inset-0 m-auto text-ink/35" />}
+      </span>
+      <span className="block w-full p-3">
+        <span className="block text-[13.5px] font-semibold leading-tight text-ink [overflow-wrap:anywhere]">{title}</span>
+        <span className="mt-0.5 block min-h-[1rem] text-[11px] leading-snug text-ink/45">{sub}</span>
+        <span className={`mt-1.5 block text-[12.5px] font-semibold tabular-nums ${g ? 'text-gold-deep' : active ? 'text-ruby' : 'text-ink/70'}`}>{price}</span>
+      </span>
+    </button>
+  )
+}
+
+// ─── Controls ────────────────────────────────────────────────────────────────
 
 function Stepper({ value, min, max, onChange, label, big = false, unit }: { value: number; min: number; max: number; onChange: (v: number) => void; label: string; big?: boolean; unit?: string }) {
   const t = useT(copy)
-  const btn = `${big ? 'h-11 w-11' : 'h-9 w-9'} flex items-center justify-center rounded-full transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-25`
+  // Small buttons stay 36px to the eye but reach 44px for the thumb.
+  const btn = `${big ? 'h-11 w-11' : "h-9 w-9 before:absolute before:-inset-1 before:content-['']"} relative flex items-center justify-center rounded-full transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-25`
   const active = value > min
   return (
     <div className={`inline-flex shrink-0 items-center rounded-full p-1 transition-colors duration-300 ${active ? 'bg-ruby-soft ring-1 ring-ruby/25' : 'bg-ink/[0.05]'}`} role="group" aria-label={label}>
@@ -227,68 +652,22 @@ function Stepper({ value, min, max, onChange, label, big = false, unit }: { valu
   )
 }
 
-function ToggleRow({ item, on, price, onToggle }: { item: CatalogueItem; on: boolean; price: number; onToggle: () => void }) {
-  const lang = useLang()
-  const t = useT(copy)
+function Toggle({ on, onToggle, label, disabled }: { on: boolean; onToggle: () => void; label: string; disabled?: boolean }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={on}
+      aria-label={label}
+      disabled={disabled}
       onClick={onToggle}
-      className={`group flex w-full items-center gap-3.5 rounded-[22px] border p-4 text-left transition-all duration-300 cursor-pointer md:gap-4 ${
-        on ? 'border-ruby/40 bg-ruby-soft/60' : 'border-ink/[0.08] bg-white/70 hover:border-ink/20 hover:bg-white'
-      }`}
+      className={`relative flex h-7 w-12 shrink-0 items-center rounded-full p-0.5 transition-colors duration-300 cursor-pointer before:absolute before:-inset-x-1 before:-inset-y-2 before:content-[''] disabled:cursor-not-allowed ${on ? 'justify-end bg-ruby' : 'justify-start bg-ink/15'}`}
     >
-      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-colors duration-300 ${on ? 'bg-ruby text-white' : 'bg-ink/[0.05] text-ink/60'}`}>
-        <Icon name={item.icon} size={20} />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[14.5px] font-medium leading-snug text-ink">{item.name[lang]}</span>
-        {item.note && <span className="mt-0.5 block text-[12px] leading-snug text-ink/50">{item.note[lang]}</span>}
-        <span className={`mt-1 block text-[12.5px] font-semibold tabular-nums ${on ? 'text-ruby' : 'text-ink/70'}`}>+{formatINR(price)}{item.pending && <Pending label={t.pending} />}</span>
-      </span>
-      <span className={`relative flex h-7 w-12 shrink-0 items-center rounded-full p-0.5 transition-colors duration-300 ${on ? 'justify-end bg-ruby' : 'justify-start bg-ink/15'}`} aria-hidden="true">
-        <motion.span layout transition={{ type: 'spring', stiffness: 520, damping: 34 }} className="block h-6 w-6 rounded-full bg-white shadow-[0_2px_6px_rgba(10,10,11,0.25)]" />
-      </span>
+      {/* A tick in the knob so "on" reads without relying on colour */}
+      <motion.span layout transition={{ type: 'spring', stiffness: 520, damping: 34 }} className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-ruby shadow-[0_2px_6px_rgba(10,10,11,0.25)]">
+        {on && <Icon name="check" size={13} strokeWidth={2.8} />}
+      </motion.span>
     </button>
-  )
-}
-
-function AlbumCard({ active, title, sub, price, onClick }: { active: boolean; title: string; sub: string; price: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={`flex flex-col items-start rounded-[20px] border p-3.5 text-left transition-all duration-300 cursor-pointer ${active ? 'border-ruby bg-ruby-soft/60 shadow-ruby' : 'border-ink/[0.08] bg-white/70 hover:border-ink/20'}`}
-    >
-      <Icon name="book" size={18} className={active ? 'text-ruby' : 'text-ink/40'} />
-      <span className="mt-3 text-[13.5px] font-semibold leading-tight text-ink">{title}</span>
-      <span className="mt-0.5 min-h-[1rem] text-[11px] text-ink/45">{sub}</span>
-      <span className={`mt-2 text-[12.5px] font-semibold tabular-nums ${active ? 'text-ruby' : 'text-ink/70'}`}>{price}</span>
-    </button>
-  )
-}
-
-function QtyRow({ item, qty, price, onChange }: { item: CatalogueItem; qty: number; price: number; onChange: (v: number) => void }) {
-  const lang = useLang()
-  const t = useT(copy)
-  return (
-    <li className="flex items-center gap-3.5 py-3.5">
-      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors duration-300 ${qty ? 'bg-ruby text-white' : 'bg-ink/[0.05] text-ink/60'}`}>
-        <Icon name={item.icon} size={18} />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[14px] font-medium leading-snug text-ink">{item.name[lang]}</span>
-        <span className="mt-0.5 block text-[12px] leading-snug text-ink/50">
-          <span className={`font-semibold tabular-nums ${qty ? 'text-ruby' : 'text-ink/60'}`}>+{formatINR(price)}</span> {t.each}
-          {item.note && <span className="hidden sm:inline"> · {item.note[lang]}</span>}
-          {item.pending && <Pending label={t.pending} />}
-        </span>
-      </span>
-      <Stepper value={qty} min={0} max={item.max ?? 10} onChange={onChange} label={item.name[lang]} />
-    </li>
   )
 }
 

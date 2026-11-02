@@ -45,6 +45,7 @@ const NAV: NavItem[] = [
   { to: '/admin/team', label: AC.team, icon: 'users', count: 'team' },
   { to: '/admin/messages', label: AC.messages, icon: 'whatsapp', count: 'messages' },
   { to: '/admin/leads', label: AC.leads, icon: 'inbox', count: 'leads' },
+  { to: '/admin/showroom', label: AC.showroom, icon: 'sparkle' },
   { to: '/admin/billing', label: AC.billing, icon: 'rupee' },
   { to: '/admin/cms', label: AC.cms, icon: 'image' },
 ]

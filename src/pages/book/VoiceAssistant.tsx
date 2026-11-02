@@ -7,13 +7,16 @@ import { KolamCorner } from '../../components/tamil'
 import { formatINR, useLang, useT, type Bi } from '../../lib/i18n'
 import { useStore } from '../../lib/store'
 import {
-  CATALOGUE_BY_ID, MAX_SESSIONS, MIN_SESSIONS, TIER_META, cartExtras, resolvePrices, setCartQty, tierCart,
+  ALBUM_TIERS, CATALOGUE_BY_ID, MAX_HOURS, MIN_HOURS, SESSION_HOURS, albumIn, cartHours, cartPackageItems, cartTierName, MAX_SESSIONS, MIN_SESSIONS, TIER_META, cartExtras, coverageFor,
+  cartEntries, presetName, resolvePrices, setCartHours, setCartQty, tierCart, tierPreset, variantDelta,
   type Cart, type CatalogueId,
 } from '../../lib/catalogue'
-import { eventByKey } from '../../lib/data'
+import { ALBUM_LINES, defaultAlbumChoice, eventByKey } from '../../lib/data'
 import { useListener, useSpeaker } from '../../lib/speech'
 import { parseIntents, type Intent } from './intent'
-import { quoteFor } from './shared'
+import { MIC_BLOCKED, micBlocked, quoteFor } from './shared'
+import { computeQuote } from '../../lib/pricing'
+import { PACKAGE_ALBUM_POINTS } from '../../lib/packageNote'
 
 const copy = {
   title: { en: 'Cart assistant', ta: 'குரல் உதவியாளர்' },
@@ -32,13 +35,13 @@ const copy = {
 }
 
 const GREETING: Bi = {
-  en: 'Vanakkam! Tell me what you would like — I can add or remove items, switch between Basic, Standard and Premium, change the number of sessions, or read out your total.',
-  ta: 'வணக்கம்! உங்களுக்கு என்ன வேண்டும் என்று சொல்லுங்கள் — பொருட்களைச் சேர்க்கவோ நீக்கவோ, பேசிக் / ஸ்டாண்டர்ட் / பிரீமியம் மாற்றவோ, அமர்வுகளை மாற்றவோ, மொத்தத் தொகையைச் சொல்லவோ முடியும்.',
+  en: 'Vanakkam! Tell me what you would like. I can add or remove items, switch packages, set your hours, pick an album, or read out your total.',
+  ta: 'வணக்கம்! உங்களுக்கு என்ன வேண்டும் என்று சொல்லுங்கள். பொருட்களைச் சேர்க்கவோ நீக்கவோ, தொகுப்பை மாற்றவோ, நேரத்தை அமைக்கவோ, ஆல்பம் தேர்ந்தெடுக்கவோ, மொத்தத் தொகையைச் சொல்லவோ முடியும்.',
 }
 
 const HELP: Bi = {
-  en: 'You can say things like “add drone”, “remove the album”, “switch to Premium”, “two sessions”, “three frames” or “what’s my total?”.',
-  ta: '“ட்ரோன் சேர்”, “ஆல்பம் வேண்டாம்”, “பிரீமியம் தொகுப்பு”, “இரண்டு அமர்வு”, “மூன்று பிரேம்”, “மொத்தம் எவ்வளவு?” என்று சொல்லலாம்.',
+  en: 'You can say things like “add drone”, “switch to Gold”, “six hours”, “add cinematic”, “Aura 35 sheets” or “what’s my total?”.',
+  ta: '“ட்ரோன் சேர்”, “கோல்ட் தொகுப்பு”, “ஆறு மணி நேரம்”, “சினிமா வீடியோ சேர்”, “Aura 35 sheets”, “மொத்தம் எவ்வளவு?” என்று சொல்லலாம்.',
 }
 
 interface Msg {
@@ -60,7 +63,8 @@ function runIntents(intents: Intent[]): { reply: Bi; goNext: boolean } {
   let goNext = false
   const qtyOf = (id: CatalogueId) => cart.items[id] ?? 0
 
-  for (const i of intents) {
+  for (let n = 0; n < intents.length; n++) {
+    const i = intents[n]
     switch (i.kind) {
       case 'item': {
         const item = CATALOGUE_BY_ID[i.id]
@@ -68,29 +72,43 @@ function runIntents(intents: Intent[]): { reply: Bi; goNext: boolean } {
         const have = qtyOf(i.id)
         if (i.op === 'add') {
           const want = item.group ? 1 : have + (i.qty ?? 1)
-          if (item.group && have > 0) {
+          if (item.onRequest) {
+            parts.push({ en: `${name.en} is on request — we’ll price it with you on a call.`, ta: `${name.ta} கோரிக்கையின் பேரில் — அழைப்பில் விலை சொல்வோம்.` })
+          } else if (item.packageOnly && have === 0 && !(cartPackageItems(cart, ev?.tiers)[i.id] ?? 0)) {
+            parts.push({ en: `${name.en} comes inside our packages, not on its own.`, ta: `${name.ta} தொகுப்புகளில் மட்டும் வரும், தனியாக இல்லை.` })
+          } else if (item.group && have > 0) {
             parts.push({ en: `${name.en} is already in your cart.`, ta: `${name.ta} ஏற்கனவே உள்ளது.` })
           } else if (item.max && want > item.max) {
             parts.push({ en: `We can add up to ${item.max} of ${name.en}.`, ta: `${name.en} அதிகபட்சம் ${item.max} வரை சேர்க்கலாம்.` })
           } else {
+            const before = draft.eventType ? computeQuote({ eventType: draft.eventType, cart, distanceKm: 0 }, prices).total : 0
+            const wasPackage = cart.tier !== 'custom' ? cartTierName(cart) : undefined
             cart = setCartQty(cart, i.id, want)
             changed = true
-            const unit = prices[i.id]
-            const cost = item.unit === 'session' ? unit * cart.sessions : unit * (want - have)
+            if (wasPackage && cart.tier === 'custom') parts.push({ en: `That ends the ${wasPackage.en} package.`, ta: `இதனால் ${wasPackage.ta} தொகுப்பு முடிவடைகிறது.` })
+            const after = draft.eventType ? computeQuote({ eventType: draft.eventType, cart, distanceKm: 0 }, prices).total : 0
+            const cost = Math.max(0, after - before)
             parts.push({ en: `Added ${name.en}${want > 1 ? ` (now ${want})` : ''} (+${formatINR(cost)}).`, ta: `${name.ta} சேர்க்கப்பட்டது${want > 1 ? ` (இப்போது ${want})` : ''} (+${formatINR(cost)}).` })
           }
         } else if (have > 0) {
           const next = i.qty !== undefined ? Math.max(0, have - i.qty) : 0
+          const wasPackage = cart.tier !== 'custom' ? cartTierName(cart) : undefined
           cart = setCartQty(cart, i.id, next)
           changed = true
           parts.push(next > 0 ? { en: `${name.en} is now ${next}.`, ta: `${name.ta} இப்போது ${next}.` } : { en: `Removed ${name.en}.`, ta: `${name.ta} நீக்கப்பட்டது.` })
+          if (wasPackage && cart.tier === 'custom') parts.push({ en: `That ends the ${wasPackage.en} package.`, ta: `இதனால் ${wasPackage.ta} தொகுப்பு முடிவடைகிறது.` })
         } else {
           parts.push({ en: `${name.en} wasn’t in your cart.`, ta: `${name.ta} உங்கள் பட்டியலில் இல்லை.` })
         }
         break
       }
       case 'tier': {
-        const meta = TIER_META[i.tier]
+        // "Beach" is a package only for outdoor shoots; elsewhere it adds that look as a shoot.
+        if (i.family && ev && ev.tiers.kind !== i.family) {
+          if (i.fallback) intents.push({ kind: 'item', id: i.fallback, op: 'add' })
+          break
+        }
+        const meta = { name: i.tier === 'custom' || !ev ? TIER_META[i.tier].name : presetName(ev.tiers, i.tier) }
         if (cart.tier === i.tier) {
           parts.push({ en: `You’re already on ${meta.name.en}.`, ta: `ஏற்கனவே ${meta.name.ta} தொகுப்பில் இருக்கிறீர்கள்.` })
         } else if (i.tier === 'custom' || !ev) {
@@ -98,22 +116,88 @@ function runIntents(intents: Intent[]): { reply: Bi; goNext: boolean } {
           changed = true
           parts.push({ en: 'Switched to a custom package — add or remove anything you like.', ta: 'தனிப்பயன் தொகுப்புக்கு மாற்றப்பட்டது — விரும்பியதைச் சேர்க்கலாம், நீக்கலாம்.' })
         } else {
-          cart = tierCart(ev.tiers, i.tier, cart.sessions)
+          cart = tierCart(ev.tiers, i.tier, cart.sessions, cartHours(cart))
           changed = true
           parts.push({ en: `Switched to the ${meta.name.en} package.`, ta: `${meta.name.ta} தொகுப்புக்கு மாற்றப்பட்டது.` })
         }
         break
       }
+      case 'hours':
       case 'sessions':
       case 'sessionsDelta': {
-        const want = i.kind === 'sessions' ? i.sessions : cart.sessions + i.delta
-        const next = Math.min(MAX_SESSIONS, Math.max(MIN_SESSIONS, want))
-        if (next !== want) parts.push({ en: `We book ${MIN_SESSIONS} to ${MAX_SESSIONS} sessions.`, ta: `${MIN_SESSIONS} முதல் ${MAX_SESSIONS} அமர்வுகள் வரை பதிவு செய்யலாம்.` })
-        if (next !== cart.sessions) {
-          cart = { ...cart, sessions: next }
+        const want = i.kind === 'hours' ? i.hours : i.kind === 'sessions' ? i.sessions * SESSION_HOURS : cartHours(cart) + i.delta * SESSION_HOURS
+        const next = Math.min(MAX_HOURS, Math.max(MIN_HOURS, want))
+        if (next !== want) {
+          parts.push(i.kind === 'hours'
+            ? { en: `We book ${MIN_HOURS} to ${MAX_HOURS} hours.`, ta: `${MIN_HOURS} முதல் ${MAX_HOURS} மணி நேரம் வரை பதிவு செய்யலாம்.` }
+            : { en: `We book ${MIN_SESSIONS} to ${MAX_SESSIONS} sessions.`, ta: `${MIN_SESSIONS} முதல் ${MAX_SESSIONS} அமர்வுகள் வரை பதிவு செய்யலாம்.` })
+        }
+        if (next !== cartHours(cart)) {
+          cart = setCartHours(cart, next)
           changed = true
         }
-        parts.push({ en: `Coverage set to ${next} session${next > 1 ? 's' : ''} of about five hours each.`, ta: `படப்பிடிப்பு ${next} அமர்வாக அமைக்கப்பட்டது (ஒவ்வொன்றும் சுமார் 5 மணி).` })
+        parts.push({ en: `Coverage set to ${coverageFor(next).label.en}.`, ta: `படப்பிடிப்பு: ${coverageFor(next).label.ta}.` })
+        break
+      }
+      case 'albumLine': {
+        const line = ALBUM_LINES.find(l => l.key === i.line)!
+        // A line needs one of the 25 / 35 / 45 sheet albums; add the 25-sheet one if there is none.
+        if (!ALBUM_TIERS.some(t => t.id === albumIn(cart)?.id) && !intents.some(x => x.kind === 'item' && x.id.startsWith('album_'))) {
+          const wasPackage = cart.tier !== 'custom' ? cartTierName(cart) : undefined
+          const before = draft.eventType ? computeQuote({ eventType: draft.eventType, cart, distanceKm: 0 }, prices).total : 0
+          cart = setCartQty(cart, 'album_25', 1)
+          const after = draft.eventType ? computeQuote({ eventType: draft.eventType, cart, distanceKm: 0 }, prices).total : 0
+          parts.push({ en: `Added ${CATALOGUE_BY_ID.album_25.name.en} (${after >= before ? '+' : ''}${formatINR(after - before)}).`, ta: `${CATALOGUE_BY_ID.album_25.name.ta} சேர்க்கப்பட்டது (${after >= before ? '+' : ''}${formatINR(after - before)}).` })
+          if (wasPackage && cart.tier === 'custom') parts.push({ en: `That ends the ${wasPackage.en} package.`, ta: `இதனால் ${wasPackage.ta} தொகுப்பு முடிவடைகிறது.` })
+        }
+        cart = { ...cart, album: cart.album?.line === i.line ? cart.album : defaultAlbumChoice(i.line) }
+        changed = true
+        parts.push({ en: `Album line: ${line.name.en}.`, ta: `ஆல்பம் வகை: ${line.name.ta}.` })
+        break
+      }
+      case 'askPackage': {
+        if (!ev || (i.family && ev.tiers.kind !== i.family)) break
+        const name = presetName(ev.tiers, i.tier)
+        const pkg = tierCart(ev.tiers, i.tier, 1, cartHours(cart))
+        const q = computeQuote({ eventType: ev.key, cart: pkg, distanceKm: 0 }, prices)
+        const inside = cartEntries(pkg).filter(e => e.item.unit !== 'included')
+        const list: Bi = { en: inside.map(e => e.item.name.en).join(', '), ta: inside.map(e => e.item.name.ta).join(', ') }
+        const saving = Math.abs(q.package?.saving ?? 0)
+        parts.push({
+          en: `${name.en} package: ${list.en}. ${formatINR(q.total)}${saving ? `, saving ${formatINR(saving)} against booking each item` : ''}.`,
+          ta: `${name.ta} தொகுப்பில்: ${list.ta}. ${formatINR(q.total)}${saving ? `; தனித்தனியாக எடுப்பதைவிட ${formatINR(saving)} குறைவு` : ''}.`,
+        })
+        const v = tierPreset(ev.tiers, i.tier).variants?.[0]
+        if (v) parts.push({ en: `With ${v.label.en} it is +${formatINR(variantDelta(ev.tiers, i.tier, 0, prices))}.`, ta: `${v.label.ta} எடுத்தால் +${formatINR(variantDelta(ev.tiers, i.tier, 0, prices))}.` })
+        if (albumIn(pkg)) parts.push(PACKAGE_ALBUM_POINTS[0], PACKAGE_ALBUM_POINTS[1])
+        break
+      }
+      case 'askItem': {
+        const item = CATALOGUE_BY_ID[i.id]
+        const price = item.onRequest
+          ? { en: 'priced on request; ask us', ta: 'விலை கேட்டுச் சொல்கிறோம்' }
+          : prices[i.id] === 0
+            ? { en: 'included free', ta: 'இலவசமாகச் சேர்ந்தது' }
+            : { en: formatINR(prices[i.id]), ta: formatINR(prices[i.id]) }
+        const has = qtyOf(i.id) > 0
+        parts.push({
+          en: `${item.name.en}: ${price.en}.${has ? ' It is already in your list.' : ''}`,
+          ta: `${item.name.ta}: ${price.ta}.${has ? ' ஏற்கனவே உங்கள் பட்டியலில் உள்ளது.' : ''}`,
+        })
+        break
+      }
+      case 'askAlbum': {
+        const tiers = ALBUM_TIERS.map(a => ({ sheets: a.sheets, price: formatINR(prices[a.id]) }))
+        parts.push({
+          en: `Albums from our lines: ${tiers.map(a => `${a.sheets} sheets ${a.price}`).join(', ')}.`,
+          ta: `எங்கள் ஆல்பங்கள்: ${tiers.map(a => `${a.sheets} தாள் ${a.price}`).join(', ')}.`,
+        })
+        const own = albumIn(cart)
+        if (own && cart.tier !== 'custom') {
+          const pkgName = cartTierName(cart)
+          parts.push({ en: `Your ${pkgName.en} package already includes ${own.name.en}.`, ta: `உங்கள் ${pkgName.ta} தொகுப்பில் ஏற்கனவே ${own.name.ta} உள்ளது.` })
+        }
+        parts.push(PACKAGE_ALBUM_POINTS[1], PACKAGE_ALBUM_POINTS[2])
         break
       }
       case 'clearExtras': {
@@ -141,20 +225,22 @@ function runIntents(intents: Intent[]): { reply: Bi; goNext: boolean } {
     }
   }
 
-  if (changed) updateDraft({ cart })
+  if (changed) updateDraft({ cart, durationHours: cartHours(cart) })
 
   const quote = quoteFor({ ...draft, cart }, prices)
   const asksTotal = intents.some(i => i.kind === 'total')
   if (quote && asksTotal) {
-    const tier = TIER_META[cart.tier]
+    const tier = { name: cartTierName(cart) }
+    const h = cartHours(cart)
     const extras = cartExtras(cart)
     const list: Bi = { en: extras.map(e => e.item.name.en).join(', '), ta: extras.map(e => e.item.name.ta).join(', ') }
     parts.push({
-      en: `Your estimated total is ${formatINR(quote.total)} — ${tier.name.en} package, ${cart.sessions} session${cart.sessions > 1 ? 's' : ''}${extras.length ? `, with ${list.en}` : ''}.`,
-      ta: `உங்கள் மதிப்பிடப்பட்ட மொத்தம் ${formatINR(quote.total)} — ${tier.name.ta} தொகுப்பு, ${cart.sessions} அமர்வு${extras.length ? `, கூடவே ${list.ta}` : ''}.`,
+      en: `Your estimated total is ${formatINR(quote.total)} — ${quote.package?.label.en ?? `${tier.name.en} package`}, ${h} hours${extras.length ? `, with ${list.en}` : ''}.`,
+      ta: `உங்கள் மதிப்பிடப்பட்ட மொத்தம் ${formatINR(quote.total)} — ${quote.package?.label.ta ?? `${tier.name.ta} தொகுப்பு`}, ${h} மணி நேரம்${extras.length ? `, கூடவே ${list.ta}` : ''}.`,
     })
   } else if (quote && changed) {
-    parts.push({ en: `Your total is now ${formatINR(quote.total)}.`, ta: `இப்போது மொத்தம் ${formatINR(quote.total)}.` })
+    const label = quote.package?.label ?? cartTierName(cart)
+    parts.push({ en: `${label.en}: your total is now ${formatINR(quote.total)}.`, ta: `${label.ta}: இப்போது மொத்தம் ${formatINR(quote.total)}.` })
   }
 
   if (goNext) parts.push({ en: 'Great — taking you to your details.', ta: 'சரி — உங்கள் விவரப் பக்கத்திற்குச் செல்கிறோம்.' })
@@ -174,10 +260,12 @@ function useSuggestions(): Bi[] {
   const has = (id: CatalogueId) => (cart.items[id] ?? 0) > 0
   const list: Bi[] = []
   list.push(has('drone') ? { en: 'Add a 360° selfie booth', ta: '360° செல்ஃபி பூத் சேர்' } : { en: 'Add drone', ta: 'ட்ரோன் சேர்' })
-  list.push(has('ledwall') ? { en: 'Remove the LED wall', ta: 'LED திரை வேண்டாம்' } : { en: 'Add LED wall', ta: 'LED திரை வேண்டும்' })
-  list.push(cart.sessions === 1 ? { en: 'Make it two sessions', ta: 'இரண்டு அமர்வு' } : { en: 'Just one session', ta: 'ஒரு அமர்வு மட்டும்' })
-  list.push(cart.tier === 'premium' ? { en: 'Switch to Standard', ta: 'ஸ்டாண்டர்ட் தொகுப்பு' } : { en: 'Switch to Premium', ta: 'பிரீமியம் தொகுப்பு' })
-  list.push({ en: 'Two frames and a mini book', ta: 'இரண்டு பிரேம், ஒரு மினி புத்தகம்' })
+  list.push(has('pendrive') ? { en: 'Add semi-candid video', ta: 'செமி-கேண்டிட் வீடியோ சேர்' } : { en: 'Add a pendrive', ta: 'பென்டிரைவ் சேர்' })
+  list.push(cartHours(cart) <= SESSION_HOURS ? { en: 'Make it six hours', ta: 'ஆறு மணி நேரம்' } : { en: 'Just four hours', ta: 'நான்கு மணி நேரம் மட்டும்' })
+  list.push(has('vid_cinematic') ? { en: 'Add documentary too', ta: 'ஆவணப் பாணியும் சேர்' } : { en: 'Add cinematic video', ta: 'சினிமா வீடியோ சேர்' })
+  list.push(cart.tier === 'premium' ? { en: 'Switch to Silver', ta: 'சில்வர் தொகுப்பு' } : { en: 'Switch to Gold', ta: 'கோல்ட் தொகுப்பு' })
+  list.push({ en: 'Aura 35 sheets', ta: 'Aura 35 sheets' })
+  list.push({ en: 'What’s in Gold?', ta: 'கோல்டில் என்ன இருக்கு?' })
   list.push({ en: 'What’s my total?', ta: 'மொத்தம் எவ்வளவு?' })
   return list
 }
@@ -241,10 +329,12 @@ export function VoiceAssistant() {
     handle(input)
   }
 
+  const [micDenied, setMicDenied] = useState(false)
   const toggleMic = () => {
     if (listener.listening) return listener.stop()
     stopSpeaking()
     listener.start()
+    void micBlocked().then(setMicDenied)
   }
 
   const busy = listener.listening || speaking
@@ -375,6 +465,7 @@ export function VoiceAssistant() {
             onChange={e => setInput(e.target.value)}
             placeholder={listener.listening ? t.listening : t.placeholder}
             autoComplete="off"
+            enterKeyHint="send"
             className="h-12 min-w-0 flex-1 rounded-full border border-ink/10 bg-white/80 px-4 text-base text-ink md:text-[14.5px] outline-none transition placeholder:text-ink/35 focus:border-ruby focus:ring-4 focus:ring-ruby/10"
           />
           <button
@@ -387,6 +478,12 @@ export function VoiceAssistant() {
           </button>
         </form>
         {!listener.supported && <p className="-mt-1 px-4 pb-4 text-[12px] leading-snug text-ink/45 sm:px-6">{t.noMic}</p>}
+        {listener.supported && micDenied && !listener.listening && (
+          <p role="alert" className="-mt-1 flex items-start gap-2 px-4 pb-4 text-[12px] leading-snug text-ruby-deep sm:px-6">
+            <Icon name="info" size={14} className="mt-px shrink-0" />
+            {MIC_BLOCKED[lang]}
+          </p>
+        )}
       </section>
     </div>
   )

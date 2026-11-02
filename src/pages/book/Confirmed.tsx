@@ -41,6 +41,11 @@ const copy = {
     en: 'The link may be incomplete. Your reference is in your WhatsApp confirmation — or sign in with your mobile number to see your order.',
     ta: 'இணைப்பு முழுமையாக இல்லாமல் இருக்கலாம். உங்கள் பதிவு எண் WhatsApp உறுதிப்படுத்தலில் உள்ளது — அல்லது கைபேசி எண்ணுடன் உள்நுழைந்து ஆர்டரைப் பாருங்கள்.',
   },
+  waUs: { en: 'WhatsApp us', ta: 'WhatsApp' },
+  callUs: { en: 'Call us', ta: 'அழையுங்கள்' },
+  share: { en: 'Share', ta: 'பகிர்' },
+  waText: { en: 'Hello! My booking reference is', ta: 'வணக்கம்! என் பதிவு எண்' },
+  shareText: { en: 'Our celebration enquiry with The Treasure Capture Events. Reference:', ta: 'The Treasure Capture Events-இல் எங்கள் விழா விசாரணை. பதிவு எண்:' },
   startBooking: { en: 'Start a booking', ta: 'பதிவைத் தொடங்கு' },
 }
 
@@ -80,6 +85,8 @@ function ConfirmedView({ order }: { order: Order }) {
   const lang = useLang()
   const t = useT(copy)
   const first = order.client.name.split(/[ &]/)[0] || order.client.name
+  const studio = useStore(s => s.cms.studio)
+  const wa = studio.whatsapp.replace(/\D/g, '')
 
   const copyRef = async () => {
     try {
@@ -88,6 +95,20 @@ function ConfirmedView({ order }: { order: Order }) {
     } catch {
       /* clipboard blocked — the reference stays visible on screen */
     }
+  }
+
+  // Native share sheet on phones; elsewhere the reference goes to the clipboard.
+  const share = async () => {
+    const text = `${t.shareText} ${order.id}`
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'The Treasure Capture Events', text })
+      } catch {
+        /* dismissed */
+      }
+      return
+    }
+    void copyRef()
   }
 
   return (
@@ -107,8 +128,39 @@ function ConfirmedView({ order }: { order: Order }) {
             <div className="glass mt-8 inline-flex max-w-full flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-full py-2 pl-5 pr-2">
               <span className="text-[12px] text-ink/50">{t.ref}</span>
               <span className="font-mono text-[15px] font-semibold tracking-wide text-ink">{order.id}</span>
-              <button type="button" onClick={copyRef} aria-label={t.copy} title={t.copy} className="flex h-9 w-9 items-center justify-center rounded-full bg-ink text-white transition hover:bg-ruby cursor-pointer active:scale-95">
+              <button type="button" onClick={copyRef} aria-label={t.copy} title={t.copy} className="relative flex h-9 w-9 items-center justify-center rounded-full bg-ink text-white transition before:absolute before:-inset-1 before:content-[''] hover:bg-ruby cursor-pointer active:scale-95">
                 <Icon name="copy" size={15} />
+              </button>
+            </div>
+          </Reveal>
+          {/* Thumb-sized ways to reach the studio or share the enquiry; a full-width row on phones */}
+          <Reveal delay={0.95} className="mt-5 w-full max-w-md">
+            <div className="grid grid-cols-3 gap-2">
+              {wa && (
+                <a
+                  href={`https://wa.me/${wa}?text=${encodeURIComponent(`${t.waText} ${order.id}`)}`}
+                  target="_blank"
+                  rel="noopener"
+                  className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl bg-[#25D366] px-2 py-2 text-[12.5px] font-semibold text-white shadow-soft transition active:scale-[0.97] sm:flex-row sm:gap-2 sm:text-[13.5px]"
+                >
+                  <Icon name="whatsapp" size={19} />
+                  {t.waUs}
+                </a>
+              )}
+              <a
+                href={`tel:${studio.phone.replace(/\s/g, '')}`}
+                className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl bg-ink px-2 py-2 text-[12.5px] font-semibold text-white shadow-soft transition active:scale-[0.97] sm:flex-row sm:gap-2 sm:text-[13.5px]"
+              >
+                <Icon name="phone" size={18} />
+                {t.callUs}
+              </a>
+              <button
+                type="button"
+                onClick={share}
+                className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl border border-ink/10 bg-white/80 px-2 py-2 text-[12.5px] font-semibold text-ink shadow-soft transition active:scale-[0.97] cursor-pointer sm:flex-row sm:gap-2 sm:text-[13.5px]"
+              >
+                <Icon name="share" size={18} className="text-ruby" />
+                {t.share}
               </button>
             </div>
           </Reveal>
