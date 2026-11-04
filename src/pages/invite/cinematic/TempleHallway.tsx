@@ -1,1046 +1,902 @@
-import { useState, useId, useEffect } from "react"
-import { motion, AnimatePresence } from "motion/react"
-import { CinematicFramework } from "./CinematicFramework"
-import { InviteDetailsCard } from "./InviteDetailsCard"
+import {
+  useState,
+  useId,
+  useEffect,
+  useRef,
+  type ReactNode,
+  type CSSProperties,
+} from "react"
+import { motion, AnimatePresence, useReducedMotion } from "motion/react"
+import { Icon, type IconName } from "../../../components/Icon"
+import { LangToggle } from "../../../components/layout/Nav"
+import { Qr } from "../../../components/Qr"
+import {
+  countdown,
+  dateParts,
+  directionsUrl,
+  rsvpUrl,
+  timeLabel,
+  whatsappShareUrl,
+  type Invite,
+} from "../../../lib/invite"
+import { coupleUrl } from "../caricature"
+import type { Lang } from "../../../lib/i18n"
 import type { CinematicSceneProps } from "./types"
 
 /**
- * The Sacred Temple Prakaram — "Through the Temple Doors"
+ * The Temple Atelier 3D Invitation
  *
- * A meticulously crafted South Indian temple-inspired 3D invitation experience:
- *
- * - BLUE HOUR ARRIVAL: A tapering Dravidian entrance tower (Gopuram) with weathered
- *   stone cornices, niches, and brass finials catching dusk light.
- * - MONUMENTAL TIMBER DOORS: Heavy teak double doors with carved panels, brass studs,
- *   jamb hinges, and a brass ring knocker with warm lamplight spilling through the center slit.
- * - 3D THRESHOLD REVEAL: Knocker lifts & strikes once; doors open with deliberate weight
- *   (pivot on hinge lines, slight stagger, visible thickness).
- * - GRANITE MANDAPAM CORRIDOR: 4 stationary pillar bays with stepped bases, faceted shafts,
- *   and Yali corbels. The camera glides forward through the colonnade via true 3D perspective.
- * - DEEPA & KOLAM: Dark grey granite floor with fine slab joints, restrained warm reflections,
- *   subtle rice-flour Kolam at the threshold, and glowing Agal Vilakku along the aisle.
- * - CEREMONIAL DESTINATION PAVILION: A floral pavilion flanked by two 5-tiered brass Kuthuvilakku
- *   lamps, a brass Urli with floating blossoms, and suspended temple bells.
- * - HEIRLOOM FOLIO REVEAL: Ivory and antique copper folio opens on a visible hinge within an
- *   embossed brass frame to reveal crystal-clear bilingual typography and RSVP actions.
+ * A contemporary architectural exhibition of a miniature South Indian temple pavilion.
+ * Presented as a luxury architectural model photographed for a design magazine:
+ * - Floating rectangular stone plinth on a warm porcelain exhibition ground (#F5F1E8).
+ * - Compact 3-bay sculptural pavilion with faceted columns, lotus capitals, and stepped roof.
+ * - Shallow water channel with quiet reflections, floating jasmine buds, and asymmetric brass urli.
+ * - Editorial split layout on desktop (names & open action on left, pavilion on right).
+ * - One coordinated 5-stage timeline:
+ *   Stage A: Tactile response & camera orbit toward pavilion entrance.
+ *   Stage B: Sectional unfolding (upper roof lifts vertically, carved screen slides aside).
+ *   Stage C: Keepsake folio rises from display ledge, rotating brass clasp, cover unfolds on hinge.
+ *   Stage D: Seamless handoff from 3D folio to sharp editorial HTML content.
+ *   Stage E: Stable, elegant reading state with full event details, directions, RSVP, and replay.
  */
+
+type AtelierPhase = "loading" | "ready" | "opening" | "reading"
+
+const atelierCopy = {
+  exhibitionLabel: {
+    en: "THE TEMPLE ATELIER · ARCHITECTURAL EXHIBITION",
+    ta: "கோவில் சிற்பக்கூடம் · முப்பரிமாணக் கண்காட்சி",
+  },
+  ceremonialInvitation: {
+    en: "Ceremonial Wedding Invitation",
+    ta: "திருமண மங்கள அழைப்பிதழ்",
+  },
+  openInvitation: {
+    en: "Open invitation",
+    ta: "அழைப்பிதழைத் திறக்க",
+  },
+  skip: {
+    en: "Skip to details",
+    ta: "நேரடியாகப் பார்க்க",
+  },
+  replay: {
+    en: "Replay exhibition",
+    ta: "மீண்டும் பார்க்க",
+  },
+  directions: {
+    en: "Directions",
+    ta: "வழித்தடம்",
+  },
+  rsvp: {
+    en: "RSVP via WhatsApp",
+    ta: "வருகையை உறுதிப்படுத்த",
+  },
+  mapQr: {
+    en: "Venue Map & QR",
+    ta: "வரைபடம் & QR",
+  },
+  share: {
+    en: "Share invite",
+    ta: "பகிரவும்",
+  },
+  close: {
+    en: "Close",
+    ta: "மூடு",
+  },
+  muhurtham: {
+    en: "Auspicious Muhurtham",
+    ta: "சுப முகூர்த்தம்",
+  },
+  venue: {
+    en: "Ceremonial Venue",
+    ta: "திருமண மண்டபம்",
+  },
+  calendar: {
+    en: "Add to calendar",
+    ta: "நாள்காட்டியில் சேர்க்க",
+  },
+}
+
 export function TempleHallway(props: CinematicSceneProps) {
   const { invite, lang, still, size, share, onReady, sample, art } = props
   const id = useId()
+  const prefersReduced = useReducedMotion()
+  const reduce = prefersReduced || still
 
-  return (
-    <CinematicFramework
-      invite={invite}
-      lang={lang}
-      title={lang === "ta" ? "கோவில் பிரகாரம் 3D" : "Through the Temple Doors"}
-      subtitle={
-        lang === "ta"
-          ? "ஆயிரங்கால் மண்டபம் & ராஜகோபுரம்"
-          : "Sacred Temple Mandapam & Gateway"
-      }
-      accentColor="#D97706"
-      still={still}
-      size={size}
-      share={share}
-      onReady={onReady}
-      sample={sample}
-      revealDuration={8800}
-      renderScene={({ state, onTriggerOpen, parallax, reducedMotion }) => {
-        const isOpen = state === "opened"
-        const isOpening = state === "opening"
-        const isClosed = state === "closed"
-
-        // Master 3D camera travel along the center axis (X: 0)
-        // Closed / Phase 1: Framed at the gateway (Z: 0)
-        // Opening / Phase 3-5: Glides smoothly forward down the colonnade (Z: 820px)
-        // Note: Pillars remain completely stationary at their world coordinates.
-        const cameraZ = isOpen ? 820 : isOpening ? 820 : 0
-        const cameraY = isOpen ? -14 : isOpening ? -14 : 0
-        const cameraPitch = isOpen ? 0.5 : isOpening ? 1.2 : 2.5
-        // Subtle pointer parallax active ONLY when closed; zeroed during motion and reading
-        const cameraRotX = isClosed ? cameraPitch + parallax.y * 1.5 : cameraPitch
-        const cameraRotY = isClosed ? parallax.x * 2 : 0
-
-        return (
-          <div
-            className="relative h-full w-full overflow-hidden flex items-center justify-center select-none"
-            style={{
-              background:
-                "radial-gradient(circle at 50% 30%, #171d26 0%, #0d1219 55%, #05080c 100%)",
-              perspective: 1200,
-              WebkitPerspective: 1200,
-              transformStyle: "preserve-3d",
-              WebkitTransformStyle: "preserve-3d",
-            }}
-          >
-            {/* Ambient Blue Hour Dusk & Stone Vignette */}
-            <div
-              className="pointer-events-none absolute inset-0 z-0 opacity-75"
-              style={{
-                background:
-                  "radial-gradient(circle at 50% 50%, transparent 45%, rgba(5,8,12,0.85) 100%)",
-              }}
-            />
-
-            {/* Restrained Directional Twilight Light Shafts */}
-            <div
-              className="pointer-events-none absolute inset-0 z-0 overflow-hidden opacity-25 mix-blend-screen"
-              aria-hidden="true"
-            >
-              <div
-                className="absolute -top-24 left-1/4 h-[125%] w-44 origin-top -rotate-12"
-                style={{
-                  background:
-                    "linear-gradient(to bottom, rgba(147,197,253,0.25) 0%, rgba(217,119,6,0.06) 45%, transparent 85%)",
-                  filter: "blur(20px)",
-                }}
-              />
-              <div
-                className="absolute -top-24 right-1/4 h-[125%] w-48 origin-top rotate-12"
-                style={{
-                  background:
-                    "linear-gradient(to bottom, rgba(147,197,253,0.2) 0%, rgba(217,119,6,0.05) 45%, transparent 85%)",
-                  filter: "blur(24px)",
-                }}
-              />
-            </div>
-
-            {/* ─── 3D CAMERA RIG (Single Coherent World Coordinate System) ─── */}
-            <motion.div
-              className="relative h-full w-full flex items-center justify-center"
-              style={{
-                transformStyle: "preserve-3d",
-                WebkitTransformStyle: "preserve-3d",
-              }}
-              animate={{
-                z: cameraZ,
-                y: cameraY,
-                rotateX: cameraRotX,
-                rotateY: cameraRotY,
-              }}
-              transition={{
-                duration: reducedMotion ? 0 : isOpening ? 8.8 : 0.8,
-                ease: [0.22, 0.95, 0.32, 1],
-              }}
-            >
-              {/* ─── 1. Dark Grey Granite Hallway Floor (Flat at Y: 220px) ─── */}
-              <div
-                className="absolute pointer-events-none"
-                style={{
-                  width: 880,
-                  height: 1500,
-                  bottom: -340,
-                  transform: "rotateX(75deg) translateZ(-160px)",
-                  transformStyle: "preserve-3d",
-                  background:
-                    "linear-gradient(to top, #13171c 0%, #1c222b 30%, #0e1217 75%, #07090d 100%)",
-                  boxShadow: "0 -20px 80px rgba(0,0,0,0.95) inset",
-                }}
-              >
-                {/* Fine Granite Slab Joints */}
-                <div
-                  className="absolute inset-0 opacity-20"
-                  style={{
-                    backgroundImage: `
-                      linear-gradient(to right, rgba(203,213,225,0.12) 1px, transparent 1px),
-                      linear-gradient(to bottom, rgba(203,213,225,0.12) 1px, transparent 1px)
-                    `,
-                    backgroundSize: "80px 110px",
-                  }}
-                />
-
-                {/* Subtle Rice-Flour Kolam at Entrance Threshold */}
-                <div
-                  className="absolute bottom-16 left-1/2 -translate-x-1/2 opacity-35 pointer-events-none"
-                  style={{ width: 180, height: 180 }}
-                >
-                  <RiceFlourKolamSVG instanceId={id} />
-                </div>
-
-                {/* Subtle Rice-Flour Kolam at Destination Pavilion */}
-                <div
-                  className="absolute top-24 left-1/2 -translate-x-1/2 opacity-30 pointer-events-none"
-                  style={{ width: 220, height: 220 }}
-                >
-                  <RiceFlourKolamSVG instanceId={`${id}-dest`} />
-                </div>
-
-                {/* Restrained Warm Lamp Floor Reflections (Not Mirror-Like) */}
-                <div
-                  className="absolute inset-0 opacity-60"
-                  style={{
-                    background:
-                      "radial-gradient(ellipse at 50% 60%, rgba(217,119,6,0.16) 0%, rgba(180,83,9,0.06) 45%, transparent 75%)",
-                  }}
-                />
-              </div>
-
-              {/* ─── 2. High Carved Stone Hallway Ceiling & Beams (Y: -220px) ─── */}
-              <div
-                className="absolute pointer-events-none"
-                style={{
-                  width: 780,
-                  height: 1300,
-                  top: -440,
-                  transform: "rotateX(-75deg) translateZ(-180px)",
-                  background:
-                    "linear-gradient(to bottom, #11151a 0%, #181e26 40%, #080a0e 100%)",
-                }}
-              >
-                {/* Transverse Stone Ceiling Rafters */}
-                <div
-                  className="absolute inset-0 opacity-15"
-                  style={{
-                    backgroundImage:
-                      "linear-gradient(to bottom, rgba(203,213,225,0.18) 2px, transparent 2px)",
-                    backgroundSize: "100% 90px",
-                  }}
-                />
-              </div>
-
-              {/* ─── 3. STATIONARY GRANITE PILLAR BAYS (4 Bays, Stationary in World Space) ─── */}
-              {/* As the camera glides forward, perspective handles natural occlusion & passing */}
-              {/* Bay 4: Pavilion Flanking Pillars (Z: -920px) */}
-              <StationaryPillarBay
-                z={-920}
-                x={210}
-                instanceId={`${id}-b4`}
-                lampLit={isOpen || isOpening}
-                still={still}
-                reducedMotion={reducedMotion}
-              />
-
-              {/* Bay 3: Mid-Deep Corridor Pillars (Z: -640px) */}
-              <StationaryPillarBay
-                z={-640}
-                x={210}
-                instanceId={`${id}-b3`}
-                lampLit={isOpen || isOpening}
-                still={still}
-                reducedMotion={reducedMotion}
-              />
-
-              {/* Bay 2: Mid-Front Corridor Pillars (Z: -380px) */}
-              <StationaryPillarBay
-                z={-380}
-                x={210}
-                instanceId={`${id}-b2`}
-                lampLit={true}
-                still={still}
-                reducedMotion={reducedMotion}
-              />
-
-              {/* Bay 1: Entrance Colonnade Pillars (Z: -120px) */}
-              <StationaryPillarBay
-                z={-120}
-                x={210}
-                instanceId={`${id}-b1`}
-                lampLit={true}
-                still={still}
-                reducedMotion={reducedMotion}
-              />
-
-              {/* ─── 4. Suspended Temple Bells Along Ceiling Rafters ─── */}
-              {/* Entrance Bell (Subtle damped swing during motion) */}
-              <motion.div
-                className="absolute z-20 pointer-events-none"
-                style={{
-                  top: "11%",
-                  transform: "translateZ(30px)",
-                }}
-                animate={
-                  isOpening && !reducedMotion && !still
-                    ? {
-                        rotateZ: [0, -12, 10, -7, 4, -2, 0],
-                        transition: { duration: 3.5, delay: 1.4, ease: "easeOut" },
-                      }
-                    : { rotateZ: 0 }
-                }
-              >
-                <TempleBellSVG instanceId={`${id}-bell1`} size={80} />
-              </motion.div>
-
-              {/* Mid-Corridor Bell (Z: -480px) */}
-              <div
-                className="absolute pointer-events-none opacity-80"
-                style={{ top: "14%", transform: "translateZ(-480px)" }}
-              >
-                <TempleBellSVG instanceId={`${id}-bell2`} size={65} />
-              </div>
-
-              {/* Mango Leaf & Marigold Thoranam across Entrance Stone Lintel */}
-              <div
-                className="absolute top-4 w-[430px] pointer-events-none z-30"
-                style={{ transform: "translateZ(60px)" }}
-              >
-                <MangoMarigoldThoranamSVG instanceId={id} />
-              </div>
-
-              {/* ─── 5. THE TIMBER TEMPLE DOORS (Pivot on Hinge Line at Z: 40px) ─── */}
-              {/* Left and Right leaves open outward/inward with deliberate weight */}
-              {/* They remain attached to their hinges; camera travel naturally passes them */}
-              <div
-                className="absolute flex items-center justify-center pointer-events-none z-25"
-                style={{
-                  width: 360,
-                  height: 470,
-                  transform: "translateZ(40px)",
-                  transformStyle: "preserve-3d",
-                }}
-              >
-                {/* Stone Portal Gateway Frame (Deep Jambs & Lintel) */}
-                <StonePortalFrameSVG instanceId={id} />
-
-                {/* Left Door Leaf (Hinged on Left edge) */}
-                <motion.div
-                  className="absolute left-[15px] top-[18px] w-[164px] h-[434px] origin-left shadow-2xl"
-                  style={{
-                    transformStyle: "preserve-3d",
-                    transformOrigin: "left center",
-                  }}
-                  animate={{
-                    rotateY: isOpen || isOpening ? -88 : 0,
-                  }}
-                  transition={{
-                    duration: reducedMotion ? 0 : 2.4,
-                    delay: isOpening ? 1.4 : 0,
-                    ease: [0.25, 1, 0.35, 1],
-                  }}
-                >
-                  <TimberDoorLeafSVG instanceId={`${id}-dl`} side="left" />
-                </motion.div>
-
-                {/* Right Door Leaf (Hinged on Right edge, slight stagger of 0.12s) */}
-                <motion.div
-                  className="absolute right-[15px] top-[18px] w-[164px] h-[434px] origin-right shadow-2xl"
-                  style={{
-                    transformStyle: "preserve-3d",
-                    transformOrigin: "right center",
-                  }}
-                  animate={{
-                    rotateY: isOpen || isOpening ? 88 : 0,
-                  }}
-                  transition={{
-                    duration: reducedMotion ? 0 : 2.4,
-                    delay: isOpening ? 1.52 : 0,
-                    ease: [0.25, 1, 0.35, 1],
-                  }}
-                >
-                  <TimberDoorLeafSVG instanceId={`${id}-dr`} side="right" />
-                </motion.div>
-
-                {/* Warm Lamplight Escaping through Center Gap when Closed */}
-                {isClosed && (
-                  <div
-                    className="absolute top-[20px] bottom-[20px] left-1/2 -translate-x-1/2 w-[3px] pointer-events-none"
-                    style={{
-                      background:
-                        "linear-gradient(to bottom, transparent 5%, #F59E0B 30%, #FBBF24 50%, #F59E0B 70%, transparent 95%)",
-                      boxShadow: "0 0 16px rgba(245,158,11,0.65)",
-                    }}
-                  />
-                )}
-              </div>
-
-              {/* ─── 6. THE CEREMONIAL DESTINATION PAVILION (Z: -1080px) ─── */}
-              <div
-                className="absolute flex flex-col items-center justify-center pointer-events-none"
-                style={{
-                  transform: "translateZ(-1080px)",
-                  transformStyle: "preserve-3d",
-                }}
-              >
-                {/* Warm Ambient Pavilion Lighting Pool */}
-                <div
-                  className="absolute -inset-24 rounded-full pointer-events-none opacity-50"
-                  style={{
-                    background:
-                      "radial-gradient(circle, rgba(217,119,6,0.4) 0%, rgba(180,83,9,0.15) 50%, transparent 75%)",
-                    filter: "blur(36px)",
-                  }}
-                />
-
-                {/* Floral Ceremonial Arch with Antique Brass Frame */}
-                <div
-                  className="relative w-[360px] h-[480px] flex items-center justify-center"
-                  style={{
-                    filter: "drop-shadow(0 15px 30px rgba(0,0,0,0.85))",
-                  }}
-                >
-                  <CeremonialPavilionFrameSVG instanceId={id} />
-
-                  {/* Brass Urli with Floating Jasmine & Marigolds at Base */}
-                  <div
-                    className="absolute -bottom-14 z-10"
-                    style={{ transform: "translateZ(25px) rotateX(20deg)" }}
-                  >
-                    <CeremonialBrassUrliSVG instanceId={id} />
-                  </div>
-
-                  {/* Twin 5-Tiered Sculptural Brass Kuthuvilakku Lamps */}
-                  <div
-                    className="absolute -left-16 bottom-2"
-                    style={{ transform: "translateZ(35px)" }}
-                  >
-                    <FiveTierKuthuvilakkuSVG
-                      instanceId={`${id}-kl`}
-                      lit={isOpen || isOpening}
-                      still={still}
-                      reducedMotion={reducedMotion}
-                    />
-                  </div>
-                  <div
-                    className="absolute -right-16 bottom-2"
-                    style={{ transform: "translateZ(35px) scaleX(-1)" }}
-                  >
-                    <FiveTierKuthuvilakkuSVG
-                      instanceId={`${id}-kr`}
-                      lit={isOpen || isOpening}
-                      still={still}
-                      reducedMotion={reducedMotion}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* ─── 7. THE HEIRLOOM INVITATION FOLIO (Copper & Ivory, Z: -1060px) ─── */}
-              {/* The folio cover opens gracefully on its hinge during Phase 4 (6.3s - 8.4s) */}
-              <motion.div
-                className="relative z-30 flex items-center justify-center"
-                style={{
-                  transform: "translateZ(-1060px)",
-                  transformStyle: "preserve-3d",
-                  WebkitTransformStyle: "preserve-3d",
-                }}
-                animate={{
-                  scale: isOpen ? 1 : isOpening ? 1 : 0.75,
-                  opacity: isOpen ? 1 : isOpening ? [0, 0.4, 1] : 0.6,
-                }}
-                transition={{
-                  duration: reducedMotion ? 0 : 8.8,
-                  ease: "easeOut",
-                }}
-              >
-                {/* Antique Copper Backing Plate with Embossed Brass Border */}
-                <div
-                  className="relative rounded-2xl p-2.5 overflow-hidden"
-                  style={{
-                    background:
-                      "linear-gradient(145deg, #2D1A12 0%, #1D100A 55%, #120A06 100%)",
-                    border: "2px solid rgba(197,160,89,0.55)",
-                    boxShadow:
-                      "0 25px 65px rgba(0,0,0,0.85), 0 0 25px rgba(180,83,9,0.25) inset",
-                  }}
-                >
-                  {/* Subtle Brass Border Specular Highlight during Phase 4 */}
-                  {isOpening && !reducedMotion && !still && (
-                    <motion.div
-                      className="absolute inset-0 pointer-events-none z-35"
-                      initial={{ x: "-100%" }}
-                      animate={{ x: "200%" }}
-                      transition={{ duration: 1.8, delay: 6.8, ease: "easeInOut" }}
-                      style={{
-                        background:
-                          "linear-gradient(105deg, transparent 30%, rgba(254,243,199,0.3) 50%, transparent 70%)",
-                      }}
-                    />
-                  )}
-
-                  {/* Corner Brass Filigree Accents */}
-                  <FolioCornerOrnament position="top-left" instanceId={id} />
-                  <FolioCornerOrnament position="top-right" instanceId={id} />
-                  <FolioCornerOrnament position="bottom-left" instanceId={id} />
-                  <FolioCornerOrnament position="bottom-right" instanceId={id} />
-
-                  {/* Core Invitation Card in Stable Accessible HTML */}
-                  <div className="relative z-10 max-w-[340px] sm:max-w-[370px]">
-                    <InviteDetailsCard
-                      invite={invite}
-                      lang={lang}
-                      still={still}
-                      art={art}
-                      style={{
-                        bg: "#FAF7F0",
-                        border: "1px solid rgba(197,160,89,0.4)",
-                        text: "#1C1917",
-                        muted: "#78716C",
-                        accent: "#B45309",
-                        fontFamily: "Cinzel, Cormorant Garamond, serif",
-                        taFontFamily: "Noto Serif Tamil, Kavivanar, serif",
-                        glowColor: "rgba(197,160,89,0.25)",
-                      }}
-                    />
-                  </div>
-
-                  {/* Ceremonial Folio Hinged Cover (Opens during Phase 4) */}
-                  <motion.div
-                    className="absolute inset-0 origin-left z-20 pointer-events-none rounded-2xl flex items-center justify-center"
-                    style={{
-                      transformOrigin: "left center",
-                      transformStyle: "preserve-3d",
-                      background:
-                        "linear-gradient(135deg, #FAF7F0 0%, #F3EDE0 60%, #E8DFC8 100%)",
-                      border: "2px solid rgba(197,160,89,0.6)",
-                      boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
-                    }}
-                    animate={{
-                      rotateY: isOpen || isOpening ? -130 : 0,
-                      opacity: isOpen ? 0 : isOpening ? [1, 1, 0.3, 0] : 1,
-                    }}
-                    transition={{
-                      duration: reducedMotion ? 0 : 2.2,
-                      delay: isOpening ? 6.4 : 0,
-                      ease: [0.25, 1, 0.35, 1],
-                    }}
-                  >
-                    {/* Embossed Copper Medallion Clasp on Cover */}
-                    <div className="relative flex flex-col items-center justify-center p-6 text-center">
-                      <div
-                        className="w-20 h-20 rounded-full flex items-center justify-center shadow-md mb-3"
-                        style={{
-                          background:
-                            "radial-gradient(circle at 35% 30%, #FDE68A 0%, #D97706 65%, #78350F 100%)",
-                          border: "2px solid #FDE68A",
-                        }}
-                      >
-                        <RiceFlourKolamSVG instanceId={`${id}-seal`} size={44} />
-                      </div>
-                      <p className="text-[11px] uppercase tracking-[0.2em] font-serif text-[#78350F] font-semibold">
-                        {lang === "ta" ? "மங்கள அழைப்பிதழ்" : "Ceremonial Invitation"}
-                      </p>
-                      <p className="text-sm font-serif text-[#451A03] mt-1 font-bold">
-                        {invite[lang][0]} & {invite[lang][1]}
-                      </p>
-                    </div>
-                  </motion.div>
-                </div>
-              </motion.div>
-
-              {/* ─── 8. Restrained Single Petal Release near Destination (Phase 4) ─── */}
-              {isOpening && !reducedMotion && !still && (
-                <div
-                  className="pointer-events-none absolute inset-0 z-35 overflow-hidden"
-                  aria-hidden="true"
-                >
-                  {[...Array(10)].map((_, i) => (
-                    <motion.div
-                      key={i}
-                      className="absolute rounded-full"
-                      style={{
-                        width: 8 + (i % 3) * 2,
-                        height: 6 + (i % 2) * 2,
-                        left: `${20 + i * 6}%`,
-                        top: "20%",
-                        background:
-                          i % 2 === 0
-                            ? "linear-gradient(135deg, #F43F5E 0%, #BE123C 100%)"
-                            : "linear-gradient(135deg, #FBBF24 0%, #D97706 100%)",
-                        transform: "translateZ(-1020px)",
-                      }}
-                      initial={{ y: -30, opacity: 0 }}
-                      animate={{
-                        y: 380,
-                        opacity: [0, 0.9, 0.85, 0],
-                        rotate: [0, 120 + i * 30],
-                        x: [0, (i % 2 === 0 ? 25 : -25)],
-                      }}
-                      transition={{
-                        duration: 3.2,
-                        delay: 6.8 + i * 0.12,
-                        ease: "easeOut",
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-            </motion.div>
-
-            {/* ─── 9. PHASE 1 (ARRIVAL / CLOSED): ACCESSIBLE OPEN INVITATION BUTTON ─── */}
-            <AnimatePresence>
-              {isClosed && (
-                <motion.div
-                  className="absolute z-40 flex flex-col items-center justify-center p-6 text-center max-w-sm sm:max-w-md"
-                  initial={{ opacity: 0, scale: 0.94 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.88, y: -30 }}
-                  transition={{ duration: 0.6 }}
-                >
-                  {/* Dravidian Entrance Tower Crest Silhouette (Gopuram) */}
-                  <div className="mb-3 pointer-events-none opacity-90">
-                    <DravidianGopuramSilhouetteSVG instanceId={id} />
-                  </div>
-
-                  {/* Brass Ring Knocker (Interactive Semantic Button) */}
-                  <div className="relative mb-5">
-                    {/* Concentric Warm Pulsing Glow */}
-                    <div
-                      className="absolute -inset-6 rounded-full pointer-events-none opacity-60"
-                      style={{
-                        background:
-                          "radial-gradient(circle, rgba(217,119,6,0.4) 0%, rgba(180,83,9,0.12) 65%, transparent 80%)",
-                      }}
-                    />
-
-                    {/* Semantic Accessible Button Trigger */}
-                    <button
-                      type="button"
-                      onClick={onTriggerOpen}
-                      aria-label={
-                        lang === "ta"
-                          ? "கோவில் கதவைத் திறந்து அழைப்பிதழைப் பார்க்கவும்"
-                          : "Open temple invitation"
-                      }
-                      className="relative h-20 w-20 rounded-full flex items-center justify-center shadow-xl cursor-pointer transition-transform hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-3 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-                      style={{
-                        background:
-                          "radial-gradient(circle at 35% 30%, #FDE68A 0%, #D97706 60%, #78350F 100%)",
-                        border: "2px solid #FEF3C7",
-                        boxShadow:
-                          "0 12px 28px rgba(0,0,0,0.85), 0 0 20px rgba(217,119,6,0.5)",
-                      }}
-                    >
-                      <BrassRingKnockerSVG instanceId={id} />
-                    </button>
-                  </div>
-
-                  {/* Couple Names & Open Prompt */}
-                  <div className="flex flex-col items-center gap-1.5">
-                    <p className="text-[11px] uppercase tracking-[0.25em] text-amber-200/80 font-serif font-medium">
-                      {lang === "ta"
-                        ? "மங்கள அழைப்பிதழ்"
-                        : "Wedding Invitation"}
-                    </p>
-                    <h2
-                      className="text-2xl sm:text-3xl font-serif font-bold text-amber-50 tracking-wide"
-                      style={{
-                        textShadow: "0 2px 14px rgba(217,119,6,0.6)",
-                      }}
-                    >
-                      {invite[lang][0]} & {invite[lang][1]}
-                    </h2>
-
-                    <button
-                      type="button"
-                      onClick={onTriggerOpen}
-                      className="mt-3 px-5 py-2 rounded-full text-xs font-serif tracking-wider text-amber-100 flex items-center gap-2 cursor-pointer transition-all bg-amber-950/80 border border-amber-500/50 hover:border-amber-300 hover:bg-amber-900/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
-                    >
-                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                      {lang === "ta"
-                        ? "அழைப்பிதழைத் திறக்கவும்"
-                        : "Open Invitation"}
-                    </button>
-
-                    <p className="text-[10px] text-amber-200/50 mt-1 italic font-mono tracking-wider">
-                      {lang === "ta"
-                        ? "கோவில் பிரகார முப்பரிமாணப் பயணம்"
-                        : "Through the Temple Doors · 3D Experience"}
-                    </p>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        )
-      }}
-    />
+  // State machine: loading -> ready -> opening -> reading
+  const [phase, setPhase] = useState<AtelierPhase>(() =>
+    reduce || size ? "reading" : "loading",
   )
-}
+  const [sheet, setSheet] = useState<"map" | "share" | null>(null)
+  const [cd, setCd] = useState(() => countdown(invite))
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ARCHITECTURAL COMPONENTS & SCOPED SVG HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
+  // Desktop subtle pointer parallax (-1.8deg to +1.8deg) in ready state
+  const [parallax, setParallax] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  })
+  const stageRef = useRef<HTMLDivElement>(null)
 
-/**
- * Stationary Dravidian Pillar Bay with Faceted Shaft, Yali Corbel & Agal Vilakku
- * (Remains stationary at world Z coordinate)
- */
-function StationaryPillarBay({
-  z,
-  x,
-  instanceId,
-  lampLit,
-  still,
-  reducedMotion,
-}: {
-  z: number
-  x: number
-  instanceId: string
-  lampLit: boolean
-  still?: boolean
-  reducedMotion?: boolean
-}) {
+  // Countdown timer
+  useEffect(() => {
+    setCd(countdown(invite))
+    const timer = window.setInterval(() => {
+      setCd(countdown(invite))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [invite])
+
+  // Lifecycle & ready trigger
+  useEffect(() => {
+    if (reduce || size) {
+      setPhase("reading")
+      onReady?.()
+      return
+    }
+    const timer = window.setTimeout(() => {
+      setPhase("ready")
+      onReady?.()
+    }, 280)
+    return () => clearTimeout(timer)
+  }, [reduce, size, onReady])
+
+  // Master timeline duration: 7.2s
+  useEffect(() => {
+    if (phase !== "opening") return
+    const timer = window.setTimeout(() => {
+      setPhase("reading")
+    }, 7200)
+    return () => clearTimeout(timer)
+  }, [phase])
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (phase !== "ready" || reduce || still || !stageRef.current) return
+    const rect = stageRef.current.getBoundingClientRect()
+    const cx = rect.left + rect.width / 2
+    const cy = rect.top + rect.height / 2
+    const x = Math.max(-1, Math.min(1, (e.clientX - cx) / (rect.width / 2)))
+    const y = Math.max(-1, Math.min(1, (e.clientY - cy) / (rect.height / 2)))
+    setParallax({ x, y })
+  }
+
+  const handlePointerLeave = () => {
+    setParallax({ x: 0, y: 0 })
+  }
+
+  const triggerOpen = () => {
+    if (phase !== "ready") return
+    if (reduce) {
+      setPhase("reading")
+      return
+    }
+    setPhase("opening")
+  }
+
+  const skipToReading = () => {
+    setPhase("reading")
+  }
+
+  const replay = () => {
+    setPhase("ready")
+    setParallax({ x: 0, y: 0 })
+  }
+
+  // Calendar .ics download helper
+  const downloadCalendarIcs = () => {
+    const startIso = invite.date.replace(/-/g, "")
+    const timeFormatted = invite.time ? invite.time.replace(":", "") + "00" : "090000"
+    const icsContent = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//The Treasure Capture Events//Wedding Invite//EN",
+      "BEGIN:VEVENT",
+      `SUMMARY:${invite[lang][0]} & ${invite[lang][1]} Wedding`,
+      `DESCRIPTION:Wedding celebration of ${invite.en[0]} and ${invite.en[1]} at ${invite.venue}`,
+      `LOCATION:${invite.venue}, ${invite.address ?? ""}`,
+      `DTSTART:${startIso}T${timeFormatted}`,
+      `DTEND:${startIso}T${timeFormatted}`,
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n")
+
+    const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" })
+    const link = document.createElement("a")
+    link.href = URL.createObjectURL(blob)
+    link.download = `${invite.en[0]}_${invite.en[1]}_wedding.ics`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const isReading = phase === "reading"
+  const isOpening = phase === "opening"
+  const isReady = phase === "ready"
+  const d = dateParts(invite.date, lang)
+
+  // Responsive stage styling
+  const rootStyle: CSSProperties = size
+    ? { width: size.w, height: size.h }
+    : { minHeight: "100svh" }
+
   return (
     <div
-      className="absolute pointer-events-none w-full flex justify-center items-center"
+      ref={stageRef}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
+      className="relative w-full bg-[#F5F1E8] text-[#232720] antialiased selection:bg-[#A7864A]/20 selection:text-[#232720] overflow-x-hidden"
       style={{
-        transform: `translateZ(${z}px)`,
-        transformStyle: "preserve-3d",
+        ...rootStyle,
+        fontFamily: "var(--font-sans, system-ui, sans-serif)",
       }}
     >
-      {/* Left Pillar */}
-      <div
-        className="absolute"
-        style={{
-          transform: `translateX(${-x}px)`,
-        }}
-      >
-        <GranitePillarSVG
-          instanceId={`${instanceId}-l`}
-          lampLit={lampLit}
-          still={still}
-          reducedMotion={reducedMotion}
-        />
-      </div>
+      {/* ─── Top Utility Navigation ─── */}
+      {!size && !still && (
+        <header className="fixed inset-x-0 top-0 z-50 flex items-center justify-between px-5 sm:px-8 py-4 backdrop-blur-md bg-[#F5F1E8]/70 border-b border-[#D8C9B3]/40">
+          <div className="flex items-center gap-3">
+            <span className="text-[10.5px] uppercase tracking-[0.22em] font-serif font-bold text-[#A7864A]">
+              TTC · ATELIER
+            </span>
+            {sample && (
+              <span className="rounded-full border border-[#D8C9B3] bg-[#EAE3D5] px-2.5 py-0.5 text-[10px] uppercase tracking-widest text-[#63705A] font-medium">
+                Sample
+              </span>
+            )}
+          </div>
 
-      {/* Right Pillar (Mirrored along X axis) */}
-      <div
-        className="absolute"
-        style={{
-          transform: `translateX(${x}px) scaleX(-1)`,
-        }}
-      >
-        <GranitePillarSVG
-          instanceId={`${instanceId}-r`}
-          lampLit={lampLit}
-          still={still}
-          reducedMotion={reducedMotion}
-        />
-      </div>
-    </div>
-  )
-}
+          <div className="flex items-center gap-3">
+            {/* Skip action during opening */}
+            {isOpening && (
+              <button
+                type="button"
+                onClick={skipToReading}
+                className="flex items-center gap-1.5 rounded-full border border-[#D8C9B3] bg-[#EAE3D5] px-3.5 py-1 text-xs font-serif font-medium text-[#232720] shadow-sm hover:border-[#A7864A] transition focus-visible:ring-2 focus-visible:ring-[#A7864A]"
+              >
+                <span>{atelierCopy.skip[lang]}</span>
+                <Icon name="arrowRight" size={12} />
+              </button>
+            )}
 
-/**
- * Dravidian Monolithic Carved Granite Pillar with Yali Bracket & Mounted Lamp
- */
-function GranitePillarSVG({
-  instanceId,
-  lampLit,
-  still,
-  reducedMotion,
-}: {
-  instanceId: string
-  lampLit: boolean
-  still?: boolean
-  reducedMotion?: boolean
-}) {
-  const graniteGrad = `${instanceId}-granite`
-  const brassGrad = `${instanceId}-brass`
+            {/* Replay action when settled */}
+            {isReading && !reduce && (
+              <button
+                type="button"
+                onClick={replay}
+                className="flex items-center gap-1.5 rounded-full border border-[#D8C9B3] bg-[#EAE3D5] px-3 py-1 text-xs font-serif font-medium text-[#63705A] hover:text-[#232720] hover:border-[#A7864A] transition focus-visible:ring-2 focus-visible:ring-[#A7864A]"
+                title={atelierCopy.replay[lang]}
+              >
+                <Icon name="clock" size={12} />
+                <span className="hidden sm:inline">{atelierCopy.replay[lang]}</span>
+              </button>
+            )}
 
-  return (
-    <div className="relative w-28 h-[520px] flex flex-col items-center">
-      <svg
-        viewBox="0 0 110 520"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="w-full h-full drop-shadow-[0_15px_30px_rgba(0,0,0,0.85)]"
-      >
-        <defs>
-          <linearGradient id={graniteGrad} x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#222831" />
-            <stop offset="35%" stopColor="#333c48" />
-            <stop offset="70%" stopColor="#1e242d" />
-            <stop offset="100%" stopColor="#14181f" />
-          </linearGradient>
-          <linearGradient id={brassGrad} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#FDE68A" />
-            <stop offset="55%" stopColor="#D97706" />
-            <stop offset="100%" stopColor="#78350F" />
-          </linearGradient>
-        </defs>
-
-        {/* Sculpted Yali Corbel Bracket (Bodhai) supporting ceiling beam */}
-        <path
-          d="M10 0 H100 L90 32 H76 C86 44 92 64 88 82 C82 94 65 92 60 78 L58 98 H35 L40 68 C30 74 22 64 24 48 L18 32 H10 Z"
-          fill={`url(#${graniteGrad})`}
-          stroke="#475569"
-          strokeWidth="1.2"
-        />
-
-        {/* Carved Lotus Capital Band (Padma Bandham) */}
-        <rect x="25" y="98" width="60" height="14" rx="2" fill="#2d3540" stroke="#4b5563" strokeWidth="1" />
-        <circle cx="36" cy="105" r="2.5" fill="#D97706" opacity="0.8" />
-        <circle cx="55" cy="105" r="2.5" fill="#D97706" opacity="0.8" />
-        <circle cx="74" cy="105" r="2.5" fill="#D97706" opacity="0.8" />
-
-        {/* Faceted Octagonal Shaft with Fluting & Floral Medallion */}
-        <rect x="30" y="112" width="50" height="315" fill={`url(#${graniteGrad})`} stroke="#3f4854" />
-        <line x1="42" y1="112" x2="42" y2="427" stroke="#14181f" strokeWidth="2" />
-        <line x1="55" y1="112" x2="55" y2="427" stroke="#475569" strokeWidth="2.5" />
-        <line x1="68" y1="112" x2="68" y2="427" stroke="#14181f" strokeWidth="2" />
-
-        {/* Mid-Shaft Floral Medallion Relief */}
-        <rect x="27" y="240" width="56" height="22" rx="2" fill="#252c36" stroke="#4f5b6b" />
-        <polygon points="55,243 62,251 55,259 48,251" fill="#D97706" opacity="0.85" />
-
-        {/* Stepped Stone Plinth Base (Upapitham) */}
-        <rect x="25" y="427" width="60" height="20" rx="2" fill="#2d3540" stroke="#475569" />
-        <rect x="18" y="447" width="74" height="24" rx="3" fill="#222831" stroke="#3f4854" />
-        <rect x="10" y="471" width="90" height="30" rx="4" fill="#181e26" stroke="#333c48" />
-
-        {/* Mounted Cast-Brass Agal Vilakku Lamp Arm */}
-        <path
-          d="M78 200 C105 200 110 215 105 235"
-          stroke={`url(#${brassGrad})`}
-          strokeWidth="3"
-          fill="none"
-        />
-        <line x1="105" y1="235" x2="105" y2="252" stroke="#D97706" strokeWidth="2" />
-        <path d="M92 252 Q105 262 118 252 Z" fill={`url(#${brassGrad})`} stroke="#FDE68A" strokeWidth="1" />
-        <circle cx="105" cy="250" r="2.5" fill="#B45309" />
-      </svg>
-
-      {/* Burning Oil Flame with Restrained Emissive Halo */}
-      {lampLit && (
-        <div className="absolute right-[-4px] top-[239px] pointer-events-none">
-          <motion.div
-            className="relative flex items-center justify-center"
-            animate={
-              still || reducedMotion
-                ? { scale: 1, opacity: 0.95 }
-                : {
-                    scale: [0.95, 1.12, 0.96],
-                    opacity: [0.85, 1, 0.9],
-                  }
-            }
-            transition={{
-              duration: 1.6,
-              repeat: still || reducedMotion ? 0 : Infinity,
-              ease: "easeInOut",
-            }}
-          >
-            {/* Soft Ambient Pool */}
-            <div
-              className="absolute -inset-3 rounded-full opacity-60"
-              style={{
-                background:
-                  "radial-gradient(circle, rgba(251,191,36,0.5) 0%, rgba(217,119,6,0.18) 60%, transparent 80%)",
-                filter: "blur(5px)",
-              }}
-            />
-            {/* Teardrop Flame */}
-            <div
-              className="w-2.5 h-4 rounded-full"
-              style={{
-                background:
-                  "linear-gradient(to top, #EA580C 0%, #F59E0B 50%, #FEF3C7 100%)",
-                clipPath: "polygon(50% 0%, 100% 70%, 50% 100%, 0% 70%)",
-                boxShadow: "0 0 10px #FBBF24",
-              }}
-            />
-          </motion.div>
-        </div>
+            <LangToggle dark={false} />
+          </div>
+        </header>
       )}
+
+      {/* ─── Main Content Container ─── */}
+      <main className="relative z-10 w-full min-h-screen flex flex-col justify-center px-4 sm:px-8 lg:px-16 pt-20 pb-16">
+        {/* Dynamic Split Layout: Transitioning from Exhibition to Reading */}
+        <div
+          className={`mx-auto w-full max-w-6xl transition-all duration-1000 ${
+            isReading
+              ? "grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-start"
+              : "grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12 items-center"
+          }`}
+        >
+          {/* ─── Column A: Editorial Typography & Actions (Desktop Left, Mobile Lower) ─── */}
+          <div
+            className={`transition-all duration-700 ${
+              isReading
+                ? "order-2 lg:order-1 lg:col-span-7 flex flex-col gap-6"
+                : "order-2 lg:order-1 lg:col-span-5 flex flex-col gap-4 text-center lg:text-left items-center lg:items-start"
+            }`}
+          >
+            {/* Exhibition Subheading */}
+            <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.28em] font-serif font-semibold text-[#A7864A]">
+              {atelierCopy.exhibitionLabel[lang]}
+            </p>
+
+            {/* 1. READY / INITIAL VIEW: Refined Editorial Introduction */}
+            {!isReading && (
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                className="flex flex-col gap-3 items-center lg:items-start"
+              >
+                <h1
+                  className="text-3xl sm:text-4xl lg:text-5xl font-serif font-bold text-[#232720] tracking-tight leading-[1.12]"
+                  style={{ fontFamily: "Cinzel, Cormorant Garamond, serif" }}
+                >
+                  <span>{invite[lang][0]}</span>
+                  <span className="block text-xl sm:text-2xl font-light italic text-[#A7864A] my-1">
+                    {lang === "ta" ? "திருமணம்" : "weds"}
+                  </span>
+                  <span>{invite[lang][1]}</span>
+                </h1>
+
+                {/* Event Summary Lockup */}
+                <div className="flex items-center gap-2 text-xs sm:text-sm font-serif text-[#63705A] tracking-wider mt-1">
+                  <span>{d.month} {d.day}, {d.year}</span>
+                  <span>·</span>
+                  <span>{invite.venue}</span>
+                </div>
+
+                {/* Tactical "Open Invitation" Button */}
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={triggerOpen}
+                    disabled={isOpening}
+                    aria-label={atelierCopy.openInvitation[lang]}
+                    className="group relative inline-flex items-center gap-3 px-8 py-3.5 rounded-full text-sm font-serif font-semibold tracking-wider text-[#FAF7F0] bg-[#232720] shadow-lg shadow-[#232720]/15 hover:bg-[#A7864A] active:scale-95 transition-all duration-300 focus:outline-none focus-visible:ring-3 focus-visible:ring-[#A7864A] cursor-pointer"
+                  >
+                    <span>{atelierCopy.openInvitation[lang]}</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#A7864A] group-hover:bg-[#FAF7F0] transition-colors" />
+                    <Icon name="arrowRight" size={14} className="group-hover:translate-x-1 transition-transform" />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* 2. READING STATE: Full Heirloom Editorial Invitation Card (Sharp HTML) */}
+            {isReading && (
+              <motion.section
+                initial={reduce ? false : { opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                className="w-full bg-[#FAF7F0] rounded-3xl p-6 sm:p-10 border border-[#D8C9B3]/80 shadow-xl shadow-[#D8C9B3]/25 flex flex-col gap-7 relative overflow-hidden"
+              >
+                {/* Thin Brass Edge Line & Corner Filigrees */}
+                <div className="absolute inset-0 pointer-events-none rounded-3xl border border-[#A7864A]/25 m-2" />
+                <CornerOrnament position="top-left" instanceId={id} />
+                <CornerOrnament position="top-right" instanceId={id} />
+                <CornerOrnament position="bottom-left" instanceId={id} />
+                <CornerOrnament position="bottom-right" instanceId={id} />
+
+                {/* Blessing Invocation */}
+                <div className="text-center">
+                  <p className="text-[11px] uppercase tracking-[0.25em] font-serif text-[#A7864A] font-semibold">
+                    {atelierCopy.ceremonialInvitation[lang]}
+                  </p>
+                  {invite.parents && (
+                    <p className="text-xs font-serif text-[#63705A] mt-1.5 italic">
+                      {invite.parents[lang]}
+                    </p>
+                  )}
+                </div>
+
+                {/* Couple Names */}
+                <div className="text-center py-2 border-y border-[#D8C9B3]/50">
+                  <h2
+                    className="text-3xl sm:text-4xl font-serif font-bold text-[#232720] tracking-wide"
+                    style={{ fontFamily: "Cinzel, Cormorant Garamond, serif" }}
+                  >
+                    {invite[lang][0]}
+                  </h2>
+                  <div className="flex items-center justify-center gap-3 my-2">
+                    <span className="h-px w-8 bg-[#A7864A]/40" />
+                    <span className="text-xs uppercase tracking-[0.25em] font-serif text-[#A7864A]">
+                      {lang === "ta" ? "திருமணம்" : "weds"}
+                    </span>
+                    <span className="h-px w-8 bg-[#A7864A]/40" />
+                  </div>
+                  <h2
+                    className="text-3xl sm:text-4xl font-serif font-bold text-[#232720] tracking-wide"
+                    style={{ fontFamily: "Cinzel, Cormorant Garamond, serif" }}
+                  >
+                    {invite[lang][1]}
+                  </h2>
+                </div>
+
+                {/* Date & Muhurtham Lockup */}
+                <div className="grid grid-cols-2 gap-4 text-center py-2 bg-[#F5F1E8]/60 rounded-2xl p-4 border border-[#D8C9B3]/40">
+                  <div className="flex flex-col items-center justify-center border-r border-[#D8C9B3]/60 pr-2">
+                    <span className="text-[10px] uppercase tracking-widest font-serif text-[#63705A]">
+                      {d.weekday}
+                    </span>
+                    <span className="text-2xl sm:text-3xl font-serif font-bold text-[#232720] my-0.5">
+                      {d.day}
+                    </span>
+                    <span className="text-xs font-serif text-[#A7864A] font-medium">
+                      {d.month} {d.year}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col items-center justify-center pl-2">
+                    <span className="text-[10px] uppercase tracking-widest font-serif text-[#63705A]">
+                      {atelierCopy.muhurtham[lang]}
+                    </span>
+                    <span className="text-lg sm:text-xl font-serif font-bold text-[#232720] my-0.5">
+                      {timeLabel(invite.time, lang)}
+                    </span>
+                    <span className="text-[10.5px] font-mono text-[#A7864A] tracking-wider">
+                      {cd.done
+                        ? lang === "ta"
+                          ? "மங்கள நாள்"
+                          : "Celebration Day"
+                        : `${cd.days}d ${cd.hours}h ${cd.minutes}m ${cd.seconds}s`}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Venue & Location */}
+                <div className="text-center flex flex-col items-center gap-1">
+                  <span className="text-[10px] uppercase tracking-[0.2em] font-serif text-[#63705A]">
+                    {atelierCopy.venue[lang]}
+                  </span>
+                  <p className="text-lg sm:text-xl font-serif font-bold text-[#232720]">
+                    {invite.venue}
+                  </p>
+                  {invite.address && (
+                    <p className="text-xs font-serif text-[#63705A] max-w-md leading-relaxed">
+                      {invite.address}
+                    </p>
+                  )}
+                </div>
+
+                {/* Primary Action Buttons */}
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                  <a
+                    href={directionsUrl(invite)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-serif font-semibold text-[#FAF7F0] bg-[#232720] hover:bg-[#A7864A] shadow-md transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A7864A]"
+                  >
+                    <Icon name="arrowUpRight" size={13} />
+                    <span>{atelierCopy.directions[lang]}</span>
+                  </a>
+
+                  {rsvpUrl(invite, lang) && (
+                    <a
+                      href={rsvpUrl(invite, lang) ?? "#"}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-serif font-semibold text-[#232720] bg-[#FAF7F0] border border-[#A7864A] hover:bg-[#A7864A]/10 transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A7864A]"
+                    >
+                      <Icon name="phone" size={13} className="text-[#A7864A]" />
+                      <span>{atelierCopy.rsvp[lang]}</span>
+                    </a>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setSheet("map")}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-serif font-medium text-[#63705A] bg-[#EAE3D5] hover:text-[#232720] hover:border-[#A7864A] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A7864A]"
+                  >
+                    <Icon name="mapPin" size={13} />
+                    <span>{atelierCopy.mapQr[lang]}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={downloadCalendarIcs}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-serif font-medium text-[#63705A] bg-[#EAE3D5] hover:text-[#232720] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A7864A]"
+                    title={atelierCopy.calendar[lang]}
+                  >
+                    <Icon name="calendar" size={13} />
+                    <span className="hidden sm:inline">{atelierCopy.calendar[lang]}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSheet("share")}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-serif font-medium text-[#63705A] bg-[#EAE3D5] hover:text-[#232720] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A7864A]"
+                  >
+                    <Icon name="share" size={13} />
+                    <span>{atelierCopy.share[lang]}</span>
+                  </button>
+                </div>
+              </motion.section>
+            )}
+          </div>
+
+          {/* ─── Column B: The 3D Architectural Model Viewport (Desktop Right, Mobile Top) ─── */}
+          <div
+            className={`transition-all duration-1000 ${
+              isReading
+                ? "order-1 lg:order-2 lg:col-span-5 flex items-center justify-center sticky top-24"
+                : "order-1 lg:order-2 lg:col-span-7 flex items-center justify-center"
+            }`}
+          >
+            <div
+              className={`relative flex items-center justify-center transition-all duration-1000 ${
+                isReading
+                  ? "w-[300px] h-[340px] sm:w-[360px] sm:h-[400px] scale-90"
+                  : "w-[340px] h-[400px] sm:w-[440px] sm:h-[480px] lg:w-[500px] lg:h-[540px]"
+              }`}
+              style={{
+                perspective: 1200,
+                WebkitPerspective: 1200,
+                transformStyle: "preserve-3d",
+              }}
+            >
+              {/* Soft Ambient Contact Shadow Under Plinth */}
+              <div
+                className="absolute -bottom-8 w-[85%] h-16 rounded-full pointer-events-none opacity-40"
+                style={{
+                  background:
+                    "radial-gradient(ellipse at center, rgba(35,39,32,0.45) 0%, rgba(35,39,32,0.1) 60%, transparent 80%)",
+                  filter: "blur(18px)",
+                }}
+              />
+
+              {/* 3D Camera Rig with Architectural Three-Quarter Perspective */}
+              <motion.div
+                className="relative w-full h-full flex items-center justify-center"
+                style={{
+                  transformStyle: "preserve-3d",
+                }}
+                animate={{
+                  rotateX: isReading ? 18 : isOpening ? 20 : 22 + parallax.y * 1.5,
+                  rotateY: isReading ? -22 : isOpening ? -16 : -26 + parallax.x * 2,
+                  scale: isReading ? 0.88 : isOpening ? 1.05 : 1,
+                  y: isOpening ? -8 : 0,
+                }}
+                transition={{
+                  duration: reduce ? 0 : isOpening ? 6.8 : 0.8,
+                  ease: [0.25, 1, 0.35, 1],
+                }}
+              >
+                {/* ─── 1. The Floating Rectangular Stone Plinth with Water Channel ─── */}
+                <div
+                  className="absolute pointer-events-none"
+                  style={{
+                    width: 360,
+                    height: 280,
+                    transform: "rotateX(90deg) translateZ(-60px)",
+                    transformStyle: "preserve-3d",
+                  }}
+                >
+                  <FloatingStonePlinthSVG instanceId={id} />
+                </div>
+
+                {/* ─── 2. Stationary Stepped Foundation & Structural Columns ─── */}
+                <div
+                  className="absolute pointer-events-none"
+                  style={{
+                    width: 280,
+                    height: 240,
+                    transform: "translateZ(10px)",
+                    transformStyle: "preserve-3d",
+                  }}
+                >
+                  <PavilionStructuralBaysSVG instanceId={id} isReading={isReading} />
+                </div>
+
+                {/* ─── 3. Articulated Sectional Screen (Slides aside in Stage B) ─── */}
+                <motion.div
+                  className="absolute pointer-events-none z-20"
+                  style={{
+                    width: 140,
+                    height: 180,
+                    transform: "translateZ(45px)",
+                  }}
+                  animate={{
+                    x: isReading || isOpening ? -80 : 0,
+                    opacity: isReading ? 0.35 : isOpening ? 0.5 : 1,
+                  }}
+                  transition={{
+                    duration: reduce ? 0 : 2.6,
+                    delay: isOpening ? 1.2 : 0,
+                    ease: [0.25, 1, 0.35, 1],
+                  }}
+                >
+                  <CarvedJaaliScreenSVG instanceId={id} />
+                </motion.div>
+
+                {/* ─── 4. Articulated Lifting Roof Assembly (Lifts vertically in Stage B) ─── */}
+                <motion.div
+                  className="absolute pointer-events-none z-30"
+                  style={{
+                    width: 260,
+                    height: 130,
+                    top: "14%",
+                    transformStyle: "preserve-3d",
+                  }}
+                  animate={{
+                    y: isReading || isOpening ? -50 : 0,
+                  }}
+                  transition={{
+                    duration: reduce ? 0 : 2.8,
+                    delay: isOpening ? 1.2 : 0,
+                    ease: [0.25, 1, 0.35, 1],
+                  }}
+                >
+                  <SteppedRoofAssemblySVG instanceId={id} />
+                </motion.div>
+
+                {/* ─── 5. The Keepsake Folio Inside Pavilion (Unfolds in Stage C) ─── */}
+                <motion.div
+                  className="absolute z-25 pointer-events-none"
+                  style={{
+                    width: 130,
+                    height: 170,
+                    transform: "translateZ(25px)",
+                    transformStyle: "preserve-3d",
+                  }}
+                  animate={{
+                    y: isReading ? 0 : isOpening ? [0, -18, -12] : 0,
+                    scale: isReading ? 0.95 : isOpening ? [1, 1.15, 1.1] : 1,
+                  }}
+                  transition={{
+                    duration: reduce ? 0 : 2.4,
+                    delay: isOpening ? 3.6 : 0,
+                    ease: [0.25, 1, 0.35, 1],
+                  }}
+                >
+                  <KeepsakeFolioModel
+                    instanceId={id}
+                    isOpening={isOpening}
+                    isReading={isReading}
+                    reduce={!!reduce}
+                    lang={lang}
+                    names={invite[lang]}
+                  />
+                </motion.div>
+
+                {/* ─── 6. Finite Jasmine Petals Release in Stage C ─── */}
+                {isOpening && !reduce && !still && (
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden z-40">
+                    {[...Array(8)].map((_, i) => (
+                      <motion.div
+                        key={i}
+                        className="absolute w-2.5 h-3 rounded-full bg-[#FAF7F0] shadow-sm"
+                        style={{
+                          left: `${35 + i * 5}%`,
+                          top: "40%",
+                        }}
+                        initial={{ y: -10, opacity: 0 }}
+                        animate={{
+                          y: 140 + i * 8,
+                          x: (i % 2 === 0 ? 1 : -1) * (15 + i * 3),
+                          rotate: 90 + i * 40,
+                          opacity: [0, 0.9, 0.8, 0],
+                        }}
+                        transition={{
+                          duration: 2.8,
+                          delay: 4.2 + i * 0.1,
+                          ease: "easeOut",
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* ─── Interactive Modal Sheets (Map & QR, Share) ─── */}
+      <AnimatePresence>
+        {sheet === "map" && (
+          <ModalBackdrop onClose={() => setSheet(null)} title={atelierCopy.mapQr[lang]}>
+            <div className="flex flex-col gap-4 text-center items-center py-2">
+              <div className="p-4 bg-[#FAF7F0] rounded-2xl border border-[#D8C9B3] shadow-md">
+                <Qr
+                  text={directionsUrl(invite)}
+                  size={180}
+                  label="Directions QR"
+                  color="#232720"
+                  background="#FAF7F0"
+                />
+              </div>
+              <p className="text-xs font-serif text-[#63705A] max-w-xs">
+                Scan with your phone camera to open live navigation to {invite.venue}.
+              </p>
+              <a
+                href={directionsUrl(invite)}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-xs font-serif font-semibold text-[#FAF7F0] bg-[#232720] hover:bg-[#A7864A] transition"
+              >
+                <Icon name="arrowUpRight" size={13} />
+                <span>Open in Google Maps</span>
+              </a>
+            </div>
+          </ModalBackdrop>
+        )}
+
+        {sheet === "share" && (
+          <ModalBackdrop onClose={() => setSheet(null)} title={atelierCopy.share[lang]}>
+            <div className="flex flex-col gap-3 py-2">
+              <a
+                href={whatsappShareUrl(invite, lang, window.location.href)}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-between px-4 py-3 rounded-xl bg-[#25D366]/10 border border-[#25D366]/30 text-[#128C7E] font-serif text-sm font-semibold hover:bg-[#25D366]/20 transition"
+              >
+                <span>Share via WhatsApp</span>
+                <Icon name="arrowUpRight" size={15} />
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(window.location.href)
+                  alert("Link copied to clipboard!")
+                }}
+                className="flex items-center justify-between px-4 py-3 rounded-xl bg-[#F5F1E8] border border-[#D8C9B3] text-[#232720] font-serif text-sm font-medium hover:border-[#A7864A] transition"
+              >
+                <span>Copy Invitation Link</span>
+                <Icon name="copy" size={15} />
+              </button>
+            </div>
+          </ModalBackdrop>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
 
-/**
- * Dravidian Gateway Tower Silhouette (Gopuram with 5 Brass Kalasams)
- */
-function DravidianGopuramSilhouetteSVG({ instanceId }: { instanceId: string }) {
-  const goldGrad = `${instanceId}-gopuram-gold`
-
-  return (
-    <div className="relative w-64 h-16 flex flex-col items-center">
-      <svg viewBox="0 0 260 70" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-        <defs>
-          <linearGradient id={goldGrad} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#FEF3C7" />
-            <stop offset="45%" stopColor="#F59E0B" />
-            <stop offset="100%" stopColor="#78350F" />
-          </linearGradient>
-        </defs>
-
-        {/* 5 Brass Kalasam Roof Finials catching dusk light */}
-        {[50, 90, 130, 170, 210].map((x, i) => {
-          const isCenter = i === 2
-          const y = isCenter ? 6 : 12
-          const r = isCenter ? 7 : 5.5
-          return (
-            <g key={i}>
-              <line x1={x} y1={y} x2={x} y2={y + 10} stroke="#FEF3C7" strokeWidth="2" />
-              <circle cx={x} cy={y + 14} r={r} fill={`url(#${goldGrad})`} stroke="#FEF3C7" strokeWidth="0.8" />
-              <rect x={x - 6} y={y + 20} width={12} height={5} rx="1" fill="#78350F" />
-            </g>
-          )
-        })}
-
-        {/* Tiered Barrel-Vaulted Shikhara Roofline */}
-        <path
-          d="M20 42 Q130 32 240 42 L230 62 H30 Z"
-          fill="#1E242D"
-          stroke={`url(#${goldGrad})`}
-          strokeWidth="1.8"
-        />
-        {/* Decorative Cornice Ridge */}
-        <line x1="32" y1="52" x2="228" y2="52" stroke="#F59E0B" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.8" />
-      </svg>
-    </div>
-  )
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// ARCHITECTURAL 3D SUB-COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Deep Stone Portal Gateway Frame (Threshold, Jambs & Lintel)
+ * Floating Rectangular Stone Plinth with Water Channel & Brass Urli
  */
-function StonePortalFrameSVG({ instanceId }: { instanceId: string }) {
-  const stoneGrad = `${instanceId}-portal-stone`
+function FloatingStonePlinthSVG({ instanceId }: { instanceId: string }) {
+  const sandstoneGrad = `${instanceId}-plinth-sandstone`
+  const waterGrad = `${instanceId}-plinth-water`
 
   return (
-    <div className="absolute inset-0 pointer-events-none">
-      <svg viewBox="0 0 360 470" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-        <defs>
-          <linearGradient id={stoneGrad} x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#1E232A" />
-            <stop offset="50%" stopColor="#2A313A" />
-            <stop offset="100%" stopColor="#161B21" />
-          </linearGradient>
-        </defs>
-
-        {/* Left Stone Jamb */}
-        <rect x="0" y="0" width="16" height="470" fill={`url(#${stoneGrad})`} stroke="#3b4452" strokeWidth="1.2" />
-        {/* Right Stone Jamb */}
-        <rect x="344" y="0" width="16" height="470" fill={`url(#${stoneGrad})`} stroke="#3b4452" strokeWidth="1.2" />
-        {/* Top Stone Lintel */}
-        <rect x="0" y="0" width="360" height="20" fill={`url(#${stoneGrad})`} stroke="#3b4452" strokeWidth="1.2" />
-        {/* Bottom Stone Threshold */}
-        <rect x="0" y="452" width="360" height="18" fill="#14181F" stroke="#2D3540" strokeWidth="1.2" />
-      </svg>
-    </div>
-  )
-}
-
-/**
- * Timber Temple Door Leaf with Recessed Carved Panels, Brass Studs & Jamb Hinges
- */
-function TimberDoorLeafSVG({
-  instanceId,
-  side,
-}: {
-  instanceId: string
-  side: "left" | "right"
-}) {
-  const teakGrad = `${instanceId}-teak`
-  const studGrad = `${instanceId}-stud`
-  const isLeft = side === "left"
-
-  return (
-    <div className="relative w-full h-full">
-      <svg viewBox="0 0 164 434" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-        <defs>
-          <linearGradient id={teakGrad} x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#2A1B12" />
-            <stop offset="40%" stopColor="#3E271B" />
-            <stop offset="80%" stopColor="#261810" />
-            <stop offset="100%" stopColor="#180F0A" />
-          </linearGradient>
-          <linearGradient id={studGrad} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#FEF3C7" />
-            <stop offset="50%" stopColor="#D97706" />
-            <stop offset="100%" stopColor="#78350F" />
-          </linearGradient>
-        </defs>
-
-        {/* Solid Aged Teak Timber Leaf */}
-        <rect width="164" height="434" fill={`url(#${teakGrad})`} />
-
-        {/* Heavy Iron/Brass Reinforcement Crossbars */}
-        {[35, 135, 235, 335, 410].map((y, i) => (
-          <g key={i}>
-            <rect x="0" y={y} width="164" height="16" fill="#1A100B" stroke="#4E3324" strokeWidth="1" />
-            {/* Conical Brass Studs with Individual Highlights */}
-            {[20, 56, 92, 128].map((x, j) => (
-              <g key={j}>
-                <circle cx={x} cy={y + 8} r="5" fill={`url(#${studGrad})`} stroke="#FEF3C7" strokeWidth="0.7" />
-                <circle cx={x} cy={y + 8} r="2" fill="#451A03" />
-              </g>
-            ))}
-          </g>
-        ))}
-
-        {/* Recessed Carved Panels with Floral Rosettes */}
-        {[60, 160, 260, 360].map((y, i) => (
-          <g key={i}>
-            <rect x="14" y={y} width="136" height="65" rx="3" fill="#2E1C12" stroke="#4A2E1E" strokeWidth="1.2" />
-            <circle cx="82" cy={y + 32} r="16" stroke="#D97706" strokeWidth="1.2" fill="#382115" />
-            <circle cx="82" cy={y + 32} r="5" fill="#F59E0B" />
-          </g>
-        ))}
-
-        {/* Jamb Hinge Plates attached to outer jamb edge */}
-        {[50, 210, 370].map((y, i) => (
-          <rect
-            key={i}
-            x={isLeft ? 0 : 156}
-            y={y}
-            width="8"
-            height="24"
-            rx="1"
-            fill="#B45309"
-            stroke="#FEF3C7"
-            strokeWidth="0.8"
-          />
-        ))}
-
-        {/* Meeting Edge Vertical Trim */}
-        <rect
-          x={isLeft ? 157 : 0}
-          y="0"
-          width="7"
-          height="434"
-          fill="#4A2E1E"
-          stroke="#D97706"
-          strokeWidth="0.8"
-        />
-      </svg>
-    </div>
-  )
-}
-
-/**
- * Cast Brass Ring Knocker with Ornamental Boss
- */
-function BrassRingKnockerSVG({ instanceId }: { instanceId: string }) {
-  const goldGrad = `${instanceId}-knocker-gold`
-
-  return (
-    <svg viewBox="0 0 54 54" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-12 h-12">
+    <svg viewBox="0 0 360 280" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
       <defs>
-        <linearGradient id={goldGrad} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#FEF3C7" />
-          <stop offset="50%" stopColor="#D97706" />
-          <stop offset="100%" stopColor="#78350F" />
+        <linearGradient id={sandstoneGrad} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#E5DAC9" />
+          <stop offset="50%" stopColor="#D8C9B3" />
+          <stop offset="100%" stopColor="#C4B39B" />
+        </linearGradient>
+        <linearGradient id={waterGrad} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#8A9AA5" />
+          <stop offset="100%" stopColor="#5D6D78" />
         </linearGradient>
       </defs>
-      {/* Heavy Cast Ring */}
-      <circle cx="27" cy="34" r="13" stroke="#451A03" strokeWidth="4.5" fill="none" />
-      <circle cx="27" cy="34" r="13" stroke="#FDE68A" strokeWidth="2.2" fill="none" />
 
-      {/* Mounting Boss Medallion */}
-      <circle cx="27" cy="18" r="11" fill={`url(#${goldGrad})`} stroke="#FEF3C7" strokeWidth="1.2" />
-      <circle cx="27" cy="18" r="5" fill="#451A03" />
+      {/* Main Beveled Rectangular Plinth Block */}
+      <rect x="15" y="15" width="330" height="250" rx="8" fill={`url(#${sandstoneGrad})`} stroke="#B8A892" strokeWidth="2" />
+
+      {/* Fine Paving Stone Joints */}
+      <line x1="15" y1="95" x2="345" y2="95" stroke="#B8A892" strokeWidth="1" opacity="0.6" />
+      <line x1="15" y1="175" x2="345" y2="175" stroke="#B8A892" strokeWidth="1" opacity="0.6" />
+      <line x1="125" y1="15" x2="125" y2="265" stroke="#B8A892" strokeWidth="1" opacity="0.6" />
+      <line x1="235" y1="15" x2="235" y2="265" stroke="#B8A892" strokeWidth="1" opacity="0.6" />
+
+      {/* Shallow Water Channel along Left Edge */}
+      <rect x="25" y="30" width="36" height="220" rx="4" fill={`url(#${waterGrad})`} stroke="#9BAAB5" strokeWidth="1.2" />
+      {/* Floating White Jasmine Buds in Water */}
+      <circle cx="43" cy="70" r="3.5" fill="#FAF7F0" />
+      <circle cx="41" cy="130" r="3" fill="#FAF7F0" />
+      <circle cx="44" cy="190" r="3.5" fill="#FAF7F0" />
+
+      {/* Asymmetric Antique Brass Urli Bowl with Yellow Marigolds */}
+      <circle cx="305" cy="215" r="16" fill="#A7864A" stroke="#D4AF37" strokeWidth="1.5" />
+      <circle cx="305" cy="215" r="12" fill="#5D6D78" />
+      <circle cx="305" cy="215" r="5" fill="#F59E0B" />
+      <circle cx="303" cy="213" r="2" fill="#FEF3C7" />
+
+      {/* Inlaid Central Kolam Motif */}
+      <circle cx="180" cy="140" r="28" stroke="#FAF7F0" strokeWidth="1.2" strokeDasharray="2 2" opacity="0.75" />
+      <polygon points="180,118 202,140 180,162 158,140" stroke="#FAF7F0" strokeWidth="1.2" fill="none" opacity="0.75" />
+      <circle cx="180" cy="140" r="4" fill="#FAF7F0" opacity="0.75" />
     </svg>
   )
 }
 
 /**
- * Hanging Mango Leaf (Mavilai) and Marigold Festoon
+ * 3-Bay Structural Columns & Recessed Timber Entrance
  */
-function MangoMarigoldThoranamSVG({ instanceId }: { instanceId: string }) {
+function PavilionStructuralBaysSVG({
+  instanceId,
+  isReading,
+}: {
+  instanceId: string
+  isReading: boolean
+}) {
+  const stoneGrad = `${instanceId}-col-stone`
+  const teakGrad = `${instanceId}-door-teak`
+
   return (
-    <svg viewBox="0 0 430 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-      {/* Festoon Hanging Cord */}
-      <path d="M0 6 Q215 26 430 6" stroke="#92400E" strokeWidth="2" fill="none" />
-      {/* Individual Mango Leaf Shapes with Marigold Buds */}
-      {[28, 72, 118, 164, 215, 266, 312, 358, 402].map((x, i) => (
+    <svg viewBox="0 0 280 240" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+      <defs>
+        <linearGradient id={stoneGrad} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#C4B49D" />
+          <stop offset="50%" stopColor="#D8C9B3" />
+          <stop offset="100%" stopColor="#B3A188" />
+        </linearGradient>
+        <linearGradient id={teakGrad} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#3E271A" />
+          <stop offset="100%" stopColor="#25160E" />
+        </linearGradient>
+      </defs>
+
+      {/* Recessed Timber Doorway at Rear Bay */}
+      <rect x="95" y="80" width="90" height="135" rx="2" fill={`url(#${teakGrad})`} stroke="#4E3324" strokeWidth="1.5" />
+      {/* Brass Studs on Timber Door */}
+      <circle cx="115" cy="120" r="2.5" fill="#D4AF37" />
+      <circle cx="165" cy="120" r="2.5" fill="#D4AF37" />
+      <circle cx="115" cy="160" r="2.5" fill="#D4AF37" />
+      <circle cx="165" cy="160" r="2.5" fill="#D4AF37" />
+      {/* Mango Leaf Garland across Door Frame */}
+      <path d="M92 84 Q140 94 188 84" stroke="#92400E" strokeWidth="1" fill="none" />
+      {[105, 122, 140, 158, 175].map((x, i) => (
+        <circle key={i} cx={x} cy={88} r="2.2" fill="#63705A" />
+      ))}
+
+      {/* Stepped Stone Podium (Adhishthana) */}
+      <rect x="20" y="215" width="240" height="15" rx="2" fill="#C4B49D" stroke="#A8977F" strokeWidth="1" />
+      <rect x="30" y="205" width="220" height="10" rx="1" fill="#D8C9B3" stroke="#A8977F" strokeWidth="1" />
+
+      {/* 4 Front & Mid Faceted Columns */}
+      {/* Left Front Column */}
+      <FacetedColumnBlock x={45} y={60} w={18} h={145} stoneGrad={stoneGrad} />
+      {/* Left Interior Column */}
+      <FacetedColumnBlock x={80} y={65} w={14} h={140} stoneGrad={stoneGrad} />
+      {/* Right Interior Column */}
+      <FacetedColumnBlock x={186} y={65} w={14} h={140} stoneGrad={stoneGrad} />
+      {/* Right Front Column */}
+      <FacetedColumnBlock x={217} y={60} w={18} h={145} stoneGrad={stoneGrad} />
+    </svg>
+  )
+}
+
+function FacetedColumnBlock({
+  x,
+  y,
+  w,
+  h,
+  stoneGrad,
+}: {
+  x: number
+  y: number
+  w: number
+  h: number
+  stoneGrad: string
+}) {
+  return (
+    <g>
+      {/* Lotus Capital */}
+      <polygon
+        points={`${x - 4},${y} ${x + w + 4},${y} ${x + w},${y + 8} ${x},${y + 8}`}
+        fill="#A8977F"
+        stroke="#8C7D68"
+        strokeWidth="0.8"
+      />
+      {/* Faceted Shaft */}
+      <rect x={x} y={y + 8} width={w} height={h - 16} fill={`url(#${stoneGrad})`} stroke="#8C7D68" strokeWidth="0.8" />
+      <line x1={x + w / 2} y1={y + 8} x2={x + w / 2} y2={y + h - 8} stroke="#8C7D68" strokeWidth="0.8" />
+      {/* Carved Band */}
+      <rect x={x - 1} y={y + h * 0.45} width={w + 2} height={6} rx="1" fill="#A7864A" />
+      {/* Base Plinth */}
+      <rect x={x - 2} y={y + h - 8} width={w + 4} height={8} rx="1" fill="#A8977F" />
+    </g>
+  )
+}
+
+/**
+ * Carved Architectural Jaali Screen (Articulated sliding screen)
+ */
+function CarvedJaaliScreenSVG({ instanceId }: { instanceId: string }) {
+  const jaaliGrad = `${instanceId}-jaali-sandstone`
+
+  return (
+    <svg viewBox="0 0 140 180" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+      <defs>
+        <linearGradient id={jaaliGrad} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#D8C9B3" />
+          <stop offset="100%" stopColor="#B3A188" />
+        </linearGradient>
+      </defs>
+      {/* Outer Stone Frame */}
+      <rect x="4" y="4" width="132" height="172" rx="4" fill={`url(#${jaaliGrad})`} stroke="#8C7D68" strokeWidth="1.5" />
+      {/* Geometric Jaali Perforations */}
+      {[25, 55, 85, 115, 145].map((y, i) => (
         <g key={i}>
-          <path
-            d={`M${x} 12 C${x - 7} 26 ${x - 4} 38 ${x} 44 C${x + 4} 38 ${x + 7} 26 ${x} 12 Z`}
-            fill="#15803D"
-            stroke="#14532D"
-            strokeWidth="0.8"
-          />
-          <circle cx={x} cy={14} r="3.5" fill="#F59E0B" />
+          <circle cx="35" cy={y} r="6" fill="#232720" opacity="0.35" />
+          <circle cx="70" cy={y} r="6" fill="#232720" opacity="0.35" />
+          <circle cx="105" cy={y} r="6" fill="#232720" opacity="0.35" />
         </g>
       ))}
     </svg>
@@ -1048,261 +904,138 @@ function MangoMarigoldThoranamSVG({ instanceId }: { instanceId: string }) {
 }
 
 /**
- * Suspended Cast Bronze Temple Bell with Clapper
+ * Stepped Roof Assembly with Dravidian Profile & Brass Kalasams (Articulated lifting roof)
  */
-function TempleBellSVG({ instanceId, size = 70 }: { instanceId: string; size?: number }) {
-  const bellGrad = `${instanceId}-bell-grad`
+function SteppedRoofAssemblySVG({ instanceId }: { instanceId: string }) {
+  const roofGrad = `${instanceId}-roof-stone`
+  const brassGrad = `${instanceId}-roof-brass`
 
   return (
-    <div
-      className="relative flex flex-col items-center"
-      style={{
-        width: size,
-        filter: "drop-shadow(0 8px 18px rgba(0,0,0,0.75))",
-      }}
-    >
-      <svg viewBox="0 0 80 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-        <defs>
-          <linearGradient id={bellGrad} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#FEF3C7" />
-            <stop offset="30%" stopColor="#D97706" />
-            <stop offset="70%" stopColor="#92400E" />
-            <stop offset="100%" stopColor="#451A03" />
-          </linearGradient>
-        </defs>
-
-        {/* Chain Links */}
-        <line x1="40" y1="0" x2="40" y2="28" stroke="#92400E" strokeWidth="3.5" strokeDasharray="3 3" />
-        <circle cx="40" cy="28" r="4.5" stroke="#F59E0B" strokeWidth="2" fill="none" />
-
-        {/* Bell Finial */}
-        <path d="M35 32 H45 L43 42 H37 Z" fill={`url(#${bellGrad})`} />
-
-        {/* Bell Body */}
-        <path
-          d="M37 42 C33 56 18 72 16 88 C16 96 64 96 64 88 C62 72 47 56 43 42 Z"
-          fill={`url(#${bellGrad})`}
-          stroke="#FEF3C7"
-          strokeWidth="1.2"
-        />
-
-        {/* Lip Ring */}
-        <ellipse cx="40" cy="90" rx="24" ry="5.5" fill="#B45309" stroke="#FEF3C7" strokeWidth="1.2" />
-
-        {/* Clapper with Red Silk Tassel */}
-        <line x1="40" y1="90" x2="40" y2="105" stroke="#D97706" strokeWidth="2.5" />
-        <circle cx="40" cy="107" r="4" fill="#FEF3C7" stroke="#78350F" strokeWidth="0.8" />
-        <path d="M38 111 L36 122 H44 L42 111 Z" fill="#DC2626" />
-      </svg>
-    </div>
-  )
-}
-
-/**
- * Rice-Flour Kolam Geometric Pattern for Floor Planes
- */
-function RiceFlourKolamSVG({ instanceId, size }: { instanceId: string; size?: number }) {
-  return (
-    <svg
-      viewBox="0 0 100 100"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className="w-full h-full"
-      style={size ? { width: size, height: size } : undefined}
-    >
-      <circle cx="50" cy="50" r="42" stroke="#FAF7F0" strokeWidth="1.6" strokeDasharray="3 3" />
-      <polygon points="50,12 88,50 50,88 12,50" stroke="#FAF7F0" strokeWidth="1.8" fill="none" />
-      <polygon points="50,22 78,50 50,78 22,50" stroke="#F59E0B" strokeWidth="1.4" fill="none" />
-      <circle cx="50" cy="50" r="12" stroke="#FAF7F0" strokeWidth="1.4" />
-      <circle cx="50" cy="50" r="4" fill="#FAF7F0" />
-      {/* 4 Cardinal Lotus Accents */}
-      <circle cx="50" cy="12" r="3" fill="#FAF7F0" />
-      <circle cx="88" cy="50" r="3" fill="#FAF7F0" />
-      <circle cx="50" cy="88" r="3" fill="#FAF7F0" />
-      <circle cx="12" cy="50" r="3" fill="#FAF7F0" />
-    </svg>
-  )
-}
-
-/**
- * Ceremonial Pavilion Architectural Arch Frame
- */
-function CeremonialPavilionFrameSVG({ instanceId }: { instanceId: string }) {
-  const frameGrad = `${instanceId}-pavilion-frame`
-
-  return (
-    <svg viewBox="0 0 360 480" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+    <svg viewBox="0 0 260 130" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
       <defs>
-        <linearGradient id={frameGrad} x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id={roofGrad} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#E5DAC9" />
+          <stop offset="60%" stopColor="#C4B49D" />
+          <stop offset="100%" stopColor="#9C8C77" />
+        </linearGradient>
+        <linearGradient id={brassGrad} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#FEF3C7" />
-          <stop offset="40%" stopColor="#D97706" />
-          <stop offset="80%" stopColor="#92400E" />
-          <stop offset="100%" stopColor="#451A03" />
+          <stop offset="50%" stopColor="#A7864A" />
+          <stop offset="100%" stopColor="#78350F" />
         </linearGradient>
       </defs>
 
-      {/* Main Architectural Pavilion Arch */}
-      <path
-        d="M50 480 V210 C50 110 310 110 310 210 V480"
-        stroke={`url(#${frameGrad})`}
-        strokeWidth="14"
-        strokeLinecap="round"
-      />
-      {/* Inner Beaded Line */}
-      <path
-        d="M72 480 V220 C72 140 288 140 288 220 V480"
-        stroke="#FEF3C7"
-        strokeWidth="2.5"
-        strokeDasharray="5 4"
-        opacity="0.8"
-      />
+      {/* 3 Brass Kalasam Finials */}
+      <circle cx="130" cy="12" r="5" fill={`url(#${brassGrad})`} stroke="#FEF3C7" strokeWidth="0.8" />
+      <line x1="130" y1="4" x2="130" y2="12" stroke="#FEF3C7" strokeWidth="1.5" />
+      <circle cx="95" cy="18" r="4" fill={`url(#${brassGrad})`} stroke="#FEF3C7" strokeWidth="0.6" />
+      <circle cx="165" cy="18" r="4" fill={`url(#${brassGrad})`} stroke="#FEF3C7" strokeWidth="0.6" />
 
-      {/* Apex Crest Finial */}
-      <circle cx="180" cy="96" r="20" fill={`url(#${frameGrad})`} stroke="#FEF3C7" strokeWidth="1.5" />
-      <circle cx="180" cy="96" r="10" fill="#451A03" />
-      <polygon points="180,78 185,90 175,90" fill="#FEF3C7" />
-      <path d="M176 74 L180 54 L184 74 Z" fill={`url(#${frameGrad})`} stroke="#FEF3C7" strokeWidth="1" />
+      {/* Tier 1 (Apex Shikhara Tier) */}
+      <polygon points="80,24 180,24 195,50 65,50" fill={`url(#${roofGrad})`} stroke="#7D6F5E" strokeWidth="1.2" />
+      {/* Tier 2 (Middle Cornice Tier) */}
+      <polygon points="50,50 210,50 225,82 35,82" fill={`url(#${roofGrad})`} stroke="#7D6F5E" strokeWidth="1.2" />
+      {/* Tier 3 (Broad Base Architrave) */}
+      <polygon points="20,82 240,82 250,115 10,115" fill={`url(#${roofGrad})`} stroke="#7D6F5E" strokeWidth="1.5" />
+      {/* Decorative Dentil Cornice Line */}
+      <line x1="18" y1="105" x2="242" y2="105" stroke="#7D6F5E" strokeWidth="1.5" strokeDasharray="4 3" />
     </svg>
   )
 }
 
 /**
- * Sculptural 5-Tiered Brass Temple Kuthuvilakku Lamp (Accurately 5 Tiers)
+ * Keepsake Folio 3D Model with Articulated Opening Cover & Rotating Brass Clasp
  */
-function FiveTierKuthuvilakkuSVG({
+function KeepsakeFolioModel({
   instanceId,
-  lit,
-  still,
-  reducedMotion,
+  isOpening,
+  isReading,
+  reduce,
+  lang,
+  names,
 }: {
   instanceId: string
-  lit: boolean
-  still?: boolean
-  reducedMotion?: boolean
+  isOpening: boolean
+  isReading: boolean
+  reduce: boolean
+  lang: Lang
+  names: [string, string]
 }) {
-  const kuthuGrad = `${instanceId}-kuthu-grad`
+  const isCoverOpen = isReading || isOpening
 
   return (
-    <div className="relative w-22 h-[410px] flex flex-col items-center">
-      <svg viewBox="0 0 85 430" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-        <defs>
-          <linearGradient id={kuthuGrad} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#FEF3C7" />
-            <stop offset="40%" stopColor="#D97706" />
-            <stop offset="85%" stopColor="#92400E" />
-            <stop offset="100%" stopColor="#451A03" />
-          </linearGradient>
-        </defs>
+    <div
+      className="relative w-full h-full flex items-center justify-center rounded-xl overflow-hidden shadow-lg"
+      style={{
+        background: "linear-gradient(135deg, #FAF7F0 0%, #F5F1E8 100%)",
+        border: "1.5px solid rgba(167,134,74,0.5)",
+        transformStyle: "preserve-3d",
+      }}
+    >
+      {/* Subtle Embossed Border on Folio Base */}
+      <div className="absolute inset-1.5 rounded-lg border border-[#D8C9B3]/80 pointer-events-none" />
 
-        {/* Sculpted Swan (Annam) Apex Finial */}
-        <path
-          d="M42 22 C38 12 33 10 36 4 C42 1 48 8 47 16 C51 10 56 6 60 10 C58 18 50 22 42 22 Z"
-          fill={`url(#${kuthuGrad})`}
-          stroke="#FEF3C7"
-          strokeWidth="0.8"
-        />
+      {/* Inner Folio Face (Names in Editorial Script) */}
+      <div className="relative z-10 flex flex-col items-center justify-center p-3 text-center">
+        <span className="text-[7.5px] uppercase tracking-[0.2em] font-serif text-[#A7864A] font-semibold">
+          INVITATION
+        </span>
+        <span className="text-[11px] font-serif font-bold text-[#232720] mt-0.5 leading-tight">
+          {names[0]}
+        </span>
+        <span className="text-[8px] font-serif text-[#A7864A] italic my-0.5">
+          &
+        </span>
+        <span className="text-[11px] font-serif font-bold text-[#232720] leading-tight">
+          {names[1]}
+        </span>
+      </div>
 
-        {/* Central Cast Brass Spindle Rod */}
-        <rect x="40" y="22" width="5" height="365" fill={`url(#${kuthuGrad})`} stroke="#FEF3C7" strokeWidth="0.6" />
-
-        {/* Tier 1 Bowl (Top) */}
-        <ellipse cx="42" cy="60" rx="16" ry="6" fill={`url(#${kuthuGrad})`} stroke="#FEF3C7" strokeWidth="1" />
-        {/* Tier 2 Bowl */}
-        <ellipse cx="42" cy="125" rx="22" ry="7" fill={`url(#${kuthuGrad})`} stroke="#FEF3C7" strokeWidth="1" />
-        {/* Tier 3 Bowl */}
-        <ellipse cx="42" cy="195" rx="27" ry="8" fill={`url(#${kuthuGrad})`} stroke="#FEF3C7" strokeWidth="1" />
-        {/* Tier 4 Bowl */}
-        <ellipse cx="42" cy="265" rx="32" ry="9" fill={`url(#${kuthuGrad})`} stroke="#FEF3C7" strokeWidth="1" />
-        {/* Tier 5 Bowl (Bottom) */}
-        <ellipse cx="42" cy="335" rx="36" ry="10" fill={`url(#${kuthuGrad})`} stroke="#FEF3C7" strokeWidth="1" />
-
-        {/* Stepped Pedestal Base */}
-        <rect x="28" y="385" width="28" height="15" rx="2" fill={`url(#${kuthuGrad})`} />
-        <ellipse cx="42" cy="415" rx="36" ry="13" fill={`url(#${kuthuGrad})`} stroke="#FEF3C7" strokeWidth="1.2" />
-      </svg>
-
-      {/* Burning Oil Wicks on the 5 Tiers */}
-      {lit && (
-        <div className="absolute inset-0 pointer-events-none">
-          {[56, 120, 189, 258, 328].map((y, i) => (
-            <motion.div
-              key={i}
-              className="absolute left-1/2 -translate-x-1/2 rounded-full"
-              style={{
-                top: y,
-                width: 5,
-                height: 8,
-                background:
-                  "linear-gradient(to top, #EA580C 0%, #F59E0B 60%, #FEF3C7 100%)",
-                boxShadow: "0 0 8px #FBBF24",
-              }}
-              animate={
-                still || reducedMotion
-                  ? { scale: 1, opacity: 0.95 }
-                  : {
-                      scale: [0.85, 1.15, 0.9],
-                      opacity: [0.85, 1, 0.85],
-                    }
-              }
-              transition={{
-                duration: 1.3 + i * 0.15,
-                repeat: still || reducedMotion ? 0 : Infinity,
-                ease: "easeInOut",
-              }}
-            />
-          ))}
-        </div>
-      )}
+      {/* Articulated Folio Cover with Rotating Brass Clasp */}
+      <motion.div
+        className="absolute inset-0 origin-left z-20 rounded-xl flex items-center justify-center shadow-md pointer-events-none"
+        style={{
+          transformOrigin: "left center",
+          transformStyle: "preserve-3d",
+          background: "linear-gradient(145deg, #FAF7F0 0%, #EFE8DA 100%)",
+          border: "1.5px solid #A7864A",
+        }}
+        animate={{
+          rotateY: isCoverOpen ? -125 : 0,
+          opacity: isReading ? 0 : 1,
+        }}
+        transition={{
+          duration: reduce ? 0 : 2.2,
+          delay: isOpening ? 4.2 : 0,
+          ease: [0.25, 1, 0.35, 1],
+        }}
+      >
+        {/* Rotating Brass Clasp Medallion on Cover */}
+        <motion.div
+          className="w-8 h-8 rounded-full flex items-center justify-center"
+          style={{
+            background: "radial-gradient(circle at 35% 30%, #FEF3C7 0%, #A7864A 70%, #78350F 100%)",
+            border: "1px solid #FEF3C7",
+          }}
+          animate={{
+            rotate: isCoverOpen ? 45 : 0,
+          }}
+          transition={{
+            duration: reduce ? 0 : 1.2,
+            delay: isOpening ? 3.8 : 0,
+          }}
+        >
+          <div className="w-2.5 h-2.5 rounded-full bg-[#FAF7F0] opacity-80" />
+        </motion.div>
+      </motion.div>
     </div>
   )
 }
 
 /**
- * Low Antique Brass Urli Vessel with Floating Blossoms
+ * Editorial Corner Filigree Accent
  */
-function CeremonialBrassUrliSVG({ instanceId }: { instanceId: string }) {
-  const urliGrad = `${instanceId}-urli-gold`
-
-  return (
-    <div className="relative w-52 h-26 flex flex-col items-center justify-center">
-      <svg viewBox="0 0 190 85" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-        <defs>
-          <linearGradient id={urliGrad} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#FEF3C7" />
-            <stop offset="50%" stopColor="#D97706" />
-            <stop offset="100%" stopColor="#78350F" />
-          </linearGradient>
-        </defs>
-        {/* Brass Vessel Rim */}
-        <ellipse cx="95" cy="42" rx="82" ry="28" fill={`url(#${urliGrad})`} stroke="#FEF3C7" strokeWidth="2" />
-        {/* Water Pool */}
-        <ellipse cx="95" cy="42" rx="72" ry="20" fill="#0F172A" opacity="0.95" />
-
-        {/* Floating Pink Lotus Blossom at Center */}
-        <circle cx="95" cy="42" r="13" fill="#F43F5E" />
-        <circle cx="90" cy="39" r="7" fill="#FB7185" />
-        <circle cx="100" cy="39" r="7" fill="#FB7185" />
-        <circle cx="95" cy="38" r="8" fill="#FDA4AF" />
-        <circle cx="95" cy="42" r="3.5" fill="#FDE047" />
-
-        {/* Floating Jasmine White Flowers */}
-        <circle cx="62" cy="43" r="5" fill="#FAF7F0" />
-        <circle cx="72" cy="49" r="4.5" fill="#FAF7F0" />
-        <circle cx="122" cy="41" r="5" fill="#FAF7F0" />
-        <circle cx="132" cy="47" r="4.5" fill="#FAF7F0" />
-
-        {/* Floating Oil Diya */}
-        <ellipse cx="95" cy="52" rx="7" ry="3.5" fill="#92400E" stroke="#FDE68A" strokeWidth="0.8" />
-        <circle cx="95" cy="50" r="2" fill="#F59E0B" />
-      </svg>
-    </div>
-  )
-}
-
-/**
- * Folio Corner Brass Filigree Accent
- */
-function FolioCornerOrnament({
+function CornerOrnament({
   position,
   instanceId,
 }: {
@@ -1314,23 +1047,63 @@ function FolioCornerOrnament({
 
   return (
     <div
-      className={`absolute ${isTop ? "top-2.5" : "bottom-2.5"} ${
-        isLeft ? "left-2.5" : "right-2.5"
-      } w-7 h-7 pointer-events-none opacity-85 z-25`}
+      className={`absolute ${isTop ? "top-3" : "bottom-3"} ${
+        isLeft ? "left-3" : "right-3"
+      } w-5 h-5 pointer-events-none opacity-60 z-20`}
       style={{
         transform: `${!isLeft ? "scaleX(-1)" : ""} ${!isTop ? "scaleY(-1)" : ""}`,
       }}
     >
-      <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path
-          d="M4 32 V10 C4 6.5 6.5 4 10 4 H32"
-          stroke="#C5A059"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-        />
-        <circle cx="8" cy="8" r="2.5" fill="#FDE68A" />
-        <path d="M10 10 Q18 12 18 18 Q12 18 10 10 Z" fill="#D97706" />
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2 22 V6 C2 3.8 3.8 2 6 2 H22" stroke="#A7864A" strokeWidth="1.5" strokeLinecap="round" />
+        <circle cx="5" cy="5" r="1.5" fill="#A7864A" />
       </svg>
     </div>
+  )
+}
+
+/**
+ * Modal Sheet Backdrop for Map / Share
+ */
+function ModalBackdrop({
+  title,
+  onClose,
+  children,
+}: {
+  title: string
+  onClose: () => void
+  children: ReactNode
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#232720]/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.94, opacity: 0, y: 15 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.94, opacity: 0, y: 15 }}
+        className="w-full max-w-sm rounded-3xl bg-[#FAF7F0] p-6 border border-[#D8C9B3] shadow-2xl relative"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between pb-3 border-b border-[#D8C9B3]/50 mb-3">
+          <h3 className="text-sm font-serif font-bold text-[#232720] tracking-wide">
+            {title}
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close modal"
+            className="p-1 rounded-full text-[#63705A] hover:text-[#232720] hover:bg-[#EAE3D5] transition"
+          >
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+        {children}
+      </motion.div>
+    </motion.div>
   )
 }

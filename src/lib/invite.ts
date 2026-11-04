@@ -330,12 +330,12 @@ export const THEME_META: Record<InviteTheme, {
   },
 
   lamp: {
-    name: { en: "Temple Hallway 3D", ta: "கோவில் பிரகாரம் 3D" },
+    name: { en: "The Temple Atelier 3D", ta: "கோவில் சிற்பக்கூடம் 3D" },
     blurb: {
-      en: "Immersive Dravidian temple corridor with receding Yali pillars, swaying bells, flickering diyas & royal scroll",
-      ta: "ஆயிரங்கால் மண்டபம், யாளிக் தூண்கள், கோவில் மணி, தீப வரிசை & தாமிர சாசனம்",
+      en: "Contemporary architectural exhibition of a miniature temple pavilion with lifting roof & keepsake folio",
+      ta: "நவீன கலைக்கூடத்தில் கோவில் சிற்ப மாதிரி மண்டபம், திறக்கும் கூரை & சுவடி",
     },
-    swatch: ["#17120E", "#F59E0B"],
+    swatch: ["#F5F1E8", "#A7864A"],
   },
 
   pattu: {
