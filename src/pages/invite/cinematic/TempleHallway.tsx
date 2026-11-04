@@ -5,18 +5,20 @@ import { InviteDetailsCard } from "./InviteDetailsCard"
 import type { CinematicSceneProps } from "./types"
 
 /**
- * The Grand Temple Prakaram (Aayiram Kaal Mandapam) 3D Invitation
+ * The Sacred Temple Prakaram & Raja Gopuram 3D Invitation
  *
- * An immersive Dravidian temple corridor experience inspired by the magnificent
- * Thousand Pillar Halls of Madurai Meenakshi, Rameshwaram, and Thanjavur:
- * - 4 Receding tiers of sculpted monolithic granite Yali pillars in deep 3D perspective
- * - Suspended bronze temple bells swaying on heavy chains with resonant ripple waves
- * - Hanging cast-brass oil lamps (Agal Vilakku) with animated flickering flame glows
- * - Polished black granite floor with vanishing-point perspective and reflections
- * - Volumetric sunbeams streaming through high stone clerestory skylights
- * - A 7.2-second multi-stage cinematic corridor traverse with camera fly-through
- * - Glowing Makaratoranam golden sanctum archway, ceremonial brass Urli & petal rain
- * - Sacred gold-etched royal temple decree / copper edict card unfolding in 3D
+ * An authentic Dravidian temple architecture experience celebrating
+ * the iconic sacred features of Madurai Meenakshi, Rameshwaram, and Thanjavur:
+ *
+ * 1. RAJA GOPURAM & KALASAMS: Multi-tiered Dravidian gateway tower crowned with 7 golden Kalasams.
+ * 2. CARVED TEAK TEMPLE DOORS (Kovil Kadhavu): Heavy timber doors with brass studs, iron crossbars & Lion ring knocker.
+ * 3. 3D DOOR REVEAL: Knocker strike with acoustic shockwave, swinging open in 3D perspective to reveal the corridor.
+ * 4. AAYIRAM KAAL MANDAPAM (Thousand Pillar Hall): 4 tiers of sculpted monolithic granite Yali pillars.
+ * 5. DEEPA VARISAI (Rows of Burning Oil Diyas): Stepped rows of flickering Agal Vilakku along the polished stone floor.
+ * 6. SACRED PADAKOLAM: Traditional white rice-flour temple kolam running down the central stone aisle.
+ * 7. SWAYING TEMPLE BELLS & DHOOPAM: Bronze bells swaying on heavy chains with wafting sambrani incense haze.
+ * 8. GARBA GRIHA (Inner Sanctum): Radiant Makaratoranam golden arch, twin 7-tiered Kuthuvilakku lamps & brass Urli.
+ * 9. PETAL SHOWER & TAMRA PATRA: Cascading rose & marigold petals as the consecrated copper edict unfolds in 3D.
  */
 export function TempleHallway(props: CinematicSceneProps) {
   const { invite, lang, still, size, share, onReady, sample, art } = props
@@ -29,8 +31,8 @@ export function TempleHallway(props: CinematicSceneProps) {
       title={lang === "ta" ? "கோவில் பிரகாரம் 3D" : "The Temple Corridor 3D"}
       subtitle={
         lang === "ta"
-          ? "ஆயிரங்கால் மண்டபப் பிரகாரம்"
-          : "Sacred Thousand Pillar Hallway"
+          ? "ஆயிரங்கால் மண்டபம் & ராஜகோபுரம்"
+          : "Sacred Dravidian Temple Prakaram"
       }
       accentColor="#F59E0B"
       still={still}
@@ -38,16 +40,17 @@ export function TempleHallway(props: CinematicSceneProps) {
       share={share}
       onReady={onReady}
       sample={sample}
-      revealDuration={7200}
+      revealDuration={7400}
       renderScene={({ state, onTriggerOpen, parallax, reducedMotion }) => {
         const isOpen = state === "opened"
         const isOpening = state === "opening"
         const isClosed = state === "closed"
 
-        // 3D Camera Rig transforms across the multi-phase journey
-        // During opening: camera sweeps forward 720px down the temple colonnade
-        const cameraZ = isOpen ? 680 : isOpening ? 680 : 0
-        const cameraY = isOpen ? -18 : isOpening ? -18 : 0
+        // 3D Camera Rig transforms across the multi-phase journey:
+        // Closed: Framed at the Raja Gopuram gateway before the massive carved doors.
+        // Opening / Opened: Glides 740px forward through the open doors and down the colonnade!
+        const cameraZ = isOpen ? 740 : isOpening ? 740 : 0
+        const cameraY = isOpen ? -20 : isOpening ? -20 : 0
         const cameraPitch = isOpen ? 1 : isOpening ? 2 : 4
         const cameraRotX = cameraPitch + parallax.y * 3
         const cameraRotY = parallax.x * 3.5
@@ -57,74 +60,74 @@ export function TempleHallway(props: CinematicSceneProps) {
             className="relative h-full w-full overflow-hidden flex items-center justify-center select-none"
             style={{
               background:
-                "radial-gradient(circle at 50% 40%, #1c140e 0%, #0e0906 60%, #050302 100%)",
+                "radial-gradient(circle at 50% 35%, #1f140e 0%, #110905 55%, #050302 100%)",
               perspective: 1200,
               WebkitPerspective: 1200,
               transformStyle: "preserve-3d",
               WebkitTransformStyle: "preserve-3d",
             }}
           >
-            {/* Ambient Temple Murk & Vignette */}
+            {/* Ambient Temple Murk & Dark Granite Vignette */}
             <div
               className="pointer-events-none absolute inset-0 z-0 opacity-80"
               style={{
                 background:
-                  "radial-gradient(circle at 50% 50%, transparent 40%, rgba(5,3,2,0.85) 100%)",
+                  "radial-gradient(circle at 50% 50%, transparent 40%, rgba(5,3,2,0.9) 100%)",
               }}
             />
 
-            {/* Volumetric Sunbeams through High Temple Skylights */}
+            {/* Volumetric Sunbeams Streaming Through Clerestory Stone Skylights */}
             <div
-              className="pointer-events-none absolute inset-0 z-0 overflow-hidden opacity-30 mix-blend-screen"
+              className="pointer-events-none absolute inset-0 z-0 overflow-hidden opacity-35 mix-blend-screen"
               aria-hidden="true"
             >
               <div
-                className="absolute -top-20 left-1/4 h-[120%] w-48 origin-top -rotate-12"
+                className="absolute -top-24 left-1/4 h-[130%] w-52 origin-top -rotate-15"
                 style={{
                   background:
-                    "linear-gradient(to bottom, rgba(251,191,36,0.25) 0%, rgba(217,119,6,0.08) 50%, transparent 90%)",
-                  filter: "blur(20px)",
+                    "linear-gradient(to bottom, rgba(251,191,36,0.3) 0%, rgba(217,119,6,0.1) 45%, transparent 85%)",
+                  filter: "blur(22px)",
                 }}
               />
               <div
-                className="absolute -top-20 right-1/4 h-[120%] w-56 origin-top rotate-12"
+                className="absolute -top-24 right-1/4 h-[130%] w-60 origin-top rotate-15"
                 style={{
                   background:
-                    "linear-gradient(to bottom, rgba(251,191,36,0.22) 0%, rgba(217,119,6,0.06) 50%, transparent 90%)",
-                  filter: "blur(24px)",
+                    "linear-gradient(to bottom, rgba(251,191,36,0.25) 0%, rgba(217,119,6,0.08) 45%, transparent 85%)",
+                  filter: "blur(26px)",
                 }}
               />
             </div>
 
-            {/* Floating Sambrani Dhoopam (Incense Smoke Haze) */}
+            {/* Floating Sambrani Dhoopam (Sacred Incense Smoke Haze) */}
             {!reducedMotion && !still && (
               <div
-                className="pointer-events-none absolute inset-0 z-10 overflow-hidden opacity-40 mix-blend-screen"
+                className="pointer-events-none absolute inset-0 z-10 overflow-hidden opacity-45 mix-blend-screen"
                 aria-hidden="true"
               >
-                {[...Array(6)].map((_, i) => (
+                {[...Array(7)].map((_, i) => (
                   <motion.div
                     key={i}
                     className="absolute rounded-full"
                     style={{
-                      width: 140 + i * 40,
+                      width: 150 + i * 40,
                       height: 100 + i * 30,
-                      left: `${15 + i * 14}%`,
+                      left: `${12 + i * 13}%`,
                       bottom: "-10%",
                       background:
-                        "radial-gradient(ellipse at center, rgba(254,243,199,0.12) 0%, rgba(217,119,6,0.04) 50%, transparent 80%)",
-                      filter: "blur(28px)",
+                        "radial-gradient(ellipse at center, rgba(254,243,199,0.14) 0%, rgba(217,119,6,0.04) 50%, transparent 80%)",
+                      filter: "blur(30px)",
                     }}
                     animate={{
-                      y: [-20, -500],
-                      x: [0, (i % 2 === 0 ? 30 : -30)],
-                      opacity: [0, 0.45, 0],
-                      scale: [0.8, 1.4],
+                      y: [-20, -560],
+                      x: [0, i % 2 === 0 ? 35 : -35],
+                      opacity: [0, 0.5, 0],
+                      scale: [0.8, 1.45],
                     }}
                     transition={{
-                      duration: 8 + i * 1.5,
+                      duration: 8.5 + i * 1.5,
                       repeat: Infinity,
-                      delay: i * 1.8,
+                      delay: i * 1.6,
                       ease: "easeInOut",
                     }}
                   />
@@ -132,7 +135,7 @@ export function TempleHallway(props: CinematicSceneProps) {
               </div>
             )}
 
-            {/* ─── 3D CAMERA RIG (The Great Hallway Corridor) ─── */}
+            {/* ─── 3D CAMERA RIG (The Grand Temple Hallway Journey) ─── */}
             <motion.div
               className="relative h-full w-full flex items-center justify-center"
               style={{
@@ -146,7 +149,7 @@ export function TempleHallway(props: CinematicSceneProps) {
                 rotateY: cameraRotY,
               }}
               transition={{
-                duration: reducedMotion ? 0 : isOpening ? 7.2 : 0.9,
+                duration: reducedMotion ? 0 : isOpening ? 7.4 : 0.9,
                 ease: [0.25, 0.9, 0.3, 1],
               }}
             >
@@ -154,41 +157,45 @@ export function TempleHallway(props: CinematicSceneProps) {
               <div
                 className="absolute pointer-events-none"
                 style={{
-                  width: 850,
-                  height: 1400,
-                  bottom: -320,
+                  width: 920,
+                  height: 1500,
+                  bottom: -350,
                   transform: "rotateX(75deg) translateZ(-160px)",
                   transformStyle: "preserve-3d",
                   background:
-                    "linear-gradient(to top, #140d09 0%, #1e140d 30%, #0d0805 75%, #050302 100%)",
-                  boxShadow: "0 -20px 80px rgba(0,0,0,0.9) inset",
+                    "linear-gradient(to top, #140d09 0%, #1f140d 30%, #0d0805 75%, #050302 100%)",
+                  boxShadow: "0 -20px 90px rgba(0,0,0,0.95) inset",
                 }}
               >
-                {/* Stone Slab Floor Grid Joints */}
+                {/* Stone Slab Grid Joints */}
                 <div
                   className="absolute inset-0 opacity-25"
                   style={{
                     backgroundImage: `
-                      linear-gradient(to right, rgba(245,158,11,0.15) 1px, transparent 1px),
-                      linear-gradient(to bottom, rgba(245,158,11,0.15) 1px, transparent 1px)
+                      linear-gradient(to right, rgba(245,158,11,0.18) 1px, transparent 1px),
+                      linear-gradient(to bottom, rgba(245,158,11,0.18) 1px, transparent 1px)
                     `,
-                    backgroundSize: "70px 100px",
+                    backgroundSize: "75px 105px",
                   }}
                 />
-                {/* Central Hallway Ceremonial Brass Runner / Kolam strip */}
+
+                {/* Central Sacred Rice-Flour Padakolam Aisle */}
                 <div
-                  className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-48 opacity-25"
+                  className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-44 flex flex-col items-center justify-around opacity-30"
                   style={{
                     background:
-                      "linear-gradient(90deg, transparent, rgba(245,158,11,0.18), transparent)",
+                      "linear-gradient(90deg, transparent, rgba(254,243,199,0.12), transparent)",
                   }}
-                />
-                {/* Floor Diya Light Reflections */}
+                >
+                  <SacredPadakolamStripSVG />
+                </div>
+
+                {/* Floor Reflections of Burning Deepa Flames */}
                 <div
                   className="absolute inset-0"
                   style={{
                     background:
-                      "radial-gradient(ellipse at 50% 60%, rgba(245,158,11,0.2) 0%, rgba(217,119,6,0.08) 40%, transparent 75%)",
+                      "radial-gradient(ellipse at 50% 60%, rgba(245,158,11,0.22) 0%, rgba(217,119,6,0.08) 45%, transparent 75%)",
                   }}
                 />
               </div>
@@ -197,10 +204,10 @@ export function TempleHallway(props: CinematicSceneProps) {
               <div
                 className="absolute pointer-events-none"
                 style={{
-                  width: 750,
-                  height: 1200,
-                  top: -420,
-                  transform: "rotateX(-75deg) translateZ(-180px)",
+                  width: 820,
+                  height: 1300,
+                  top: -460,
+                  transform: "rotateX(-75deg) translateZ(-190px)",
                   background:
                     "linear-gradient(to bottom, #110c08 0%, #1a120b 40%, #080503 100%)",
                 }}
@@ -210,13 +217,13 @@ export function TempleHallway(props: CinematicSceneProps) {
                   className="absolute inset-0 opacity-20"
                   style={{
                     backgroundImage:
-                      "linear-gradient(to bottom, rgba(251,191,36,0.2) 2px, transparent 2px)",
-                    backgroundSize: "100% 80px",
+                      "linear-gradient(to bottom, rgba(251,191,36,0.22) 2px, transparent 2px)",
+                    backgroundSize: "100% 85px",
                   }}
                 />
               </div>
 
-              {/* ─── 3. Receding Dravidian Temple Pillars (4 Progressive Tiers) ─── */}
+              {/* ─── 3. Receding Dravidian Temple Pillars (4 Tiers) ─── */}
               {/* Tier 4: Deep Sanctum Gate Pillars (z: -720px) */}
               <PillarPair
                 z={-720}
@@ -226,76 +233,78 @@ export function TempleHallway(props: CinematicSceneProps) {
                 lampGlow={isOpen || isOpening}
                 isOpening={isOpening}
                 reducedMotion={reducedMotion}
-                tier={4}
               />
 
               {/* Tier 3: Mid-Deep Corridor Pillars (z: -480px) */}
               <PillarPair
                 z={-480}
-                xOffset={148}
+                xOffset={150}
                 scale={0.58}
                 opacity={0.85}
                 lampGlow={isOpen || isOpening}
                 isOpening={isOpening}
                 reducedMotion={reducedMotion}
-                tier={3}
               />
 
               {/* Tier 2: Mid-Front Corridor Pillars (z: -240px) */}
               <PillarPair
                 z={-240}
-                xOffset={185}
+                xOffset={190}
                 scale={0.78}
                 opacity={0.95}
                 lampGlow={true}
                 isOpening={isOpening}
                 reducedMotion={reducedMotion}
-                tier={2}
               />
 
               {/* Tier 1: Majestic Foreground Entrance Pillars (z: 40px) */}
-              {/* Sweeps outward laterally as the camera glides through! */}
               <PillarPair
                 z={40}
-                xOffset={230}
+                xOffset={236}
                 scale={1.05}
                 opacity={1}
                 lampGlow={true}
                 isOpening={isOpening}
                 reducedMotion={reducedMotion}
-                tier={1}
                 partOnOpen={true}
               />
 
-              {/* ─── 4. Suspended Temple Bells Along the Ceiling Corridor ─── */}
+              {/* ─── 4. DEEPA VARISAI (Rows of Burning Oil Lamps on Floor) ─── */}
+              <DeepaVarisaiRows
+                isOpening={isOpening}
+                isOpen={isOpen}
+                reducedMotion={reducedMotion}
+              />
+
+              {/* ─── 5. Suspended Temple Bells Along the Ceiling Corridor ─── */}
               {/* Large Central Entrance Bell (Rings on trigger!) */}
               <motion.div
                 className="absolute z-20 pointer-events-none"
                 style={{
-                  top: "11%",
-                  transform: "translateZ(80px)",
+                  top: "10%",
+                  transform: "translateZ(90px)",
                 }}
                 animate={{
                   rotateZ: isOpening
-                    ? [0, -18, 15, -12, 8, -4, 2, 0]
+                    ? [0, -20, 16, -14, 9, -5, 2, 0]
                     : [0, -3, 3, 0],
-                  scale: isOpening ? [1, 1.15, 0.96, 1.05, 1] : 1,
+                  scale: isOpening ? [1, 1.18, 0.95, 1.06, 1] : 1,
                 }}
                 transition={{
-                  duration: isOpening ? 2.4 : 4.5,
+                  duration: isOpening ? 2.5 : 4.5,
                   repeat: isOpening ? 0 : Infinity,
                   ease: "easeInOut",
                 }}
               >
-                <TempleBellSVG size={88} glowing={isOpening} />
+                <TempleBellSVG size={92} glowing={isOpening} />
                 {/* Acoustic Soundwave Ripples on Bell Strike */}
                 {isOpening && !reducedMotion && (
                   <motion.div
                     className="absolute inset-0 rounded-full border-2 border-amber-400 pointer-events-none"
-                    initial={{ scale: 0.5, opacity: 0.9 }}
-                    animate={{ scale: 3.5, opacity: 0 }}
+                    initial={{ scale: 0.5, opacity: 0.95 }}
+                    animate={{ scale: 3.8, opacity: 0 }}
                     transition={{
-                      duration: 1.8,
+                      duration: 1.9,
                       repeat: 2,
                       ease: "easeOut",
                     }}
@@ -303,10 +312,10 @@ export function TempleHallway(props: CinematicSceneProps) {
                 )}
               </motion.div>
 
-              {/* Receding Hallway Bells (Middle & Deep) */}
+              {/* Receding Hallway Bells */}
               <motion.div
                 className="absolute pointer-events-none opacity-80"
-                style={{ top: "15%", transform: "translateZ(-260px) scale(0.65)" }}
+                style={{ top: "14%", transform: "translateZ(-260px) scale(0.65)" }}
                 animate={{ rotateZ: [-4, 4, -4] }}
                 transition={{ duration: 3.6, repeat: Infinity, ease: "easeInOut" }}
               >
@@ -314,7 +323,7 @@ export function TempleHallway(props: CinematicSceneProps) {
               </motion.div>
               <motion.div
                 className="absolute pointer-events-none opacity-60"
-                style={{ top: "18%", transform: "translateZ(-520px) scale(0.42)" }}
+                style={{ top: "17%", transform: "translateZ(-520px) scale(0.42)" }}
                 animate={{ rotateZ: [3, -3, 3] }}
                 transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
               >
@@ -323,13 +332,65 @@ export function TempleHallway(props: CinematicSceneProps) {
 
               {/* Mango Leaf & Marigold Thoranam Across Entrance Lintels */}
               <div
-                className="absolute top-2 w-[420px] pointer-events-none z-30"
-                style={{ transform: "translateZ(100px)" }}
+                className="absolute top-2 w-[440px] pointer-events-none z-30"
+                style={{ transform: "translateZ(110px)" }}
               >
                 <ThoranamGarlandSVG />
               </div>
 
-              {/* ─── 5. The Inner Sanctum (Garba Griha Portal at z: -800px) ─── */}
+              {/* ─── 6. MONUMENTAL CARVED TEAK TEMPLE DOORS (KOVIL KADHAVU) ─── */}
+              {/* Positioned at z: 70px. Closed at first, swings open in 3D perspective! */}
+              <div
+                className="absolute flex items-center justify-center pointer-events-none z-35"
+                style={{
+                  width: 370,
+                  height: 480,
+                  transform: "translateZ(70px)",
+                  transformStyle: "preserve-3d",
+                }}
+              >
+                {/* Left Carved Temple Door */}
+                <motion.div
+                  className="absolute left-0 top-0 w-[185px] h-full origin-left overflow-hidden shadow-2xl"
+                  style={{
+                    transformStyle: "preserve-3d",
+                    borderRight: "1px solid rgba(245,158,11,0.4)",
+                  }}
+                  animate={{
+                    rotateY: isOpen || isOpening ? -82 : 0,
+                    opacity: isOpen ? 0.05 : isOpening ? [1, 1, 0.4, 0.08] : 1,
+                  }}
+                  transition={{
+                    duration: reducedMotion ? 0 : 3.4,
+                    delay: isOpening ? 1.0 : 0,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                >
+                  <TempleDoorLeafSVG side="left" />
+                </motion.div>
+
+                {/* Right Carved Temple Door */}
+                <motion.div
+                  className="absolute right-0 top-0 w-[185px] h-full origin-right overflow-hidden shadow-2xl"
+                  style={{
+                    transformStyle: "preserve-3d",
+                    borderLeft: "1px solid rgba(245,158,11,0.4)",
+                  }}
+                  animate={{
+                    rotateY: isOpen || isOpening ? 82 : 0,
+                    opacity: isOpen ? 0.05 : isOpening ? [1, 1, 0.4, 0.08] : 1,
+                  }}
+                  transition={{
+                    duration: reducedMotion ? 0 : 3.4,
+                    delay: isOpening ? 1.0 : 0,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                >
+                  <TempleDoorLeafSVG side="right" />
+                </motion.div>
+              </div>
+
+              {/* ─── 7. THE INNER SANCTUM (Garba Griha Portal at z: -800px) ─── */}
               <motion.div
                 className="absolute flex flex-col items-center justify-center pointer-events-none"
                 style={{
@@ -344,15 +405,15 @@ export function TempleHallway(props: CinematicSceneProps) {
               >
                 {/* Divine Sanctum Back-Glow Aura */}
                 <motion.div
-                  className="absolute -inset-24 rounded-full pointer-events-none"
+                  className="absolute -inset-28 rounded-full pointer-events-none"
                   style={{
                     background:
-                      "radial-gradient(circle, rgba(245,158,11,0.5) 0%, rgba(217,119,6,0.2) 45%, transparent 75%)",
-                    filter: "blur(40px)",
+                      "radial-gradient(circle, rgba(245,158,11,0.55) 0%, rgba(217,119,6,0.22) 45%, transparent 75%)",
+                    filter: "blur(44px)",
                   }}
                   animate={{
                     scale: isOpen || isOpening ? [1, 1.25, 1.1] : [0.9, 1.05, 0.9],
-                    opacity: isOpen || isOpening ? [0.6, 0.9, 0.75] : 0.4,
+                    opacity: isOpen || isOpening ? [0.65, 0.95, 0.75] : 0.4,
                   }}
                   transition={{
                     duration: 3.5,
@@ -363,9 +424,9 @@ export function TempleHallway(props: CinematicSceneProps) {
 
                 {/* Golden Makaratoranam Sanctum Arch */}
                 <div
-                  className="relative w-[360px] h-[480px] flex items-center justify-center"
+                  className="relative w-[370px] h-[490px] flex items-center justify-center"
                   style={{
-                    filter: "drop-shadow(0 0 25px rgba(245,158,11,0.45))",
+                    filter: "drop-shadow(0 0 28px rgba(245,158,11,0.5))",
                   }}
                 >
                   <MakaratoranamArchSVG />
@@ -394,39 +455,39 @@ export function TempleHallway(props: CinematicSceneProps) {
                 </div>
               </motion.div>
 
-              {/* ─── 6. Cascading Rose & Marigold Petal Shower in Sanctum ─── */}
+              {/* ─── 8. Cascading Rose & Marigold Petal Shower in Sanctum ─── */}
               {(isOpening || isOpen) && !reducedMotion && !still && (
                 <div
                   className="pointer-events-none absolute inset-0 z-25 overflow-hidden"
                   aria-hidden="true"
                 >
-                  {[...Array(20)].map((_, i) => (
+                  {[...Array(24)].map((_, i) => (
                     <motion.div
                       key={i}
                       className="absolute rounded-full"
                       style={{
                         width: 9 + (i % 5) * 2,
                         height: 7 + (i % 4) * 2,
-                        left: `${15 + (i * 4.2) % 70}%`,
+                        left: `${12 + (i * 3.8) % 76}%`,
                         top: "-5%",
                         background:
                           i % 2 === 0
                             ? "linear-gradient(135deg, #F43F5E 0%, #BE123C 100%)"
                             : "linear-gradient(135deg, #FBBF24 0%, #D97706 100%)",
                         boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
-                        transform: `translateZ(${100 - i * 15}px)`,
+                        transform: `translateZ(${110 - i * 14}px)`,
                       }}
                       initial={{ y: -50, opacity: 0, rotate: 0 }}
                       animate={{
-                        y: 720,
+                        y: 740,
                         opacity: [0, 0.95, 0.9, 0],
                         rotate: [0, 180 + i * 45],
-                        x: [0, (i % 2 === 0 ? 35 : -35), (i % 3 === 0 ? -25 : 25)],
+                        x: [0, i % 2 === 0 ? 35 : -35, i % 3 === 0 ? -25 : 25],
                       }}
                       transition={{
                         duration: 4.8 + (i % 4) * 0.7,
                         repeat: Infinity,
-                        delay: 3.2 + (i * 0.22),
+                        delay: 3.2 + i * 0.2,
                         ease: "easeOut",
                       }}
                     />
@@ -434,8 +495,8 @@ export function TempleHallway(props: CinematicSceneProps) {
                 </div>
               )}
 
-              {/* ─── 7. THE CEREMONIAL TEMPLE INVITATION CARD / ROYAL EDICT ─── */}
-              {/* Positioned at the heart of the sanctum; unfolds in 3D during Transition 4 */}
+              {/* ─── 9. THE CONSECRATED TEMPLE INVITATION CARD (TAMRA PATRA) ─── */}
+              {/* Unfolds in 3D perspective from the sanctum altar during Transition 4 */}
               <motion.div
                 className="relative z-30 flex items-center justify-center"
                 style={{
@@ -443,14 +504,14 @@ export function TempleHallway(props: CinematicSceneProps) {
                   WebkitTransformStyle: "preserve-3d",
                 }}
                 animate={{
-                  z: isOpen ? 690 : isOpening ? 690 : -200,
-                  scale: isOpen ? 1 : isOpening ? 1 : 0.45,
-                  rotateX: isOpen ? 0 : isOpening ? [25, 12, 0] : 32,
-                  opacity: isOpen ? 1 : isOpening ? [0, 0.1, 0.8, 1] : 0,
+                  z: isOpen ? 725 : isOpening ? 725 : -220,
+                  scale: isOpen ? 1 : isOpening ? 1 : 0.42,
+                  rotateX: isOpen ? 0 : isOpening ? [28, 14, 0] : 34,
+                  opacity: isOpen ? 1 : isOpening ? [0, 0.1, 0.85, 1] : 0,
                 }}
                 transition={{
-                  duration: reducedMotion ? 0 : 7.2,
-                  times: [0, 0.5, 0.75, 1],
+                  duration: reducedMotion ? 0 : 7.4,
+                  times: [0, 0.5, 0.78, 1],
                   ease: [0.22, 1, 0.36, 1],
                 }}
               >
@@ -460,9 +521,9 @@ export function TempleHallway(props: CinematicSceneProps) {
                   style={{
                     background:
                       "linear-gradient(145deg, #3D2617 0%, #22150C 50%, #150D07 100%)",
-                    border: "2px solid rgba(245,158,11,0.6)",
+                    border: "2px solid rgba(245,158,11,0.65)",
                     boxShadow:
-                      "0 25px 70px rgba(0,0,0,0.85), 0 0 35px rgba(245,158,11,0.3) inset",
+                      "0 25px 75px rgba(0,0,0,0.85), 0 0 35px rgba(245,158,11,0.3) inset",
                   }}
                 >
                   {/* Ornate Gold Filigree Corner Accents */}
@@ -477,10 +538,10 @@ export function TempleHallway(props: CinematicSceneProps) {
                       className="absolute inset-0 pointer-events-none z-40"
                       initial={{ x: "-100%" }}
                       animate={{ x: "200%" }}
-                      transition={{ duration: 2.2, delay: 5.0, ease: "easeInOut" }}
+                      transition={{ duration: 2.2, delay: 5.2, ease: "easeInOut" }}
                       style={{
                         background:
-                          "linear-gradient(105deg, transparent 25%, rgba(254,243,199,0.35) 50%, transparent 75%)",
+                          "linear-gradient(105deg, transparent 25%, rgba(254,243,199,0.38) 50%, transparent 75%)",
                       }}
                     />
                   )}
@@ -494,13 +555,13 @@ export function TempleHallway(props: CinematicSceneProps) {
                       art={art}
                       style={{
                         bg: "linear-gradient(180deg, #1C120B 0%, #130B06 100%)",
-                        border: "1px solid rgba(245,158,11,0.4)",
+                        border: "1px solid rgba(245,158,11,0.45)",
                         text: "#FEF3C7",
                         muted: "#D97706",
                         accent: "#F59E0B",
                         fontFamily: "Cinzel, Cormorant Garamond, serif",
                         taFontFamily: "Noto Serif Tamil, Kavivanar, serif",
-                        glowColor: "rgba(245,158,11,0.35)",
+                        glowColor: "rgba(245,158,11,0.38)",
                       }}
                     />
                   </div>
@@ -508,24 +569,29 @@ export function TempleHallway(props: CinematicSceneProps) {
               </motion.div>
             </motion.div>
 
-            {/* ─── 8. CLOSED STATE: SACRED BRASS TEMPLE BELL SEAL (TAP TO ENTER) ─── */}
+            {/* ─── 10. CLOSED STATE: RAJA GOPURAM PORTAL & LION RING KNOCKER ─── */}
             <AnimatePresence>
               {isClosed && (
                 <motion.div
                   className="absolute z-40 flex flex-col items-center justify-center p-6 text-center cursor-pointer group"
                   onClick={onTriggerOpen}
-                  initial={{ opacity: 0, scale: 0.9 }}
+                  initial={{ opacity: 0, scale: 0.92 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.85, y: -40 }}
                   transition={{ duration: 0.7 }}
                 >
-                  {/* Resonant Aura Back-Ring */}
-                  <div className="relative flex items-center justify-center mb-6">
+                  {/* Raja Gopuram Silhouette & 7 Golden Kalasams Overhead */}
+                  <div className="mb-4 pointer-events-none flex flex-col items-center opacity-85">
+                    <RajaGopuramCrestSVG />
+                  </div>
+
+                  {/* Sacred Lion-Head Brass Ring Knocker (Singha Mukha) */}
+                  <div className="relative flex items-center justify-center mb-5">
                     <motion.div
-                      className="absolute -inset-8 rounded-full"
+                      className="absolute -inset-10 rounded-full"
                       style={{
                         background:
-                          "radial-gradient(circle, rgba(245,158,11,0.35) 0%, rgba(217,119,6,0.1) 60%, transparent 80%)",
+                          "radial-gradient(circle, rgba(245,158,11,0.4) 0%, rgba(217,119,6,0.12) 60%, transparent 80%)",
                       }}
                       animate={{ scale: [1, 1.25, 1], opacity: [0.5, 0.85, 0.5] }}
                       transition={{
@@ -535,7 +601,7 @@ export function TempleHallway(props: CinematicSceneProps) {
                       }}
                     />
 
-                    {/* Ornate Ceremonial Temple Bell Emblem */}
+                    {/* Sculpted Brass Knocker Medallion */}
                     <motion.div
                       className="relative h-24 w-24 rounded-full flex items-center justify-center shadow-2xl"
                       style={{
@@ -543,12 +609,12 @@ export function TempleHallway(props: CinematicSceneProps) {
                           "radial-gradient(circle at 35% 30%, #FDE68A 0%, #D97706 60%, #78350F 100%)",
                         border: "3px solid #FDE68A",
                         boxShadow:
-                          "0 15px 35px rgba(0,0,0,0.8), 0 0 25px rgba(245,158,11,0.6)",
+                          "0 15px 35px rgba(0,0,0,0.85), 0 0 25px rgba(245,158,11,0.6)",
                       }}
                       whileHover={{ scale: 1.08 }}
                       whileTap={{ scale: 0.94 }}
                     >
-                      <TempleBellSVG size={52} glowing={true} />
+                      <LionHeadKnockerSVG />
                     </motion.div>
                   </div>
 
@@ -560,26 +626,26 @@ export function TempleHallway(props: CinematicSceneProps) {
                   >
                     <p className="text-xs uppercase tracking-[0.25em] text-amber-300/80 font-medium font-serif">
                       {lang === "ta"
-                        ? "புனித மங்கள அழைப்பிதழ்"
-                        : "Sacred Ceremonial Invitation"}
+                        ? "புனித மங்கள கோவில் அழைப்பிதழ்"
+                        : "Sacred Ceremonial Temple Invitation"}
                     </p>
                     <h2
                       className="text-2xl sm:text-3xl font-serif font-bold text-amber-100 tracking-wide"
                       style={{
-                        textShadow: "0 2px 14px rgba(245,158,11,0.5)",
+                        textShadow: "0 2px 14px rgba(245,158,11,0.55)",
                       }}
                     >
                       {invite[lang][0]} & {invite[lang][1]}
                     </h2>
-                    <p className="mt-2 text-xs text-amber-200/90 tracking-wider flex items-center gap-2 bg-amber-950/60 border border-amber-600/40 rounded-full px-4 py-1.5 backdrop-blur-sm group-hover:border-amber-400/80 transition-colors">
+                    <p className="mt-2 text-xs text-amber-200/90 tracking-wider flex items-center gap-2 bg-amber-950/70 border border-amber-600/40 rounded-full px-4 py-1.5 backdrop-blur-sm group-hover:border-amber-400/80 transition-colors">
                       <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                       {lang === "ta"
-                        ? "பிரகாரத்தினுள் நுழையத் தொடவும்"
-                        : "Tap to Enter the Temple Corridor"}
+                        ? "கோவில் கதவைத் திறந்து நுழையத் தொடவும்"
+                        : "Tap Lion Knocker to Open Temple Doors"}
                     </p>
                     <p className="text-[10px] text-amber-300/50 mt-1 italic tracking-widest font-mono">
                       {lang === "ta"
-                        ? "ஆயிரங்கால் மண்டப முப்பரிமாணப் பயணம்"
+                        ? "ஆயிரங்கால் மண்டப முப்பரிமாணப் பிரகாரப் பயணம்"
                         : "An immersive 3D Temple Corridor Journey"}
                     </p>
                   </motion.div>
@@ -594,8 +660,252 @@ export function TempleHallway(props: CinematicSceneProps) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SUB-COMPONENTS: Sculpted Granite Pillars, Temple Bells, Makaratoranam & Urli
+// SUB-COMPONENTS: Sculpted Temple Features & SVG Assets
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Raja Gopuram Crest with 7 Sacred Golden Kalasams
+ */
+function RajaGopuramCrestSVG() {
+  return (
+    <div className="relative w-72 h-20 flex flex-col items-center">
+      <svg viewBox="0 0 280 80" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+        <defs>
+          <linearGradient id="gopuramGold" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#FEF3C7" />
+            <stop offset="45%" stopColor="#F59E0B" />
+            <stop offset="85%" stopColor="#B45309" />
+            <stop offset="100%" stopColor="#78350F" />
+          </linearGradient>
+        </defs>
+
+        {/* 7 Golden Kalasam Spires */}
+        {[30, 65, 100, 140, 180, 215, 250].map((x, i) => {
+          const isCenter = i === 3
+          const isMid = i === 2 || i === 4
+          const h = isCenter ? 38 : isMid ? 32 : 26
+          const y = isCenter ? 6 : isMid ? 12 : 18
+          return (
+            <g key={i}>
+              {/* Spire Needle */}
+              <line x1={x} y1={y} x2={x} y2={y + 12} stroke="#FEF3C7" strokeWidth="2.5" />
+              {/* Kalasam Pot Body */}
+              <circle cx={x} cy={y + 18} r={isCenter ? 8 : 6.5} fill="url(#gopuramGold)" stroke="#FEF3C7" strokeWidth="1" />
+              {/* Stepped Base */}
+              <rect x={x - 8} y={y + 25} width={16} height={6} rx="1.5" fill="#B45309" />
+            </g>
+          )
+        })}
+
+        {/* Upper Gopuram Shikhara Roofline */}
+        <path
+          d="M10 50 Q140 38 270 50 L260 70 H20 Z"
+          fill="#2A1D15"
+          stroke="url(#gopuramGold)"
+          strokeWidth="2"
+        />
+        {/* Tiered Decorative Cornice */}
+        <line x1="20" y1="62" x2="260" y2="62" stroke="#F59E0B" strokeWidth="2" strokeDasharray="5 3" />
+      </svg>
+    </div>
+  )
+}
+
+/**
+ * Carved Teak Temple Door Leaf (Single Side) with Brass Studs & Relief
+ */
+function TempleDoorLeafSVG({ side }: { side: "left" | "right" }) {
+  const isLeft = side === "left"
+
+  return (
+    <div className="relative w-full h-full">
+      <svg viewBox="0 0 185 480" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+        <defs>
+          <linearGradient id="doorTeakGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#25160E" />
+            <stop offset="40%" stopColor="#3B2417" />
+            <stop offset="80%" stopColor="#22140D" />
+            <stop offset="100%" stopColor="#150B07" />
+          </linearGradient>
+          <linearGradient id="doorBrassStud" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#FEF3C7" />
+            <stop offset="50%" stopColor="#D97706" />
+            <stop offset="100%" stopColor="#78350F" />
+          </linearGradient>
+        </defs>
+
+        {/* Main Solid Teak Timber Leaf */}
+        <rect width="185" height="480" fill="url(#doorTeakGrad)" />
+
+        {/* Heavy Iron/Brass Reinforcement Crossbars */}
+        {[40, 150, 260, 370, 460].map((y, i) => (
+          <g key={i}>
+            <rect x="0" y={y} width="185" height="18" fill="#1C110A" stroke="#5A3A25" strokeWidth="1" />
+            {/* Brass Elephant-Spike Studs (Anai Kal) along Crossbar */}
+            {[25, 65, 105, 145].map((x, j) => (
+              <g key={j}>
+                <circle cx={x} cy={y + 9} r="6" fill="url(#doorBrassStud)" stroke="#FEF3C7" strokeWidth="0.8" />
+                <circle cx={x} cy={y + 9} r="2.5" fill="#451A03" />
+              </g>
+            ))}
+          </g>
+        ))}
+
+        {/* Carved Lotus Rosette Panels between Crossbars */}
+        {[70, 180, 290, 400].map((y, i) => (
+          <g key={i}>
+            <rect x="15" y={y} width="155" height="70" rx="3" fill="#2E1B11" stroke="#4A2F1E" strokeWidth="1.5" />
+            {/* Center Floral Rosette */}
+            <circle cx="92" cy={y + 35} r="18" stroke="#D97706" strokeWidth="1.5" fill="#3B2316" />
+            <circle cx="92" cy={y + 35} r="6" fill="#F59E0B" />
+          </g>
+        ))}
+
+        {/* Vertical Border Trim */}
+        <rect x={isLeft ? 175 : 0} y="0" width="10" height="480" fill="#4A2E1C" stroke="#D97706" strokeWidth="0.8" />
+      </svg>
+    </div>
+  )
+}
+
+/**
+ * Lion-Head Brass Ring Knocker (Singha Mukha Door Knocker)
+ */
+function LionHeadKnockerSVG() {
+  return (
+    <svg viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-14 h-14">
+      {/* Heavy Brass Ring */}
+      <circle cx="30" cy="40" r="14" stroke="#451A03" strokeWidth="5" fill="none" />
+      <circle cx="30" cy="40" r="14" stroke="#FDE68A" strokeWidth="2.5" fill="none" />
+
+      {/* Lion Head (Singha Mukha) Crest */}
+      <path
+        d="M20 18 C15 10 25 6 30 10 C35 6 45 10 40 18 C46 22 44 32 30 35 C16 32 14 22 20 18 Z"
+        fill="#78350F"
+        stroke="#FDE68A"
+        strokeWidth="1.5"
+      />
+      {/* Eyes & Mane */}
+      <circle cx="25" cy="20" r="2.5" fill="#FEF3C7" />
+      <circle cx="35" cy="20" r="2.5" fill="#FEF3C7" />
+      <circle cx="30" cy="27" r="3" fill="#D97706" />
+    </svg>
+  )
+}
+
+/**
+ * Sacred Padakolam Runner Strip along the Hallway Floor
+ */
+function SacredPadakolamStripSVG() {
+  return (
+    <svg viewBox="0 0 160 800" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+      {/* Repeating Geometric Sacred Lotus Kolam Motifs */}
+      {[50, 180, 310, 440, 570, 700].map((y, i) => (
+        <g key={i}>
+          {/* Central 8-Petal Star Kolam */}
+          <circle cx="80" cy={y} r="32" stroke="#FEF3C7" strokeWidth="1.8" strokeDasharray="3 3" />
+          <polygon points={`80,${y - 24} 98,${y} 80,${y + 24} 62,${y}`} stroke="#FEF3C7" strokeWidth="2" fill="none" />
+          <polygon points={`80,${y - 18} 94,${y} 80,${y + 18} 66,${y}`} stroke="#F59E0B" strokeWidth="1.5" fill="none" />
+          <circle cx="80" cy={y} r="5" fill="#FEF3C7" />
+
+          {/* Border Linking Vines */}
+          <line x1="80" y1={y + 35} x2="80" y2={y + 95} stroke="#FEF3C7" strokeWidth="1.5" strokeDasharray="4 4" />
+        </g>
+      ))}
+    </svg>
+  )
+}
+
+/**
+ * Stepped Deepa Varisai (Rows of Burning Oil Lamps on Floor)
+ */
+function DeepaVarisaiRows({
+  isOpening,
+  isOpen,
+  reducedMotion,
+}: {
+  isOpening: boolean
+  isOpen: boolean
+  reducedMotion: boolean
+}) {
+  const lit = isOpening || isOpen
+
+  return (
+    <div
+      className="absolute pointer-events-none w-full flex justify-between px-16 sm:px-24"
+      style={{
+        bottom: "8%",
+        transform: "translateZ(-120px)",
+      }}
+    >
+      {/* Left Deepa Row */}
+      <div className="flex gap-4 items-center">
+        {[...Array(5)].map((_, i) => (
+          <AgalDiyaFlame key={i} lit={lit} delay={i * 0.15} />
+        ))}
+      </div>
+
+      {/* Right Deepa Row */}
+      <div className="flex gap-4 items-center">
+        {[...Array(5)].map((_, i) => (
+          <AgalDiyaFlame key={i} lit={lit} delay={i * 0.15 + 0.1} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Traditional Clay/Brass Agal Vilakku with Animated Flame & Halo
+ */
+function AgalDiyaFlame({ lit, delay }: { lit: boolean; delay: number }) {
+  return (
+    <div className="relative flex flex-col items-center">
+      {/* Flame */}
+      {lit && (
+        <motion.div
+          className="relative flex items-center justify-center -mb-1"
+          animate={{
+            scale: [0.9, 1.2, 0.95, 1.15, 0.9],
+            opacity: [0.85, 1, 0.9, 1, 0.85],
+          }}
+          transition={{
+            duration: 1.5,
+            repeat: Infinity,
+            delay,
+            ease: "easeInOut",
+          }}
+        >
+          {/* Flame Ambient Halo */}
+          <div
+            className="absolute -inset-2 rounded-full"
+            style={{
+              background:
+                "radial-gradient(circle, rgba(251,191,36,0.55) 0%, rgba(217,119,6,0.18) 60%, transparent 80%)",
+              filter: "blur(5px)",
+            }}
+          />
+          {/* Teardrop Flame */}
+          <div
+            className="w-2.5 h-4 rounded-full"
+            style={{
+              background:
+                "linear-gradient(to top, #EA580C 0%, #F59E0B 50%, #FEF3C7 100%)",
+              clipPath: "polygon(50% 0%, 100% 70%, 50% 100%, 0% 70%)",
+              boxShadow: "0 0 10px #FBBF24",
+            }}
+          />
+        </motion.div>
+      )}
+
+      {/* Terracotta / Brass Bowl */}
+      <svg viewBox="0 0 32 14" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-7 h-3">
+        <ellipse cx="16" cy="7" rx="14" ry="5" fill="#78350F" stroke="#FDE68A" strokeWidth="1" />
+        <ellipse cx="16" cy="6" rx="10" ry="3" fill="#451A03" />
+      </svg>
+    </div>
+  )
+}
 
 /**
  * Receding Dravidian Temple Pillar Pair with attached cast brass oil lamps
@@ -608,7 +918,6 @@ function PillarPair({
   lampGlow,
   isOpening,
   reducedMotion,
-  tier,
   partOnOpen = false,
 }: {
   z: number
@@ -618,13 +927,10 @@ function PillarPair({
   lampGlow: boolean
   isOpening: boolean
   reducedMotion: boolean
-  tier: number
   partOnOpen?: boolean
 }) {
-  // During opening fly-through:
-  // Foreground Tier 1 pillars sweep smoothly outward to let the camera through!
-  const leftX = partOnOpen && isOpening && !reducedMotion ? -(xOffset + 240) : -xOffset
-  const rightX = partOnOpen && isOpening && !reducedMotion ? (xOffset + 240) : xOffset
+  const leftX = partOnOpen && isOpening && !reducedMotion ? -(xOffset + 260) : -xOffset
+  const rightX = partOnOpen && isOpening && !reducedMotion ? xOffset + 260 : xOffset
   const partOpacity = partOnOpen && isOpening && !reducedMotion ? 0 : opacity
 
   return (
@@ -640,7 +946,7 @@ function PillarPair({
         className="absolute"
         animate={{ x: leftX, opacity: partOpacity }}
         transition={{
-          duration: isOpening ? 3.6 : 0.8,
+          duration: isOpening ? 3.8 : 0.8,
           ease: [0.22, 1, 0.36, 1],
         }}
       >
@@ -652,7 +958,7 @@ function PillarPair({
         className="absolute"
         animate={{ x: rightX, opacity: partOpacity }}
         transition={{
-          duration: isOpening ? 3.6 : 0.8,
+          duration: isOpening ? 3.8 : 0.8,
           ease: [0.22, 1, 0.36, 1],
         }}
       >
@@ -777,7 +1083,9 @@ function TempleBellSVG({ size = 70, glowing = false }: { size?: number; glowing?
       className="relative flex flex-col items-center"
       style={{
         width: size,
-        filter: glowing ? "drop-shadow(0 0 16px rgba(245,158,11,0.8))" : "drop-shadow(0 8px 16px rgba(0,0,0,0.7))",
+        filter: glowing
+          ? "drop-shadow(0 0 16px rgba(245,158,11,0.8))"
+          : "drop-shadow(0 8px 16px rgba(0,0,0,0.7))",
       }}
     >
       <svg viewBox="0 0 80 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
@@ -996,11 +1304,11 @@ function KuthuvilakkuGrandSVG({ lit = true }: { lit?: boolean }) {
  */
 function ThoranamGarlandSVG() {
   return (
-    <svg viewBox="0 0 420 50" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
+    <svg viewBox="0 0 440 52" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
       {/* Hanging Cord */}
-      <path d="M0 8 Q210 28 420 8" stroke="#B45309" strokeWidth="2.5" fill="none" />
+      <path d="M0 8 Q220 28 440 8" stroke="#B45309" strokeWidth="2.5" fill="none" />
       {/* Fresh Green Mango Leaves (Mavilai) */}
-      {[35, 75, 120, 165, 210, 255, 300, 345, 385].map((x, i) => (
+      {[35, 80, 125, 170, 220, 270, 315, 360, 405].map((x, i) => (
         <g key={i}>
           <path
             d={`M${x} 15 C${x - 8} 30 ${x - 5} 42 ${x} 48 C${x + 5} 42 ${x + 8} 30 ${x} 15 Z`}
