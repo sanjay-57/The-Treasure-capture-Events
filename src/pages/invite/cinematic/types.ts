@@ -15,6 +15,7 @@ export const CINEMATIC_THEMES = [
   "rangoli",
   "lamp",
   "blush",
+  "rose",
 ] as const
 export type CinematicTheme = typeof CINEMATIC_THEMES[number]
 

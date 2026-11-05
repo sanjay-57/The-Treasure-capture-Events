@@ -57,6 +57,7 @@ import {
   UtsavRangoli,
   TempleHallway,
   LivingEditorial,
+  ImpossibleFrame,
 } from "./cinematic"
 
 /*
@@ -271,6 +272,8 @@ export function InviteView({
         return <TempleHallway {...props} />
       case "blush":
         return <LivingEditorial {...props} />
+      case "rose":
+        return <ImpossibleFrame {...props} />
     }
   }
 

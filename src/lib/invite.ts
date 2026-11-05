@@ -60,6 +60,9 @@ const RETIRED: Record<string, InviteTheme> = {
   temple: "lamp",
   editorial: "blush",
   living: "blush",
+  frame: "rose",
+  impossible: "rose",
+  impossibleframe: "rose",
 }
 
 /** A theme id from a link, route or saved draft, with retired ids mapped forward; null if unknown. */
@@ -359,12 +362,12 @@ export const THEME_META: Record<InviteTheme, {
   },
 
   rose: {
-    name: { en: "Rose Garden", ta: "ரோஜாத் தோட்டம்" },
+    name: { en: "The Impossible Frame 3D", ta: "தி இம்பாசிபிள் ஃபிரேம் 3D" },
     blurb: {
-      en: "Blush paper, rose corners, script names",
-      ta: "இளஞ்சிவப்புத் தாள், ரோஜா மூலைகள், கையெழுத்துப் பெயர்கள்",
+      en: "Continuous ruby ribbon unwinding into a photographic aperture & aligned frames",
+      ta: "மாணிக்க நாடா சிற்பம், ஒளிப்படக் குவியம், முப்பரிமாணச் சட்டம்",
     },
-    swatch: ["#fbeeec", "#c25670"],
+    swatch: ["#FCF8F7", "#AA1027"],
   },
 
   paisley: {
