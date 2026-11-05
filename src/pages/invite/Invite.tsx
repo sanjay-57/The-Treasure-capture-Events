@@ -56,6 +56,7 @@ import {
   SheeshMahal,
   UtsavRangoli,
   TempleHallway,
+  LivingEditorial,
 } from "./cinematic"
 
 /*
@@ -268,6 +269,8 @@ export function InviteView({
         return <UtsavRangoli {...props} />
       case "lamp":
         return <TempleHallway {...props} />
+      case "blush":
+        return <LivingEditorial {...props} />
     }
   }
 

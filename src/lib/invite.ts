@@ -58,6 +58,8 @@ const RETIRED: Record<string, InviteTheme> = {
   halftone: "paisley",
   duo: "lamp",
   temple: "lamp",
+  editorial: "blush",
+  living: "blush",
 }
 
 /** A theme id from a link, route or saved draft, with retired ids mapped forward; null if unknown. */
@@ -312,12 +314,12 @@ export const THEME_META: Record<InviteTheme, {
   },
 
   blush: {
-    name: { en: "Blush Editorial", ta: "இளஞ்சிவப்பு" },
+    name: { en: "The Living Editorial 3D", ta: "தி லிவிங் எடிட்டோரியல் 3D" },
     blurb: {
-      en: "Solid dusty pink, big italic names",
-      ta: "ஒற்றை இளஞ்சிவப்பு, பெரிய சாய்வு எழுத்து",
+      en: "Ivory linen folio, unlooping ruby ribbon, tactile photographic prints",
+      ta: "ஐவரி லினன் பெட்டகம், மாணிக்க நாடா, கலைப்படைப்பு நிழற்படங்கள்",
     },
-    swatch: ["#f1d3cd", "#9b3446"],
+    swatch: ["#FCF8F7", "#AA1027"],
   },
 
   turmeric: {
