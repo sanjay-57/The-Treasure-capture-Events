@@ -222,6 +222,10 @@ We need one clear explanation of how packages and albums relate. Show it as a di
 
 > *Packages that include an album come with the size and sheet count listed. You can upgrade to a bigger album, or a different product line, and pay only the difference. The album holds individual and candid shots chosen from your gallery. The final layout is designed with you.*
 
+### 8e. E-album viewer (added 5 Nov 2026)
+
+The client's chosen photos play as a cinematic virtual album at `/dashboard/album/view` (linked from the album studio and the submitted-photos page). Sequence: closed album seen from above on a velvet table → cover lifts on its spine (no hands) → title page → each spread is toured, the camera gliding into every photo → the leaf flips on its own → colophon → back cover closes. Transport bar, arrow keys, tap a photo to look closer. Pages use the studio's sample layouts and the saved cover, colour, paper and font; the real album-maker design replaces them later. ❓ A shareable private link for family is promised on the page but not built.
+
 ---
 
 ## 9. Commercial: monthly retainers, under agreement

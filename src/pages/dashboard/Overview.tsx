@@ -1,14 +1,15 @@
 import { Link } from 'react-router'
 import { motion } from 'motion/react'
 import { Icon } from '../../components/Icon'
-import { Badge, Button, Card, LangImg } from '../../components/ui'
+import { Badge, Button, Card, Img, LangImg } from '../../components/ui'
 import { EASE, Reveal, Stagger, StaggerItem } from '../../components/motion'
 import { COMMON, formatDate, formatINR, useLang, useT, type Bi } from '../../lib/i18n'
 import { CROWDS, ROLES, STATUS_META, STATUS_ORDER, VENUES, districtName, eventByKey, statusName } from '../../lib/data'
 import { cartExtras, cartLabel, cartTierName } from '../../lib/catalogue'
 import { balanceDue, paidTotal, useMyOrder, useStore, type Order } from '../../lib/store'
 import { useTitle } from '../../lib/ui'
-import { Fact, ProgressRing, SECTIONS, StageBar, TamilCorners, formatTime, sectionState, stageIdx, stageSince, type SectionState } from './shared'
+import { Watermark } from './proofing'
+import { Fact, ProgressRing, SECTIONS, StageBar, TamilCorners, formatTime, isProof, photoQuota, photosUnlocked, resolveCover, posesEnabled, sectionState, selectionClosed, visibleSections, stageIdx, stageSince, useProofs, type SectionState } from './shared'
 
 const copy = {
   title: { en: 'Overview', ta: 'மேலோட்டம்' },
@@ -39,6 +40,15 @@ const copy = {
   guests: { en: 'Guests', ta: 'விருந்தினர்' },
   addons: { en: 'Add-ons', ta: 'கூடுதல் சேவைகள்' },
 
+  photos: { en: 'Your event photos', ta: 'உங்கள் நிகழ்வுப் படங்கள்' },
+  photosLead: { en: 'Your proofs are uploaded. Pick your favourites for the album.', ta: 'உங்கள் படங்கள் பதிவேற்றப்பட்டுள்ளன. ஆல்பத்திற்குப் பிடித்தவற்றைத் தேர்வு செய்யுங்கள்.' },
+  photosLeadDone: { en: 'Your selection is with our album designers.', ta: 'உங்கள் தேர்வு எங்கள் ஆல்ப வடிவமைப்பாளர்களிடம் உள்ளது.' },
+  uploaded: { en: 'uploaded', ta: 'பதிவேற்றம்' },
+  chosen: { en: 'selected', ta: 'தேர்ந்தவை' },
+  more: { en: 'more', ta: 'மேலும்' },
+  choose: { en: 'Select your photos', ta: 'படங்களைத் தேர்வு செய்க' },
+  viewGallery: { en: 'View gallery', ta: 'கேலரியைப் பார்க்க' },
+
   team: { en: 'Your team', ta: 'உங்கள் குழு' },
   noTeam: { en: 'We assign your photographers right after the team meeting.', ta: 'குழு கூட்டம் முடிந்ததும் உங்கள் புகைப்படக் கலைஞர்களை ஒதுக்குவோம்.' },
   jobs: { en: 'events', ta: 'நிகழ்வுகள்' },
@@ -51,6 +61,7 @@ const copy = {
   termsDesc: { en: 'Booking, payment & delivery policy', ta: 'பதிவு, கட்டணம், ஒப்படைப்பு விதிகள்' },
   help: { en: 'Questions? We reply on WhatsApp within the hour.', ta: 'சந்தேகமா? ஒரு மணி நேரத்தில் வாட்ஸ்அப்பில் பதில்.' },
   whatsapp: { en: 'WhatsApp the studio', ta: 'ஸ்டுடியோவுக்கு வாட்ஸ்அப்' },
+  poses: { en: 'Step 1 · Choose your poses', ta: 'படி 1 · போஸ்களைத் தேர்வு செய்க' },
 }
 
 export default function Overview() {
@@ -61,6 +72,7 @@ export default function Overview() {
     <div className="grid gap-5 lg:grid-cols-12 lg:gap-6">
       <StatusHero order={order} />
       <PaymentCard order={order} />
+      {photosUnlocked(order) && <EventPhotos order={order} />}
       <DetailsCard order={order} />
       <TeamCard order={order} />
       <Shortcuts order={order} />
@@ -100,6 +112,11 @@ function StatusHero({ order }: { order: Order }) {
           <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-white/70">{meta.desc[lang]}</p>
 
           <div className="mt-6 grid gap-2.5 sm:flex sm:flex-wrap">
+            {posesEnabled(order) && sectionState(order, 'poses') === 'action' && (
+              <Button to="/dashboard/poses" icon="arrowRight">
+                {t.poses}
+              </Button>
+            )}
             {meta.cta && meta.cta.to !== '/dashboard/track' && (
               <Button to={meta.cta.to} icon="arrowRight">
                 {meta.cta.label[lang]}
@@ -172,6 +189,77 @@ function PaymentCard({ order }: { order: Order }) {
             {t.invoice}
           </Button>
         </div>
+      </Card>
+    </Reveal>
+  )
+}
+
+/** Peek at the uploaded proofs: cover picks first, then the rest of the shoot. */
+function EventPhotos({ order }: { order: Order }) {
+  const t = useT(copy)
+  const lang = useLang()
+  const proofs = useProofs()
+  const cover = resolveCover(order, lang)
+  const selected = new Set(order.selection.filter(isProof))
+  const closed = selectionClosed(order)
+  const quota = photoQuota(order)
+  const shown = [...new Set([...cover.banner.filter(isProof), ...proofs])].slice(0, 7)
+  const rest = proofs.length - 3
+
+  return (
+    <Reveal className="lg:col-span-12">
+      <Card className="relative p-5 sm:p-6 md:p-8">
+        <TamilCorners />
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <p className="t-label text-ink/50">{t.photos}</p>
+            <p className="mt-2 max-w-lg text-[15px] leading-relaxed text-ink/65">{closed ? t.photosLeadDone : t.photosLead}</p>
+            <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-ink/50">
+              <span>
+                <span className="font-semibold tabular-nums text-ink">{proofs.length}</span> {t.uploaded}
+              </span>
+              <span>
+                <span className="font-semibold tabular-nums text-ruby">{selected.size}</span> / {quota} {t.chosen}
+              </span>
+            </p>
+          </div>
+          <Button to="/dashboard/photos" variant={closed ? 'outline' : 'ruby'} icon="arrowRight" className="shrink-0">
+            {closed ? t.viewGallery : t.choose}
+          </Button>
+        </div>
+
+        <Link to="/dashboard/photos" className="mt-6 grid grid-cols-4 gap-1.5 sm:gap-2 lg:grid-cols-8" aria-label={closed ? t.viewGallery : t.choose}>
+          {shown.map((id, i) => (
+            <motion.div
+              key={id}
+              className={`group relative aspect-square overflow-hidden rounded-xl bg-ink/[0.04] sm:rounded-2xl ${i >= 3 ? 'max-lg:hidden' : ''}`}
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7, ease: EASE, delay: 0.05 * i }}
+            >
+              <Img k={id} w={400} ratio={1} sizes="(min-width:1024px) 12vw, 25vw" className="h-full w-full transition-transform duration-700 group-hover:scale-105" />
+              {selected.has(id) && (
+                <span className="absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-ruby text-white shadow-soft">
+                  <Icon name="heart" size={12} className="fill-white" />
+                </span>
+              )}
+              <Watermark size="xs" />
+            </motion.div>
+          ))}
+          {rest > 0 && (
+            <div className="relative flex lg:hidden aspect-square flex-col items-center justify-center rounded-xl bg-ink text-white sm:rounded-2xl">
+              <span className="font-display text-[22px] font-semibold tabular-nums sm:text-[26px]">+{rest}</span>
+              <span className="text-[12px] text-white/60">{t.more}</span>
+            </div>
+          )}
+          {proofs.length > shown.length && (
+            <div className="relative hidden aspect-square flex-col items-center justify-center rounded-xl bg-ink text-white sm:rounded-2xl lg:flex">
+              <span className="font-display text-[22px] font-semibold tabular-nums sm:text-[26px]">+{proofs.length - shown.length}</span>
+              <span className="text-[12px] text-white/60">{t.more}</span>
+            </div>
+          )}
+        </Link>
       </Card>
     </Reveal>
   )
@@ -260,15 +348,20 @@ function TeamCard({ order }: { order: Order }) {
                       <p className="truncate text-[15px] font-medium">{w.name[lang]}</p>
                       <p className="truncate text-[13px] text-ink/55">{ROLES[w.role][lang]}</p>
                     </div>
-                    <span className="flex shrink-0 flex-col items-end text-[12px] text-ink/50">
-                      <span className="inline-flex items-center gap-1 font-medium text-ink/80">
-                        <Icon name="star" size={12} className="fill-ruby text-ruby" />
-                        {w.rating.toFixed(1)}
+                    {/* Older LAN servers send crew without rating/jobs; skip the badge rather than crash. */}
+                    {typeof w.rating === 'number' && (
+                      <span className="flex shrink-0 flex-col items-end text-[12px] text-ink/50">
+                        <span className="inline-flex items-center gap-1 font-medium text-ink/80">
+                          <Icon name="star" size={12} className="fill-ruby text-ruby" />
+                          {w.rating.toFixed(1)}
+                        </span>
+                        {typeof w.jobs === 'number' && (
+                          <span>
+                            {w.jobs} {t.jobs}
+                          </span>
+                        )}
                       </span>
-                      <span>
-                        {w.jobs} {t.jobs}
-                      </span>
-                    </span>
+                    )}
                   </div>
                 </StaggerItem>
               )
@@ -288,7 +381,7 @@ function Shortcuts({ order }: { order: Order }) {
   const lang = useLang()
   const wa = useStore(s => s.cms.studio.whatsapp).replace(/\D/g, '')
   const tiles: { to: string; icon: (typeof SECTIONS)[number]['icon']; label: Bi; desc: Bi; state?: SectionState }[] = [
-    ...SECTIONS.filter(s => s.key !== 'overview').map(s => ({ ...s, state: sectionState(order, s.key) })),
+    ...visibleSections(order, 'tiles').map(s => ({ ...s, state: sectionState(order, s.key) })),
     { to: '/terms', icon: 'info', label: COMMON.terms, desc: copy.termsDesc },
   ]
 

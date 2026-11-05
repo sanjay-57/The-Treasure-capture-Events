@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
+import { Link } from 'react-router'
 import { AnimatePresence, motion, useMotionValue, useSpring } from 'motion/react'
 import { Icon } from '../../components/Icon'
 import { Button, Card, ChoiceCard, Field, Segmented } from '../../components/ui'
@@ -7,11 +8,11 @@ import { formatDateTime, formatINR, useLang, useT, type Bi } from '../../lib/i18
 import { photoUrl, type ImgKey } from '../../lib/images'
 import { PackageAlbumNote } from '../../components/PackageAlbumNote'
 import { GRAIN, Surface, isLight } from '../../components/AlbumSurface'
-import { ALBUM, DEFAULT_ALBUM, PROOF_SETS, type AlbumSpec } from '../../lib/data'
+import { ALBUM, type AlbumSpec } from '../../lib/data'
 import { albumUpgradeCost, cartTierName } from '../../lib/catalogue'
 import { useMyOrder, usePrices, useStore, type Order } from '../../lib/store'
 import { toast, useTitle } from '../../lib/ui'
-import { FloatingBar, includedSheets, LockedPanel, PageIntro, TamilCorners, albumEditable, albumUnlocked, isProof } from './shared'
+import { FloatingBar, includedSheets, LockedPanel, PageIntro, TamilCorners, albumDefaults, albumEditable, albumPhotos, albumUnlocked, savedAlbum } from './shared'
 
 const copy = {
   eyebrow: { en: 'Album studio', ta: 'ஆல்பம் ஸ்டுடியோ' },
@@ -64,6 +65,8 @@ const copy = {
   productionTitle: { en: 'Your album is in production', ta: 'உங்கள் ஆல்பம் தயாரிப்பில் உள்ளது' },
   productionBody: { en: 'The design is locked while our binders work on it. Need a change? Message the studio.', ta: 'கைவினைஞர்கள் வேலை செய்வதால் வடிவமைப்பு பூட்டப்பட்டுள்ளது. மாற்றம் வேண்டுமா? ஸ்டுடியோவுக்குச் செய்தி அனுப்புங்கள்.' },
   spec: { en: 'Specification', ta: 'விவரக்குறிப்பு' },
+  watch: { en: 'Watch the e-album', ta: 'இ-ஆல்பத்தைப் பார்க்க' },
+  watchNote: { en: 'Your photos as a page-turning album, with this cover and layout.', ta: 'இந்த அட்டை, அமைப்புடன் பக்கம் புரட்டும் ஆல்பமாக உங்கள் படங்கள்.' },
 }
 
 const COVER_NOTES: Record<string, Bi> = {
@@ -126,23 +129,13 @@ export default function Album() {
   return <Studio order={order} />
 }
 
-function defaultSpec(order: Order): AlbumSpec {
-  const d = order.date ? new Date(order.date) : null
-  const sub = d && !Number.isNaN(d.getTime()) ? `${String(d.getDate()).padStart(2, '0')} · ${String(d.getMonth() + 1).padStart(2, '0')} · ${d.getFullYear()}` : ''
-  const included = includedSheets(order)
-  return { ...DEFAULT_ALBUM, sheets: (ALBUM.sheetOptions as readonly number[]).includes(included) ? included : DEFAULT_ALBUM.sheets, title: order.client.name, subtitle: sub }
-}
-
-const strip = (a?: AlbumSpec & { submittedAt?: string }): AlbumSpec | null =>
-  a ? { cover: a.cover, color: a.color, paper: a.paper, size: a.size, font: a.font, sheets: a.sheets, title: a.title, subtitle: a.subtitle } : null
-
 function Studio({ order }: { order: Order }) {
   const t = useT(copy)
   const lang = useLang()
   const saveAlbum = useStore(s => s.saveAlbum)
   const editable = albumEditable(order)
-  const savedSpec = strip(order.album)
-  const [spec, setSpec] = useState<AlbumSpec>(() => savedSpec ?? defaultSpec(order))
+  const savedSpec = savedAlbum(order.album)
+  const [spec, setSpec] = useState<AlbumSpec>(() => savedSpec ?? albumDefaults(order))
   const [view, setView] = useState<'cover' | 'inside'>('cover')
   const set = <K extends keyof AlbumSpec>(k: K, v: AlbumSpec[K]) => setSpec(s => ({ ...s, [k]: v }))
 
@@ -153,11 +146,7 @@ function Studio({ order }: { order: Order }) {
   const pkgName = cartTierName(order.cart)[lang]
 
   // Client's own picks first, padded with proofs so the preview is never empty.
-  const photos = useMemo(() => {
-    const own = order.selection.filter(isProof)
-    const pad = (lang === 'ta' ? PROOF_SETS.traditional : PROOF_SETS.modern).filter(p => !own.includes(p))
-    return [...own, ...pad].slice(0, Math.max(6, Math.min(own.length, 18)))
-  }, [order.selection, lang])
+  const photos = useMemo(() => albumPhotos(order, lang), [order, lang])
 
   const save = () => {
     saveAlbum(order.id, spec)
@@ -184,6 +173,18 @@ function Studio({ order }: { order: Order }) {
             <Preview spec={spec} photos={photos} view={view} onView={setView} />
           </Reveal>
           <PackageAlbumNote className="mt-5" />
+          <Reveal delay={0.05}>
+            <Link to="/dashboard/album/view" className="group mt-5 flex items-center gap-4 rounded-3xl bg-ink p-4 text-white transition-colors hover:bg-ink-2 sm:p-5">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-ruby text-white shadow-ruby transition-transform duration-500 group-hover:scale-105">
+                <Icon name="play" size={18} className="translate-x-px" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-semibold">{t.watch}</span>
+                <span className="mt-0.5 block text-[13px] text-white/55">{t.watchNote}</span>
+              </span>
+              <Icon name="arrowRight" size={18} className="shrink-0 text-white/60 transition-transform duration-300 group-hover:translate-x-1" />
+            </Link>
+          </Reveal>
           {!editable && (
             <Reveal delay={0.05}>
               <div className="glass-ruby-tint mt-5 flex items-start gap-3 rounded-3xl p-5">

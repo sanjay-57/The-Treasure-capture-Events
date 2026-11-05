@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import { AnimatePresence, motion, useMotionValue, useScroll, useSpring, useTransform } from 'motion/react'
 import { Icon } from '../components/Icon'
 import { Button, Container, Eyebrow, Img, LangImg, ListenButton, SectionHeading, CrossfadeImg } from '../components/ui'
-import { Counter, EASE, ImageReveal, Marquee, Reveal, RevealText, ScrollText, Stagger, StaggerItem } from '../components/motion'
+import { Counter, EASE, ImageReveal, Marquee, Reveal, RevealText, ScrollText, Stagger, StaggerItem, SweepInView, Tilt } from '../components/motion'
 import { GopuramSkyline, Kolam, Ornament, TamilOnly, Thoranam, Vilakku } from '../components/tamil'
 import { StoryCard, useGalleryItems } from '../components/gallery'
 import { DISTRICTS, EVENTS, districtName, type DistrictKey, type EventKey } from '../lib/data'
@@ -197,8 +197,8 @@ function Hero() {
               {t.heroLead}
             </motion.p>
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.15, duration: 1, ease: EASE }} className="mt-8 grid gap-3 sm:flex sm:flex-wrap md:mt-9">
-              <Button to="/book" size="lg" icon="arrowRight" className="w-full sm:w-auto">{t.quote}</Button>
-              <Button to="/gallery" size="lg" variant="glass-ruby-clear" className="w-full sm:w-auto">{t.explore}</Button>
+              <Button magnetic to="/book" size="lg" icon="arrowRight" className="w-full sm:w-auto">{t.quote}</Button>
+              <Button magnetic to="/gallery" size="lg" variant="glass-ruby-clear" className="w-full sm:w-auto">{t.explore}</Button>
             </motion.div>
           </div>
         </Container>
@@ -301,11 +301,17 @@ function DistrictGateway() {
         <SectionHeading eyebrow={t.districtEyebrow} title={t.districtTitle} lead={t.districtLead} />
         <Stagger className="mt-10 grid grid-cols-2 gap-3 md:mt-12 md:grid-cols-4 md:gap-4" gap={0.06}>
           {DISTRICTS.map((d, n) => (
-            <StaggerItem key={d.key}>
+            <StaggerItem key={d.key} className={n === 0 ? 'md:h-full' : ''}>
+              <Tilt className="h-full rounded-3xl" max={6}>
               <button type="button" onClick={() => choose(d.key)} className={`group relative block w-full overflow-hidden rounded-3xl text-left cursor-pointer ${n === 0 ? 'aspect-[4/5] md:aspect-auto md:h-full' : 'aspect-[4/5]'}`}>
                 <CrossfadeImg keys={DISTRICT_GALLERY[d.key] ?? [d.img]} offset={n * 900} w={700} ratio={4 / 5} sizes="(max-width: 768px) 50vw, 25vw" className="absolute inset-0" imgClassName="transition-transform duration-[1.4s] ease-out group-hover:scale-[1.07]" />
                 <span className="absolute inset-0 bg-gradient-to-t from-ink/75 via-ink/5 to-transparent" />
-                {n === 0 && <span className="glass-ruby absolute left-2.5 top-2.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold md:left-3 md:top-3 md:px-3 md:text-[11px]">{lang === 'ta' ? 'தலைமையகம்' : 'Head studio'}</span>}
+                {n === 0 && (
+                  <span className="glass-ruby absolute left-2.5 top-2.5 overflow-hidden rounded-full px-2.5 py-1 text-[11.5px] font-semibold md:left-3 md:top-3 md:px-3 md:text-[11px]">
+                    {lang === 'ta' ? 'தலைமையகம்' : 'Head studio'}
+                    <SweepInView delay={0.9} />
+                  </span>
+                )}
                 <span className="absolute inset-x-2.5 bottom-2.5 md:inset-x-3 md:bottom-3">
                   <span className="glass flex items-center justify-between gap-2 rounded-2xl px-3 py-2.5 transition-all md:px-3.5 md:py-3 duration-500 group-hover:bg-white/90">
                     <span className="min-w-0">
@@ -318,6 +324,7 @@ function DistrictGateway() {
                   </span>
                 </span>
               </button>
+              </Tilt>
             </StaggerItem>
           ))}
         </Stagger>

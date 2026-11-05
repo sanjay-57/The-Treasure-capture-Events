@@ -8,6 +8,8 @@ import { Kolam } from '../../components/tamil'
 import { COMMON, useLang, useT } from '../../lib/i18n'
 import { toast, useTitle } from '../../lib/ui'
 import { useStore } from '../../lib/store'
+import { isLan } from '../../api/mode'
+import { adminLogin } from '../../api/auth'
 
 const DEMO_PIN = '2026'
 
@@ -25,6 +27,8 @@ const copy = {
   welcome: { en: 'Welcome back', ta: 'மீண்டும் வருக' },
   secure: { en: 'Staff only · every action is logged', ta: 'பணியாளர்களுக்கு மட்டும் · ஒவ்வொரு செயலும் பதிவாகும்' },
   showPin: { en: 'Show PIN', ta: 'PIN காட்டு' },
+  password: { en: 'Password', ta: 'கடவுச்சொல்' },
+  lanHint: { en: 'Name and password were printed when the server first started.', ta: 'சர்வர் முதலில் தொடங்கியபோது பெயரும் கடவுச்சொல்லும் காட்டப்பட்டன.' },
 }
 
 export default function AdminLogin() {
@@ -45,6 +49,17 @@ export default function AdminLogin() {
   const submit = (e: FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return fail(t.needName)
+    if (isLan()) {
+      // The studio server checks the password; the session comes back with the reply.
+      adminLogin(name.trim(), pin).then(
+        () => {
+          toast(`${t.welcome}, ${name.trim().split(' ')[0]}`)
+          navigate('/admin', { replace: true })
+        },
+        (e: unknown) => fail(e instanceof Error ? e.message : t.wrong),
+      )
+      return
+    }
     if (pin !== DEMO_PIN) return fail(t.wrong)
     loginAdmin(name.trim())
     toast(`${t.welcome}, ${name.trim().split(' ')[0]}`)
@@ -99,13 +114,13 @@ export default function AdminLogin() {
               <DarkInput label={t.name} value={name} onChange={v => { setName(v); setError('') }} placeholder={t.namePh} icon="users" autoFocus autoComplete="name" />
               <div>
                 <DarkInput
-                  label={t.pin}
+                  label={isLan() ? t.password : t.pin}
                   value={pin}
-                  onChange={v => { setPin(v.replace(/\D/g, '').slice(0, 4)); setError('') }}
+                  onChange={v => { setPin(isLan() ? v.slice(0, 200) : v.replace(/\D/g, '').slice(0, 4)); setError('') }}
                   placeholder="••••"
                   icon="lock"
                   type={reveal ? 'text' : 'password'}
-                  inputMode="numeric"
+                  inputMode={isLan() ? 'text' : 'numeric'}
                   mono
                   autoComplete="current-password"
                   trailing={
@@ -114,6 +129,9 @@ export default function AdminLogin() {
                     </button>
                   }
                 />
+                {isLan() ? (
+                  <p className="mt-2.5 text-[12px] text-white/45">{t.lanHint}</p>
+                ) : (
                 <div className="mt-2.5 flex items-center justify-between gap-3">
                   <span className="flex gap-1.5" aria-hidden="true">
                     {[0, 1, 2, 3].map(i => (
@@ -124,6 +142,7 @@ export default function AdminLogin() {
                     {t.hint} <span className="font-mono font-semibold tracking-widest text-white">2026</span>
                   </button>
                 </div>
+                )}
               </div>
 
               <AnimatePresence>

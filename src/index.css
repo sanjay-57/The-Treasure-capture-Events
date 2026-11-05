@@ -416,3 +416,31 @@ input[type='time']::-webkit-calendar-picker-indicator { opacity: 0.55; cursor: p
 .tales-left { animation: tales-left var(--tales-dur, 70s) linear infinite; }
 .tales-up:hover, .tales-left:hover { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) { .tales-up, .tales-left { animation: none; } }
+
+/* Story invites (pages/invite/story): ambient loops. */
+@keyframes st-sway { 0%, 100% { transform: rotate(-1.4deg); } 50% { transform: rotate(1.4deg); } }
+@keyframes st-swing { 0%, 100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }
+@keyframes st-pulse { 0%, 100% { transform: scale(1); opacity: 0.92; } 50% { transform: scale(1.05); opacity: 1; } }
+@keyframes st-float { 0%, 100% { transform: translateY(0) rotateX(4deg); } 50% { transform: translateY(-8px) rotateX(-2deg); } }
+@keyframes st-twinkle { 0%, 100% { opacity: 0.15; transform: scale(0.7); } 50% { opacity: 1; transform: scale(1.15); } }
+@keyframes st-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
+@keyframes st-foil { 0% { background-position: 100% 0; } 100% { background-position: -120% 0; } }
+@keyframes st-rise { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 50% { transform: translate(14px, -55cqh); } 90% { opacity: 0.9; } 100% { transform: translate(-10px, -115cqh); opacity: 0; } }
+@keyframes st-fall { 0% { transform: translate(0, 0) rotate(0); opacity: 0; } 10% { opacity: 1; } 50% { transform: translate(-22px, 55cqh) rotate(200deg); } 100% { transform: translate(18px, 112cqh) rotate(420deg); opacity: 0; } }
+@keyframes st-glow { 0%, 100% { opacity: 0.18; } 50% { opacity: 0.36; } }
+@keyframes st-flame { 0%, 100% { transform: scale(1, 1) skewX(0); } 33% { transform: scale(0.94, 1.08) skewX(2deg); } 66% { transform: scale(1.04, 0.95) skewX(-2deg); } }
+.st-sway { animation: st-sway 6s ease-in-out infinite; }
+.st-swing { animation: st-swing 3.6s ease-in-out infinite; }
+.st-pulse { animation: st-pulse 2.2s ease-in-out infinite; }
+.st-float { animation: st-float 5s ease-in-out infinite; }
+.st-twinkle { animation: st-twinkle 3s ease-in-out infinite; }
+.st-bob { animation: st-bob 1.6s ease-in-out infinite; }
+.st-foil { animation: st-foil 5s linear infinite; }
+.st-rise { animation: st-rise 14s linear infinite; opacity: 0; }
+.st-fall { animation: st-fall 12s linear infinite; opacity: 0; }
+.st-glow { animation: st-glow 2.4s ease-in-out infinite; }
+.st-flame { animation: st-flame 0.9s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .st-sway, .st-swing, .st-pulse, .st-float, .st-twinkle, .st-bob, .st-foil, .st-glow, .st-flame { animation: none; }
+  .st-rise, .st-fall { display: none; }
+}

@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Icon } from './Icon'
-import { Reveal, EASE } from './motion'
+import { AnimatedINR, Reveal, Stagger, StaggerItem, Sweep, EASE } from './motion'
+import { flyToCart, pourIntoCart, Pluck } from './CartFlight'
 import { Button, Chip, Img, Modal } from './ui'
 import { Surface, isLight } from './AlbumSurface'
 import { formatINR, useLang, useT, type Bi } from '../lib/i18n'
@@ -134,6 +135,13 @@ export function CartBuilder({ cart, spec, onChange }: { cart: Cart; spec?: TierS
     const ids = bundleItems(g).filter(i => qty(i.id) > 0).map(i => i.id)
     return ids.length < 2 ? 0 : Math.round(bundlePrice(g, ids, prices).saving * mult)
   }
+  // What one more of an item adds, as the quote counts it, for the phone chip.
+  const unitAmount = (id: CatalogueId) => {
+    const i = CATALOGUE.find(c => c.id === id)
+    if (!i || i.onRequest) return 0
+    return i.unit === 'session' ? Math.round(prices[id] * (i.noMini ? droneMultiplier(hours) : mult)) : prices[id]
+  }
+  useCartFlights(cart, id => CATALOGUE.find(c => c.id === id)?.name[lang] ?? '', unitAmount, cart.tier === 'custom' ? undefined : presetName(cartSpec(cart, spec), cart.tier)?.[lang])
   const crewSubtotal = CREW.reduce((s, i) => s + crewLine(i), 0) - bundleSaving('candid_photo') - bundleSaving('candid_video')
 
   // Customers toggle what they may add on their own; package items stay visible so a removed one can come back.
@@ -184,26 +192,27 @@ export function CartBuilder({ cart, spec, onChange }: { cart: Cart; spec?: TierS
       {/* Traditional crew */}
       <section>
         <SectionHead title={t.trad} note={t.tradNote} />
-        <div className="grid gap-3">{TRAD.filter(shown).map(i => card(i))}</div>
+        <Stagger className="grid gap-3" gap={0.05}>{TRAD.filter(shown).map(i => <StaggerItem key={i.id} y={14}>{card(i)}</StaggerItem>)}</Stagger>
       </section>
 
       {/* Candid styles */}
       <CandidGroup group="candid_photo" title={t.candidPhoto} cart={cart} prices={prices} mult={mult} saving={bundleSaving('candid_photo')} pkgName={pkgName} inPkg={inPkg} onToggle={(id, on) => apply(id, on ? 1 : 0)} />
       <CandidGroup group="candid_video" title={t.candidVideo} cart={cart} prices={prices} mult={mult} saving={bundleSaving('candid_video')} pkgName={pkgName} inPkg={inPkg} onToggle={(id, on) => apply(id, on ? 1 : 0)} />
 
-      <div className="flex items-center justify-between gap-4 rounded-2xl bg-ink px-4 py-3.5 text-white">
+      <div className="relative flex items-center justify-between gap-4 overflow-hidden rounded-2xl bg-ink px-4 py-3.5 text-white">
+        <Sweep trigger={crewSubtotal} tone="rgba(255,255,255,0.16)" />
         <span className="min-w-0 text-[13px] font-medium text-white/70">
           {t.crewSubtotal} · × {mult.toFixed(2)} ({hours} {t.hoursUnit})
         </span>
-        <span className="shrink-0 font-display text-[1.4rem] font-semibold tabular-nums">{formatINR(crewSubtotal)}</span>
+        <AnimatedINR value={crewSubtotal} flash={false} live={false} className="shrink-0 font-display text-[1.4rem] font-semibold" />
       </div>
 
       {/* Add-ons */}
       <section>
         <SectionHead title={t.addons} note={t.addonsNote} />
-        <div className="grid gap-3 sm:grid-cols-2">
-          {ADDONS.filter(i => shown(i) || i.onRequest).map(i => card(i, i.requiresOutdoor && !outdoor ? { note: t.needsOutdoor, disabled: qty(i.id) === 0 } : {}))}
-        </div>
+        <Stagger className="grid gap-3 sm:grid-cols-2" gap={0.05}>
+          {ADDONS.filter(i => shown(i) || i.onRequest).map(i => <StaggerItem key={i.id} y={14}>{card(i, i.requiresOutdoor && !outdoor ? { note: t.needsOutdoor, disabled: qty(i.id) === 0 } : {})}</StaggerItem>)}
+        </Stagger>
       </section>
 
       {/* Album */}
@@ -215,14 +224,14 @@ export function CartBuilder({ cart, spec, onChange }: { cart: Cart; spec?: TierS
       {/* Frames & prints */}
       <section>
         <SectionHead title={t.frames} note={t.framesNote} />
-        <div className="grid gap-3 sm:grid-cols-2">{PRINTS.filter(shown).map(i => card(i))}</div>
+        <Stagger className="grid gap-3 sm:grid-cols-2" gap={0.05}>{PRINTS.filter(shown).map(i => <StaggerItem key={i.id} y={14}>{card(i)}</StaggerItem>)}</Stagger>
       </section>
 
       {/* Special shoots */}
       {specials.length > 0 && (
         <section>
           <SectionHead title={t.special} note={t.specialNote} />
-          <div className="grid gap-3 sm:grid-cols-2">{specials.map(i => card(i))}</div>
+          <Stagger className="grid gap-3 sm:grid-cols-2" gap={0.05}>{specials.map(i => <StaggerItem key={i.id} y={14}>{card(i)}</StaggerItem>)}</Stagger>
         </section>
       )}
 
@@ -231,17 +240,19 @@ export function CartBuilder({ cart, spec, onChange }: { cart: Cart; spec?: TierS
         {included.length > 0 && (
           <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.4, ease: EASE }} className="rounded-[26px] bg-ruby-soft/60 p-5 sm:p-6">
             <p className="t-label text-ruby">{t.included}</p>
-            <ul className="mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+            <Stagger className="mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-2" gap={0.05}>
               {included.map(item => (
-                <li key={item.id} className="flex items-start gap-2.5 text-[13.5px] leading-snug text-ink/80">
-                  <Icon name="check" size={15} strokeWidth={2.4} className="mt-0.5 shrink-0 text-ruby" />
+                <StaggerItem key={item.id} y={10} className="flex items-start gap-2.5 text-[13.5px] leading-snug text-ink/80">
+                  <motion.span className="mt-0.5 shrink-0 text-ruby" initial={{ rotate: -90, scale: 0 }} whileInView={{ rotate: 0, scale: 1 }} viewport={{ once: true }} transition={{ type: 'spring', stiffness: 380, damping: 20, delay: 0.15 }}>
+                    <Icon name="check" size={15} strokeWidth={2.4} />
+                  </motion.span>
                   <span>
                     {item.name[lang]}
                     {item.note && <span className="block text-[12px] text-ink/50">{item.note[lang]}</span>}
                   </span>
-                </li>
+                </StaggerItem>
               ))}
-            </ul>
+            </Stagger>
           </motion.section>
         )}
       </AnimatePresence>
@@ -269,24 +280,63 @@ export function CartBuilder({ cart, spec, onChange }: { cart: Cart; spec?: TierS
   )
 }
 
+/**
+ * Watches the cart and sends each change flying: one option lifts off its card,
+ * a package pours several in, a removal flies back out. Works for taps, package
+ * picks and the voice assistant alike, since all of them land in the cart.
+ */
+function useCartFlights(cart: Cart, labelOf: (id: CatalogueId) => string, amountOf: (id: CatalogueId) => number, pkgLabel?: string) {
+  const prev = useRef(cart.items)
+  const fns = useRef({ labelOf, amountOf, pkgLabel })
+  fns.current = { labelOf, amountOf, pkgLabel }
+  useEffect(() => {
+    const { labelOf, amountOf, pkgLabel } = fns.current
+    const was = prev.current
+    prev.current = cart.items
+    if (was === cart.items) return
+    const ids = new Set([...Object.keys(was), ...Object.keys(cart.items)]) as Set<CatalogueId>
+    const added: CatalogueId[] = []
+    const removed: CatalogueId[] = []
+    ids.forEach(id => {
+      const a = was[id] ?? 0
+      const b = cart.items[id] ?? 0
+      const item = CATALOGUE.find(i => i.id === id)
+      // Bundled freebies (soft copies, prints included) ride along silently.
+      if (!item || item.unit === 'included') return
+      if (b > a) added.push(id)
+      else if (b < a) removed.push(id)
+    })
+    if (import.meta.env.DEV && (added.length || removed.length)) console.info('[cart-flight] cart changed', { added, removed })
+    const icon = (id: CatalogueId) => CATALOGUE.find(c => c.id === id)?.icon
+    if (added.length > 2) pourIntoCart(added, 6, pkgLabel ?? `${added.length} ×`)
+    else added.forEach((id, i) => flyToCart({ id, icon: icon(id), delay: i * 0.12, label: labelOf(id), amount: amountOf(id) }))
+    if (added.length <= 2) removed.slice(0, 2).forEach((id, i) => flyToCart({ id, direction: 'out', icon: icon(id), label: added.length ? undefined : i === 0 ? labelOf(id) : undefined }))
+  }, [cart.items])
+}
+
 function SectionHead({ title, note }: { title: string; note?: string }) {
   return (
-    <div className="mb-3">
+    <Reveal y={16} className="mb-3">
       <h3 className="font-display text-[1.15rem] font-semibold text-ink">{title}</h3>
       {note && <p className="mt-1 max-w-xl text-[13px] leading-snug text-ink/55">{note}</p>}
-    </div>
+    </Reveal>
   )
 }
 
 /** "In Gold" while a package item is in the cart, "Taken out of Gold" once removed. */
-function PackageBadge({ name, on }: { name: Bi; on: boolean }) {
+function PackageBadge({ name, on, delay = 0 }: { name: Bi; on: boolean; delay?: number }) {
   const lang = useLang()
   const label = on ? { en: `In ${name.en}`, ta: `${name.ta}-ல் உள்ளது` } : { en: `Taken out of ${name.en}`, ta: `${name.ta}-லிருந்து நீக்கப்பட்டது` }
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${on ? 'bg-gold text-white' : 'bg-ink/[0.06] text-ink/55'}`}>
+    <motion.span
+      key={`${name.en}-${on}`}
+      initial={{ scale: 0.6, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ type: 'spring', stiffness: 460, damping: 20, delay }}
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${on ? 'bg-gold text-white' : 'bg-ink/[0.06] text-ink/55'}`}>
       <Icon name={on ? 'gem' : 'minus'} size={10} strokeWidth={2.4} />
       {label[lang]}
-    </span>
+    </motion.span>
   )
 }
 
@@ -305,13 +355,13 @@ function OptionCard({ item, n, price, pkgName, note, disabled, onChange }: { ite
       data-in-package={pkgName && n > 0 ? 'true' : undefined}
       className={`flex scroll-mt-40 items-center gap-3.5 rounded-[22px] border p-3 transition-colors duration-300 sm:p-3.5 ${gold ? 'border-gold/50 bg-gold-soft' : n ? 'border-ruby/40 bg-ruby-soft/50' : 'border-ink/[0.08] bg-white/70'} ${disabled ? 'opacity-60' : ''}`}
     >
-      <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-ink/[0.05] sm:h-16 sm:w-16">
+      <Pluck n={n} className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-ink/[0.05] sm:h-16 sm:w-16">
         {photo ? <Img k={photo} w={160} ratio={1} sizes="64px" className="absolute inset-0" /> : <Icon name={item.icon} size={22} className="absolute inset-0 m-auto text-ink/40" />}
-      </span>
+      </Pluck>
       <span className="min-w-0 flex-1">
         {pkgName && (
           <span className="mb-1 block">
-            <PackageBadge name={pkgName} on={n > 0} />
+            <PackageBadge name={pkgName} on={n > 0} delay={(CATALOGUE.indexOf(item) % 14) * 0.035} />
           </span>
         )}
         <span className="block text-[14.5px] font-medium leading-snug text-ink [overflow-wrap:anywhere]">{item.name[lang]}</span>
@@ -358,16 +408,16 @@ function CandidGroup({ group, title, cart, prices, mult, saving, pkgName, inPkg,
               onClick={() => onToggle(item.id, !on)}
               className={`group relative flex w-[72%] shrink-0 snap-start scroll-mt-40 flex-col overflow-hidden rounded-[22px] border text-left sm:w-auto transition-all duration-300 cursor-pointer active:scale-[0.99] ${gold ? 'border-gold bg-gold-soft' : on ? 'border-ruby bg-ruby-soft/60 shadow-ruby' : 'border-ink/[0.08] bg-white/70 hover:border-ink/20'}`}
             >
-              <span className="relative block aspect-[16/10] w-full overflow-hidden bg-ink/[0.05]">
+              <Pluck n={on ? 1 : 0} depth={0.92} className="relative block aspect-[16/10] w-full overflow-hidden bg-ink/[0.05]">
                 {photo && <Img k={photo} w={400} ratio={1.6} sizes="(min-width: 640px) 30vw, 100vw" className="absolute inset-0" />}
                 <span className={`absolute right-2.5 top-2.5 flex h-7 w-7 items-center justify-center rounded-full border transition-all duration-300 ${gold ? 'border-gold bg-gold text-white' : on ? 'border-ruby bg-ruby text-white' : 'border-white/70 bg-white/80 text-transparent'}`} aria-hidden="true">
                   <Icon name="check" size={15} strokeWidth={2.4} />
                 </span>
-              </span>
+              </Pluck>
               <span className="block p-3.5">
                 {pkgName && inPkg(item.id) && (
                   <span className="mb-1 block">
-                    <PackageBadge name={pkgName} on={on} />
+                    <PackageBadge name={pkgName} on={on} delay={(CATALOGUE.indexOf(item) % 14) * 0.035} />
                   </span>
                 )}
                 <span className="block text-[14px] font-semibold capitalize leading-snug text-ink [overflow-wrap:anywhere]">{shortName(item.name)[lang]}</span>
@@ -385,10 +435,13 @@ function CandidGroup({ group, title, cart, prices, mult, saving, pkgName, inPkg,
               initial={{ scale: 0.96 }}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', stiffness: 420, damping: 22 }}
-              className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-ruby/25 bg-white/80 px-4 py-3 text-[13.5px] font-medium text-ruby"
+              className="relative mt-3 flex items-center justify-between gap-3 overflow-hidden rounded-2xl border border-ruby/25 bg-white/80 px-4 py-3 text-[13.5px] font-medium text-ruby"
             >
+              <Sweep trigger={saving} tone="rgba(155,17,30,0.16)" />
               <span className="flex items-center gap-2">
-                <Icon name="sparkle" size={15} />
+                <motion.span key={saving} className="inline-flex" initial={{ rotate: -180, scale: 0.5 }} animate={{ rotate: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 16 }}>
+                  <Icon name="sparkle" size={15} />
+                </motion.span>
                 {t.bundleSaving} · {rule.name[lang]}
               </span>
               <span className="font-semibold tabular-nums">{formatINR(-saving)}</span>
@@ -588,7 +641,7 @@ function CoverPreview({ cover, hex, title, size, orientation }: { cover: string;
   return (
     <div className="flex items-center justify-center py-2 [perspective:900px]">
       <motion.div
-        key={`${size}-${orientation}`}
+        key={`${size}-${orientation}-${hex}-${cover}`}
         initial={{ rotateY: -8, opacity: 0.6 }}
         animate={{ rotateY: -22, opacity: 1 }}
         transition={{ duration: 0.7, ease: EASE }}

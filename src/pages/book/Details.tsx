@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "motion/react"
 import { useLenis } from "lenis/react"
 import { Button, Field } from "../../components/ui"
 import { Icon, type IconName } from "../../components/Icon"
-import { Reveal, Stagger, StaggerItem, EASE } from "../../components/motion"
+import { Magnetic, Reveal, Stagger, StaggerItem, EASE } from "../../components/motion"
 import { KolamCorner, Ornament } from "../../components/tamil"
 import {
   formatDate,
@@ -355,9 +355,9 @@ function DetailsStep() {
     }
     setSending(true)
     // POST /enquiries — the store mock creates the order, customer + draft invoice and the WhatsApp ack.
-    window.setTimeout(() => {
+    window.setTimeout(async () => {
       updateDraft({ name: draft.name.trim(), email: draft.email.trim() })
-      const id = submitEnquiry()
+      const id = await submitEnquiry()
       if (id) {
         const order = useStore.getState().orders.find((o) => o.id === id)
         if (order) {
@@ -555,6 +555,7 @@ function DetailsStep() {
           </Button>
           <div className="flex flex-col items-stretch gap-2 sm:items-end">
             <div className="hidden md:contents">
+              <Magnetic className={sending ? "pointer-events-none" : ""}>
               <Button
                 type="submit"
                 size="lg"
@@ -579,6 +580,7 @@ function DetailsStep() {
                   t.send
                 )}
               </Button>
+              </Magnetic>
             </div>
             <p className="text-center text-[11px] text-ink/40 sm:text-right">
               {t.demo}

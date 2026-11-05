@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { AnimatedOutlet } from '../../components/layout/Shell'
 import { Container, Steps } from '../../components/ui'
 import { EASE } from '../../components/motion'
+import { CartFlightLayer } from '../../components/CartFlight'
 import { useLang } from '../../lib/i18n'
 import { useStore, type BookingDraft } from '../../lib/store'
 import { DISTRICTS, EVENTS } from '../../lib/data'
@@ -86,6 +87,7 @@ export default function BookLayout() {
         </div>
       )}
       <VoiceGuide />
+      <CartFlightLayer />
     </div>
   )
 }

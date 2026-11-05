@@ -6,7 +6,7 @@ import { DatePicker, Field, LangImg, Segmented, Badge, TimePicker } from '../../
 import { Icon } from '../../components/Icon'
 import { mapsLink } from '../../components/MapEmbed'
 import { PinMap } from '../../components/PinMap'
-import { Reveal, EASE } from '../../components/motion'
+import { Reveal, Sweep, EASE } from '../../components/motion'
 import { KolamCorner, Ornament, TempleBorder } from '../../components/tamil'
 import { formatDate, formatINR, useLang, useT } from '../../lib/i18n'
 import { useTitle } from '../../lib/ui'
@@ -15,6 +15,7 @@ import { TRAVEL_FREE_KM, TRAVEL_PER_KM, VENUES, districtName, type VenueType } f
 import { estimateDistanceKm } from '../../lib/pricing'
 import { districtCentre, hasGooglePlaces, resolveSuggestion, reverseGeocode, roundCoord, suggestPlaces, type LatLng, type Suggestion } from '../../lib/geo'
 import { StepGuard, StepHeader, StepNav, SubHeading, LEAD_DAYS, earliestEventISO, todayISO } from './shared'
+import { MUHURTHAM_LABEL, muhurthamDetail, muhurthamOn, nextMuhurthams } from '../../lib/muhurtham'
 
 const copy = {
   title: { en: 'Where, and when?', ta: 'எங்கே, எப்போது?' },
@@ -91,6 +92,12 @@ const copy = {
     ta: 'அந்த மாதத்தை உங்களுக்காக ஒதுக்கி வைத்து, அழைப்பின்போது சரியான தேதியை உறுதிசெய்வோம்.',
   },
   daysAway: { en: 'days away', ta: 'நாட்கள் உள்ளன' },
+  muhurthamLegend: { en: 'Subha Muhurtham day', ta: 'சுப முகூர்த்த நாள்' },
+  nextMuhurtham: { en: 'Next muhurtham', ta: 'அடுத்த முகூர்த்தம்' },
+  muhurthamNote: {
+    en: 'Gold days are Subha Muhurtham dates from the Tamil calendar for 2026–27. Please confirm the exact window with your family astrologer.',
+    ta: '2026–27 தமிழ் நாட்காட்டியின் சுப முகூர்த்த நாட்கள் தங்க நிறத்தில் உள்ளன. சரியான நேரத்தை உங்கள் குடும்ப ஜோதிடரிடம் உறுதிசெய்யுங்கள்.',
+  },
   today: { en: 'Today', ta: 'இன்று' },
   next: { en: 'Continue to package', ta: 'தொகுப்புக்குத் தொடர்க' },
   needAddress: { en: 'Add the venue address', ta: 'இட முகவரியைச் சேர்க்கவும்' },
@@ -567,6 +574,7 @@ function DistanceMeter() {
 
   return (
     <div className="glass-ruby-tint relative h-full overflow-hidden rounded-[26px] p-5 sm:p-6">
+      {has && <Sweep trigger={km} />}
       <div className="flex items-start justify-between gap-3">
         <p className="text-[13px] font-medium leading-snug text-ink/70">
           {t.distTitle}
@@ -644,6 +652,8 @@ function DateTime() {
   const today = todayISO()
   const tentative = draft.dateCertainty === 'tentative'
   const days = draft.date ? Math.round((new Date(draft.date + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 864e5) : null
+  const chosenMuhurtham = draft.date ? muhurthamOn(draft.date) : undefined
+  const nextMuhurtham = nextMuhurthams(min, 1)[0]
 
   // A date saved before the lead time came in (or an old draft) is too soon now: ask again.
   useEffect(() => {
@@ -669,10 +679,23 @@ function DateTime() {
               {tentative ? t.approxDate : t.date}
               <span className="text-ruby">*</span>
             </p>
-            <DatePicker value={draft.date} onChange={d => updateDraft({ date: d && d < min ? min : d })} min={min} lang={lang} className="flex-1" />
+            <DatePicker
+              value={draft.date}
+              onChange={d => updateDraft({ date: d && d < min ? min : d })}
+              min={min}
+              lang={lang}
+              className="flex-1"
+              mark={iso => (muhurthamOn(iso) ? { label: MUHURTHAM_LABEL[lang] } : undefined)}
+              legend={t.muhurthamLegend}
+              extraQuick={nextMuhurtham ? [{ label: t.nextMuhurtham, iso: nextMuhurtham.date }] : []}
+            />
             <p className="mt-2 flex items-start gap-1.5 text-[12px] leading-snug text-ink/50">
               <Icon name="info" size={13} className="mt-px shrink-0 text-ruby" />
               {t.leadNote.replace('{d}', formatDate(min, lang, { day: 'numeric', month: 'long' }))}
+            </p>
+            <p className="mt-1.5 flex items-start gap-1.5 text-[12px] leading-snug text-ink/50">
+              <span aria-hidden className="mt-[5px] inline-block h-[5px] w-[5px] shrink-0 rounded-full bg-gold" />
+              {t.muhurthamNote}
             </p>
           </div>
           <div className="flex min-w-0 flex-col">
@@ -699,7 +722,15 @@ function DateTime() {
                     {formatDate(draft.date, lang, { year: 'numeric' })}
                     {draft.time && <> · {new Date(`2000-01-01T${draft.time}:00`).toLocaleTimeString(lang === 'ta' ? 'ta-IN' : 'en-IN', { hour: 'numeric', minute: '2-digit' })}</>}
                   </p>
-                  {days !== null && days >= 0 && <p className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-white/12 px-3 py-1 text-[12.5px] font-medium">{days === 0 ? t.today : `${days} ${t.daysAway}`}</p>}
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {days !== null && days >= 0 && <p className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/12 px-3 py-1 text-[12.5px] font-medium">{days === 0 ? t.today : `${days} ${t.daysAway}`}</p>}
+                    {chosenMuhurtham && (
+                      <p className="inline-flex w-fit items-center gap-1.5 rounded-full bg-gold-bright/20 px-3 py-1 text-[12.5px] font-medium text-gold-bright">
+                        <span aria-hidden className="inline-block h-[5px] w-[5px] rounded-full bg-gold-bright" />
+                        {MUHURTHAM_LABEL[lang]} · {muhurthamDetail(chosenMuhurtham, lang)}
+                      </p>
+                    )}
+                  </div>
                 </>
               ) : (
                 <p className="text-center text-[13.5px]">{lang === 'ta' ? 'தேதியைத் தேர்ந்தெடுங்கள்' : 'Pick a date to see your booking day here'}</p>

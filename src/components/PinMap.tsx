@@ -10,7 +10,7 @@ import { STUDIO_COORDS, roundCoord, type LatLng } from '../lib/geo'
  * A real, draggable map for choosing a spot: tap or click anywhere to drop the
  * pin, drag the pin to fine-tune, or switch to satellite to find the building.
  * Leaflet loads on the client only (the prerender has no window). Street tiles
- * from CARTO, satellite from Esri; both keyless.
+ * and satellite both from Esri; keyless (CARTO now needs an API key).
  */
 
 const copy = {
@@ -22,8 +22,8 @@ const copy = {
 
 const TILES = {
   map: {
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles © Esri — Esri, HERE, Garmin, © OpenStreetMap contributors',
   },
   satellite: {
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',

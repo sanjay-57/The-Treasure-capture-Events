@@ -255,13 +255,28 @@ export const ITEM_PHOTO: Partial<Record<CatalogueId, ImgKey>> = {
   look_temple: 't_look_kasavu', look_beach: 'm_look_beach', look_meadow: 'm_look_forest', outdoor_mini: 'm_cp_laugh',
 }
 
+/**
+ * Admin replacements, keyed by photo slot. Set from the store (cms.images) so
+ * every call site, including plain <img src={photoUrl(...)}>, shows the
+ * studio's own photo without touching the fixed catalogue above.
+ */
+let OVERRIDES: Partial<Record<ImgKey, string>> = {}
+export function setImageOverrides(next: Partial<Record<ImgKey, string>> | undefined) {
+  OVERRIDES = next ?? {}
+}
+export const imageOverride = (key: ImgKey): string | undefined => OVERRIDES[key]
+
 export function photoUrl(key: ImgKey, w: number, h?: number, q = 72): string {
+  const o = OVERRIDES[key]
+  if (o) return o
   const p = IMG[key]
   const crop = h ? `&h=${h}&fit=crop&crop=faces,entropy` : ''
   return `https://images.unsplash.com/photo-${p.id}?w=${w}${crop}&q=${q}&auto=format`
 }
 
-export function photoSrcSet(key: ImgKey, widths = [480, 800, 1200, 1800], ratio?: number): string {
+/** Responsive candidates for the stock photo; none for an admin URL, whose sizes we do not know. */
+export function photoSrcSet(key: ImgKey, widths = [480, 800, 1200, 1800], ratio?: number): string | undefined {
+  if (OVERRIDES[key]) return undefined
   return widths.map(w => `${photoUrl(key, w, ratio ? Math.round(w / ratio) : undefined)} ${w}w`).join(', ')
 }
 

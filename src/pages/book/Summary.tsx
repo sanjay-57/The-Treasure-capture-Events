@@ -11,6 +11,7 @@ import { useStore } from '../../lib/store'
 import { CROWDS, VENUES, districtName, eventByKey } from '../../lib/data'
 import { CATALOGUE_BY_ID, OVERTIME_NOTE, cartHours, cartTierName } from '../../lib/catalogue'
 import type { Quote, QuoteLine } from '../../lib/pricing'
+import { CartTarget, CartToast } from '../../components/CartFlight'
 import { AnimatedINR, hoursLabel, useQuote, useStepAction, useTypingInField } from './shared'
 
 const copy = {
@@ -53,10 +54,20 @@ function LineList({ lines, plus = false, gold = false }: { lines: QuoteLine[]; p
             transition={{ duration: 0.35, ease: EASE }}
             className="overflow-hidden"
           >
-            <div className="flex items-start justify-between gap-4 text-[13px]">
+            {/* A freshly added line glows ruby for a moment, so the eye finds where the item landed */}
+            <motion.div
+              initial={{ backgroundColor: 'rgba(155,17,30,0.12)', x: 10 }}
+              animate={{ backgroundColor: 'rgba(155,17,30,0)', x: 0 }}
+              transition={{ backgroundColor: { duration: 1.4, delay: 0.5 }, x: { duration: 0.5, ease: EASE } }}
+              className="-mx-1.5 flex items-start justify-between gap-4 rounded-lg px-1.5 py-0.5 text-[13px]"
+            >
               <div className="min-w-0">
                 <p className="leading-snug text-ink/80">
-                  {plus && <span className="mr-1 font-semibold text-ruby">+</span>}
+                  {plus && (
+                    <motion.span initial={{ scale: 0, rotate: -90 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 420, damping: 22, delay: 0.2 }} className="mr-1 inline-block font-semibold text-ruby">
+                      +
+                    </motion.span>
+                  )}
                   {line.label[lang]}
                 </p>
                 {line.detail && <p className="mt-0.5 text-[11.5px] leading-snug text-ink/45">{line.detail[lang]}</p>}
@@ -64,7 +75,7 @@ function LineList({ lines, plus = false, gold = false }: { lines: QuoteLine[]; p
               <span className={`shrink-0 tabular-nums ${line.kind === 'saving' ? `font-semibold ${gold ? 'text-gold-deep' : 'text-ruby'}` : line.amount === 0 ? 'text-ink/35' : 'text-ink/70'}`}>
                 {line.amount === 0 ? t.free : `${plus ? '+' : ''}${formatINR(line.amount)}`}
               </span>
-            </div>
+            </motion.div>
           </motion.li>
         ))}
       </AnimatePresence>
@@ -207,7 +218,13 @@ export function SummaryBody({ compact = false }: { compact?: boolean }) {
         <>
           <div className="mt-6 border-t hairline pt-5">
             <p className="text-[12px] font-medium text-ink/50">{t.estimated}</p>
-            <AnimatedINR value={quote.total} className="mt-1 block font-display text-[2.6rem] font-semibold leading-none tracking-tight text-ink" />
+            {compact ? (
+              <AnimatedINR value={quote.total} className="mt-1 block font-display text-[2.6rem] font-semibold leading-none tracking-tight text-ink" />
+            ) : (
+              <CartTarget className="mt-1 inline-block origin-left">
+                <AnimatedINR value={quote.total} className="block font-display text-[2.6rem] font-semibold leading-none tracking-tight text-ink" />
+              </CartTarget>
+            )}
           </div>
           <div className="mt-5 space-y-4">
             {quote.package ? (
@@ -324,6 +341,8 @@ export function MobileQuoteBar() {
 
   // The on-screen keyboard needs the room; tuck the dock away while a field has focus.
   const dock = (!!quote || !!action) && !open && !typing
+  // How many lines the family has chosen: the package's additions, or every catalogue line in a custom cart.
+  const count = quote ? (quote.package ? quote.package.added.length : quote.lines.filter(l => l.section !== 'travel' && l.section !== 'adjustment' && l.section !== 'tax' && l.amount > 0).length) : 0
 
   if (typeof document === 'undefined') return null
   return createPortal(
@@ -338,6 +357,7 @@ export function MobileQuoteBar() {
             transition={{ duration: 0.5, ease: EASE }}
             className="fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(10px+env(safe-area-inset-bottom))] md:hidden"
           >
+            <CartToast className="mb-2" />
             <div className="glass-strong rounded-[26px] p-1.5">
               {action?.disabled && action.hint && <p className="px-3.5 pb-1.5 pt-2 text-[12px] leading-snug text-ink/55">{action.hint}</p>}
               <div className="flex items-center gap-1.5">
@@ -350,10 +370,17 @@ export function MobileQuoteBar() {
                     className="flex min-h-12 min-w-0 flex-1 flex-col justify-center rounded-[20px] px-3.5 text-left transition active:bg-ink/[0.05] cursor-pointer"
                   >
                     <span className="flex items-center gap-1 text-[11px] font-medium text-ink/50">
+                      {count > 0 && (
+                        <motion.span key={count} initial={{ scale: 0.4 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 520, damping: 18 }} className="flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-ruby px-1 text-[10px] font-bold tabular-nums text-white">
+                          {count}
+                        </motion.span>
+                      )}
                       <span className="truncate">{quote.package ? quote.package.label[lang] : t.estimated}</span>
                       <Icon name="chevronDown" size={13} className="shrink-0 rotate-180" />
                     </span>
-                    <AnimatedINR value={quote.total} className="block truncate font-display text-[1.35rem] font-semibold leading-tight text-ink" />
+                    <CartTarget className="inline-block max-w-full origin-left">
+                      <AnimatedINR value={quote.total} className="block truncate font-display text-[1.35rem] font-semibold leading-tight text-ink" />
+                    </CartTarget>
                   </button>
                 )}
                 {action ? (
@@ -395,6 +422,7 @@ export function MobileQuoteBar() {
             transition={{ duration: 0.55, ease: EASE }}
             className="fixed inset-x-3 bottom-3 z-40 hidden pb-[env(safe-area-inset-bottom)] md:block"
           >
+            <CartToast className="mb-2" />
             <button
               type="button"
               onClick={() => setOpen(true)}
@@ -403,7 +431,9 @@ export function MobileQuoteBar() {
             >
               <span className="min-w-0">
                 <span className="block truncate text-[11px] font-medium text-ink/50">{quote.package ? quote.package.label[lang] : t.estimated}</span>
-                <AnimatedINR value={quote.total} className="block font-display text-[1.5rem] font-semibold leading-tight text-ink" />
+                <CartTarget className="inline-block origin-left">
+                  <AnimatedINR value={quote.total} className="block font-display text-[1.5rem] font-semibold leading-tight text-ink" />
+                </CartTarget>
               </span>
               <span className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-ink px-4 text-[13px] font-medium text-white">
                 {t.view}

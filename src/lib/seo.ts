@@ -13,6 +13,8 @@ export const SITE_URL = 'https://treasurecaptureevents.in'
 
 /** Public, crawlable routes. Booking steps, dashboards, admin and invites stay out. */
 export const PUBLIC_ROUTES = ['/', '/gallery', '/services', '/about', '/contact', '/book', '/terms', '/privacy', '/photography']
+/** The photographer product's public pages (src/saas/studio/Landing.tsx, ServicePage.tsx). */
+export const PHOTOGRAPHER_ROUTES = ['/for-photographers', '/for-photographers/gallery', '/for-photographers/storage', '/for-photographers/poses']
 
 // ─── Landing pages: /photography/:district/:event ───────────────────────────
 
@@ -55,7 +57,7 @@ export const landingPaths = () => DISTRICTS.flatMap(d => LANDING_EVENTS.map(e =>
  * ?lang=ta). The sitemap and any pre-render step both read this.
  */
 export function indexablePaths(): string[] {
-  return [...PUBLIC_ROUTES, ...STORIES.map(s => `/gallery/${s.slug}`), ...landingPaths()]
+  return [...PUBLIC_ROUTES, ...PHOTOGRAPHER_ROUTES, ...STORIES.map(s => `/gallery/${s.slug}`), ...landingPaths()]
 }
 
 // ─── Language in the URL ─────────────────────────────────────────────────────

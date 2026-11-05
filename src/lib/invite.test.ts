@@ -101,6 +101,18 @@ describe('invite builder', () => {
     expect(wa).toMatch(/^https:\/\/wa\.me\/\?text=/)
     expect(decodeURIComponent(wa.split('text=')[1])).toMatch(/\nhttps:\/\/x\.in\/i\/lantern#abc$/)
   })
+  it('carries functions, tradition, layout and story through the link, and drops half-filled functions', () => {
+    const back = decodeInvite(encodeInvite(draftToInvite({
+      ...DRAFT, tradition: 'muslim', layout: 'card', story: ' Met in Madurai ',
+      events: [{ name: 'Mehendi', date: '2027-02-12', time: '18:00', venue: 'Home' }, { name: 'Sangeet', date: '', time: '' }],
+    })))!
+    expect(back.events).toEqual([{ name: 'Mehendi', date: '2027-02-12', time: '18:00', venue: 'Home' }])
+    expect([back.tradition, back.layout, back.story]).toEqual(['muslim', 'card', 'Met in Madurai'])
+    const plain = decodeInvite(encodeInvite(draftToInvite({ ...DRAFT, tradition: 'none' })))!
+    expect([plain.tradition, plain.layout, plain.events]).toEqual([undefined, undefined, undefined])
+    const cine = decodeInvite(encodeInvite(draftToInvite({ ...DRAFT, theme: 'lotus', layout: 'cinematic' })))!
+    expect(cine.layout).toBe('cinematic')
+  })
 })
 
 describe('fortune cookies', () => {
@@ -154,4 +166,5 @@ describe('studio JSON-LD', () => {
     expect(ld.telephone).toBe('+919894012345')
     expect(ld.makesOffer[0]).toMatchObject({ price: 29999, priceCurrency: 'INR' })
   })
+
 })

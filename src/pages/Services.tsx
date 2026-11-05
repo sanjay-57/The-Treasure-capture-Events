@@ -5,7 +5,7 @@ import { useLenis } from 'lenis/react'
 import { Icon, type IconName } from '../components/Icon'
 import { PackageAlbumNote } from '../components/PackageAlbumNote'
 import { Badge, Button, Chip, Container, Eyebrow, Img, LangImg, SectionHeading } from '../components/ui'
-import { EASE, ImageReveal, Marquee, Parallax, Reveal, RevealText, Stagger, StaggerItem } from '../components/motion'
+import { EASE, ImageReveal, Marquee, Parallax, Reveal, RevealText, Stagger, StaggerItem, SweepInView, Tilt } from '../components/motion'
 import { GopuramSkyline, Kolam, KolamCorner, Ornament, TamilOnly, TempleBorder } from '../components/tamil'
 import { COMMON, formatINR, useLang, useT, type Bi } from '../lib/i18n'
 import { ALBUM, DISTRICTS, EVENTS, TRAVEL_FREE_KM, TRAVEL_PER_KM, eventByKey, type EventKey } from '../lib/data'
@@ -450,8 +450,8 @@ function Hero() {
           <p className="t-lead mt-6 max-w-xl text-white/70 md:mt-7">{t.heroLead}</p>
         </Reveal>
         <Reveal delay={0.6} className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap md:mt-9">
-          <Button to="/book" size="lg" icon="arrowRight" className="w-full sm:w-auto">{c.getQuote}</Button>
-          <Button size="lg" variant="glass-dark" className="w-full sm:w-auto" onClick={() => lenis?.scrollTo('#packages', { offset: -40 })}>{t.seePackages}</Button>
+          <Button magnetic to="/book" size="lg" icon="arrowRight" className="w-full sm:w-auto">{c.getQuote}</Button>
+          <Button magnetic size="lg" variant="glass-dark" className="w-full sm:w-auto" onClick={() => lenis?.scrollTo('#packages', { offset: -40 })}>{t.seePackages}</Button>
         </Reveal>
 
         <Reveal delay={0.75} className="mt-10 md:mt-16">
@@ -673,18 +673,25 @@ function Packages() {
             const variant = tierPreset(spec, tier).variants?.[0]
             return (
               <StaggerItem key={tier} className={hi ? 'lg:-my-4' : ''}>
+                <Tilt className="h-full rounded-[26px] md:rounded-[30px]" max={5}>
                 <div
                   className={`relative flex h-full flex-col overflow-hidden rounded-[26px] p-6 transition-transform md:rounded-[30px] duration-500 hover:-translate-y-1 md:p-9 ${
                     hi ? 'glass-ruby-dark text-white shadow-[0_40px_80px_-30px_rgba(110,11,26,0.65)]' : 'glass-strong text-ink hover:ring-ruby-glow'
                   }`}
                 >
                   {hi && <div className="ambient-dark pointer-events-none absolute inset-0 -z-10 opacity-70" />}
+                  {hi && <SweepInView tone="rgba(201,162,39,0.28)" delay={0.6} />}
                   <TamilOnly>
                     <KolamCorner className="absolute right-3 top-3 rotate-90 opacity-80" />
                   </TamilOnly>
                   <div className="relative flex items-center justify-between gap-3">
                     <p className={`t-label ${hi ? 'text-white/55' : 'text-ink/45'}`}>{t.pkOne}</p>
-                    {hi && <Badge tone="ruby">{t.popular}</Badge>}
+                    {hi && (
+                      <span className="relative overflow-hidden rounded-full">
+                        <Badge tone="ruby">{t.popular}</Badge>
+                        <SweepInView delay={1.1} />
+                      </span>
+                    )}
                   </div>
                   <h3 className="t-2 relative mt-3">{name[lang]}</h3>
                   <p className={`relative mt-3 text-[15px] leading-relaxed ${hi ? 'text-white/65' : 'text-ink/60'}`}>{tierPitch(spec, tier)[lang]}</p>
@@ -716,6 +723,7 @@ function Packages() {
                     </Button>
                   </div>
                 </div>
+                </Tilt>
               </StaggerItem>
             )
           })}
@@ -748,6 +756,7 @@ function Addons() {
           <Stagger className="grid gap-3 sm:grid-cols-2 md:gap-4" gap={0.07}>
             {addons.map(a => (
               <StaggerItem key={a.id}>
+                <Tilt className="h-full rounded-[22px] sm:rounded-[26px]" max={6}>
                 <div className="group relative flex h-full flex-col rounded-[22px] glass p-5 sm:rounded-[26px] sm:p-6 transition-all duration-500 hover:-translate-y-1 hover:ring-ruby-glow md:p-7">
                   <div className="flex items-start justify-between gap-4">
                     <span className="flex h-12 w-12 items-center justify-center rounded-2xl glass-ruby text-white transition-all duration-500 group-hover:scale-105">
@@ -758,6 +767,7 @@ function Addons() {
                   <h3 className="t-3 mt-5 text-ink sm:mt-8">{a.name[lang]}</h3>
                   <p className="mt-2 text-[15px] text-ink/55">{a.note?.[lang]}{a.pending ? ` · ${t.pending}` : ''}</p>
                 </div>
+                </Tilt>
               </StaggerItem>
             ))}
           </Stagger>

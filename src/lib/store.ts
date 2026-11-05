@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import type { Lang } from './i18n'
+import { setImageOverrides, type ImgKey } from './images'
 import {
   DEFAULT_ALBUM, PROOF_SETS, SEED_WORKERS, STATUS_META, STATUS_ORDER, eventByKey,
   type AlbumSpec, type CrowdKey, type DistrictKey, type EventKey, type GalleryCover, type OrderStatus, type VenueType, type Worker,
@@ -11,6 +12,8 @@ import {
 } from './catalogue'
 import { computeQuote, type Adjustment, type Quote } from './pricing'
 import type { GalleryCat } from './gallery'
+import type { Faith } from './poses'
+import type { FeatureFlags } from '../saas/types'
 
 /*
  * Front-end mock of the backend. Everything persists to localStorage so the
@@ -113,6 +116,17 @@ export interface QuoteRevision {
   note: string
 }
 
+/** The pose guide the studio sent: chosen once the advance is paid, rated by the client before the shoot. */
+export interface PosePlan {
+  /** Ritual sets included alongside the common poses. Admin-only; never shown to the client. */
+  faiths: Faith[]
+  /** Pose ids sent, in display order. */
+  ids: string[]
+  sentAt: string
+  picks: Record<string, 'yes' | 'no'>
+  submittedAt?: string
+}
+
 export interface Order {
   id: string
   createdAt: string
@@ -151,6 +165,13 @@ export interface Order {
   selectionSubmittedAt?: string
   album?: AlbumSpec & { submittedAt: string }
   review?: { rating: number; text: string; at: string }
+  poses?: PosePlan
+  /** Free text, e.g. "Chettinad traditional". Admin-only note for now; shown in the order header. */
+  theme?: string
+  /** When set, the poses panel starts from [religion]. */
+  religion?: Faith
+  /** Which client dashboard pages are on. undefined (or a missing key) = on, today's behaviour. */
+  features?: Partial<FeatureFlags>
   delivery?: { courier: string; tracking: string; dispatchedAt: string }
   /** Gallery cover set by the studio; the client dashboard falls back to defaults when absent. */
   cover?: GalleryCover
@@ -200,6 +221,8 @@ export interface CmsState {
   }
   /** Bank details printed on invoices. */
   bank: { upi: string; name: string; acc: string; ifsc: string; branchEn: string; branchTa: string }
+  /** Admin replacements for photo slots across the public site, by image key. Absent means the stock photo. */
+  images?: Partial<Record<ImgKey, string>>
 }
 
 export type Session =
@@ -275,9 +298,25 @@ interface Actions {
   saveAlbum: (orderId: string, spec: AlbumSpec) => void
   submitReview: (orderId: string, rating: number, text: string) => void
 
+  /** POST /orders/:id/poses → sends the pose guide (after the advance) and WhatsApps the client. Re-sending keeps earlier ratings. */
+  sendPoses: (orderId: string, ids: string[], faiths: Faith[]) => void
+  ratePose: (orderId: string, poseId: string, verdict: 'yes' | 'no' | null) => void
+  /** Client locks in their picks; the assigned crew get the shot list (liked pose titles) on WhatsApp. */
+  submitPoses: (orderId: string, likedTitles: string[]) => void
+  /** Admin lets the client change their picks again. */
+  reopenPoses: (orderId: string) => void
+  /** PATCH /orders/:id { theme } */
+  setOrderTheme: (orderId: string, theme: string) => void
+  /** PATCH /orders/:id { religion } */
+  setOrderReligion: (orderId: string, faith: Faith | undefined) => void
+  /** PATCH /orders/:id { features } (merged) */
+  setOrderFeatures: (orderId: string, patch: Partial<FeatureFlags>) => void
+
   upsertWorker: (worker: Worker) => void
   removeWorker: (id: string) => void
   updateCms: (patch: Partial<CmsState>) => void
+  /** Replace one site photo with the studio's own URL; null restores the stock photo. */
+  setSiteImage: (key: ImgKey, url: string | null) => void
   sendMessage: (msg: Omit<OutboxMessage, 'id' | 'at' | 'channel'>) => void
   /** Demo only: jump an order to any stage with consistent data (selection, album, delivery, payments). */
   demoJumpTo: (orderId: string, status: OrderStatus) => void
@@ -376,6 +415,20 @@ function seedOrder(p: {
 /** Demo client login: +91 98765 43210 (order in the photo-selection stage). */
 export const DEMO_CLIENT_PHONE = '9876543210'
 
+/** Demo pose guides: the puberty ceremony is mid-rating, the engagement crew already has its shot list. */
+function withSeedPoses(o: Order): Order {
+  if (o.id === 'TTC-2026-0156') {
+    const ids = ['wed-family', 'pub-portrait', 'pub-mirror', 'pub-parents', 'pub-petals', 'pub-swing', 'pub-manjal', 'pub-aarathi', 'pub-maaman', 'model-pallu']
+    return { ...o, poses: { faiths: ['hindu'], ids, sentAt: daysAgo(3), picks: { 'wed-family': 'yes', 'pub-portrait': 'yes', 'pub-mirror': 'no' } } }
+  }
+  if (o.id === 'TTC-2026-0117') {
+    const ids = ['wed-forehead', 'wed-backhug', 'wed-royal', 'wed-family', 'wed-bride-shoulder', 'wed-girls', 'wed-foreheads', 'eng-rings', 'eng-ring-on', 'eng-shoulder', 'eng-laugh', 'eng-thamboolam', 'rec-cake', 'rec-stage']
+    const no = new Set(['wed-girls', 'eng-laugh', 'rec-cake'])
+    return { ...o, poses: { faiths: ['hindu'], ids, sentAt: daysAgo(120), picks: Object.fromEntries(ids.map(id => [id, no.has(id) ? 'no' : 'yes'])), submittedAt: daysAgo(112) } }
+  }
+  return o
+}
+
 function seedOrders(): Order[] {
   return [
     seedOrder({ id: 'TTC-2026-0142', name: 'Priya & Karthik', contact: '+91 98765 43210', email: 'priya.k@example.com', district: 'madurai', eventType: 'wedding', hours: 10, crowd: 'grand', venueType: 'mahal', venueName: 'Sri Meenakshi Mahal', venueAddress: 'Anna Nagar, Madurai', km: 8, date: daysAhead(-24), time: '06:00', tier: 'premium', sessions: 2, extras: { ledwall: 1 }, discount: 5000, status: 'SELECT_PHOTOS', created: 70, paid: [40000, 60000], workers: ['w1', 'w6'], selection: ['t_couple_garland', 't_bride_silk', 't_ritual_fire'] }),
@@ -386,7 +439,7 @@ function seedOrders(): Order[] {
     seedOrder({ id: 'TTC-2026-0117', name: 'Deepa & Senthil', contact: '+91 98945 33221', district: 'tirunelveli', eventType: 'engagement', hours: 5, crowd: 'large', venueType: 'mahal', venueName: 'Temple mandapam', venueAddress: 'Town, Tirunelveli', km: 3, date: daysAhead(-90), time: '17:00', tier: 'standard', status: 'DELIVERED', created: 140, paid: [20000, 32200], workers: ['w7'] }),
     seedOrder({ id: 'TTC-2026-0133', name: 'Ravi Shankar', contact: '+91 93456 78123', district: 'salem', eventType: 'birthday', hours: 3, crowd: 'medium', venueType: 'home', venueName: '', venueAddress: 'Fairlands, Salem', km: 4, date: daysAhead(-40), time: '17:00', tier: 'basic', extras: { photobooth: 1 }, status: 'BILLED', created: 55, paid: [10000], workers: ['w4'] }),
     seedOrder({ id: 'TTC-2026-0162', name: 'Meera Raghavan', contact: '+91 98400 11223', district: 'chennai', eventType: 'babyshower', hours: 3, crowd: 'intimate', venueType: 'home', venueName: '', venueAddress: 'Adyar, Chennai', km: 9, date: daysAhead(21), time: '10:00', tier: 'standard', status: 'ENQUIRY', created: 0, paid: [], workers: [] }),
-  ].map(o => o.id === 'TTC-2026-0117' ? { ...o, review: { rating: 5, text: 'Wonderful team.', at: daysAgo(70) }, delivery: { courier: 'Blue Dart', tracking: 'BD7784112', dispatchedAt: daysAgo(80) } } : o)
+  ].map(o => withSeedPoses(o)).map(o => o.id === 'TTC-2026-0117' ? { ...o, review: { rating: 5, text: 'Wonderful team.', at: daysAgo(70) }, delivery: { courier: 'Blue Dart', tracking: 'BD7784112', dispatchedAt: daysAgo(80) } } : o)
 }
 
 const SEED_CMS: CmsState = {
@@ -436,6 +489,12 @@ function initialData(): State {
     cms: SEED_CMS,
     moodboard: [],
   }
+}
+
+/** WhatsApp body that tells the client their pose guide is ready (or updated). */
+export function posesMessage(order: Order, count: number, resend: boolean): string {
+  const first = order.client.name.split(/[ &]/)[0]
+  return `வணக்கம் ${first}! ${resend ? 'We have updated your pose guide' : 'Your pose guide is ready'} — ${count} poses picked for your ${eventByKey(order.eventType)?.name.en ?? 'event'}.\nTap “I like it” or “Not for me” on each, then send it back to us.\n→ treasurecaptureevents.in/dashboard/poses\nRef: ${order.id}`
 }
 
 /** WhatsApp body for a status change (also used by admin to preview before sending). */
@@ -657,10 +716,50 @@ export const useStore = create<State & Actions>()(
         saveAlbum: (orderId, spec) => patchOrder(orderId, o => ({ ...o, album: { ...spec, submittedAt: now() } })),
         submitReview: (orderId, rating, text) => patchOrder(orderId, o => ({ ...o, review: { rating, text, at: now() } })),
 
+        sendPoses: (orderId, ids, faiths) => {
+          const o = get().orders.find(x => x.id === orderId)
+          if (!o || !ids.length) return
+          const resend = !!o.poses
+          const picks = Object.fromEntries(Object.entries(o.poses?.picks ?? {}).filter(([id]) => ids.includes(id)))
+          patchOrder(orderId, x => ({ ...x, poses: { faiths, ids, sentAt: now(), picks, submittedAt: undefined } }))
+          pushMessage({ audience: 'client', to: o.client.contact, toName: o.client.name, template: resend ? 'poses_updated' : 'poses_ready', orderId, body: posesMessage(o, ids.length, resend) })
+        },
+        ratePose: (orderId, poseId, verdict) =>
+          patchOrder(orderId, o => {
+            if (!o.poses || o.poses.submittedAt) return o
+            const picks = { ...o.poses.picks }
+            if (verdict) picks[poseId] = verdict
+            else delete picks[poseId]
+            return { ...o, poses: { ...o.poses, picks } }
+          }),
+        submitPoses: (orderId, likedTitles) => {
+          const o = get().orders.find(x => x.id === orderId)
+          if (!o?.poses || o.poses.submittedAt) return
+          patchOrder(orderId, x => (x.poses ? { ...x, poses: { ...x.poses, submittedAt: now() } } : x))
+          const list = likedTitles.map((x, i) => `${i + 1}. ${x}`).join('\n')
+          for (const w of get().workers.filter(x => o.workerIds.includes(x.id))) {
+            pushMessage({
+              audience: 'worker', to: w.phone, toName: w.name.en, template: 'shot_list', orderId,
+              body: `Shot list ready · ${o.client.name}\n${likedTitles.length} poses chosen for ${o.date || 'TBC'}:\n${list}\nNotes & pictures: treasurecaptureevents.in/admin/poses/${o.id}\nRef: ${o.id}`,
+            })
+          }
+        },
+        reopenPoses: orderId => patchOrder(orderId, o => (o.poses ? { ...o, poses: { ...o.poses, submittedAt: undefined } } : o)),
+        setOrderTheme: (orderId, theme) => patchOrder(orderId, o => ({ ...o, theme: theme || undefined })),
+        setOrderReligion: (orderId, religion) => patchOrder(orderId, o => ({ ...o, religion })),
+        setOrderFeatures: (orderId, f) => patchOrder(orderId, o => ({ ...o, features: { ...o.features, ...f } })),
+
         upsertWorker: worker =>
           set(s => ({ workers: s.workers.some(w => w.id === worker.id) ? s.workers.map(w => (w.id === worker.id ? worker : w)) : [...s.workers, worker] })),
         removeWorker: id => set(s => ({ workers: s.workers.filter(w => w.id !== id) })),
         updateCms: patch => set(s => ({ cms: { ...s.cms, ...patch } })),
+        setSiteImage: (key, url) =>
+          set(s => {
+            const images = { ...(s.cms.images ?? {}) }
+            if (url) images[key] = url
+            else delete images[key]
+            return { cms: { ...s.cms, images } }
+          }),
         sendMessage: pushMessage,
         demoJumpTo: (orderId, status) => {
           const o = get().orders.find(x => x.id === orderId)
@@ -741,3 +840,7 @@ export function usePrices(): PriceMap {
 }
 
 export { DEFAULT_ALBUM }
+
+// Keep the image helpers in sync with admin replacements, so photoUrl() picks them up everywhere.
+setImageOverrides(useStore.getState().cms.images)
+useStore.subscribe(s => setImageOverrides(s.cms.images))

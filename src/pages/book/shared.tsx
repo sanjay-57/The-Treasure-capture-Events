@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router'
-import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react'
 import { create } from 'zustand'
 import { Button, Eyebrow, ListenButton } from '../../components/ui'
 import type { IconName } from '../../components/Icon'
-import { RevealText, Reveal, EASE } from '../../components/motion'
+import { Magnetic, RevealText, Reveal } from '../../components/motion'
 import { useLang, useT, formatINR, type Bi } from '../../lib/i18n'
 import { usePrices, useStore, type BookingDraft } from '../../lib/store'
 import { computeQuote, type Quote } from '../../lib/pricing'
@@ -70,25 +69,7 @@ export function useQuote(): Quote | null {
   return quoteFor(draft, prices)
 }
 
-/** Rupee amount that rolls smoothly to each new value. */
-export function AnimatedINR({ value, className = '' }: { value: number; className?: string }) {
-  const reduce = useReducedMotion()
-  const mv = useMotionValue(value)
-  const text = useTransform(mv, v => formatINR(v))
-  useEffect(() => {
-    if (reduce) {
-      mv.set(value)
-      return
-    }
-    const c = animate(mv, value, { duration: 0.9, ease: EASE })
-    return () => c.stop()
-  }, [value, reduce, mv])
-  return (
-    <motion.span className={`tabular-nums ${className}`} aria-live="polite" aria-atomic="true">
-      {text}
-    </motion.span>
-  )
-}
+export { AnimatedINR } from '../../components/motion'
 
 /** The current step's primary action, mirrored into the mobile bottom dock. */
 export interface StepAction {
@@ -198,9 +179,11 @@ export function StepNav({ back, onNext, nextLabel, disabled, hint }: { back?: st
         <span />
       )}
       <div className="hidden flex-col items-stretch gap-2 sm:items-end md:flex">
-        <Button onClick={onNext} disabled={disabled} size="lg" icon="arrowRight" className="w-full sm:w-auto">
-          {nextLabel}
-        </Button>
+        <Magnetic className={disabled ? 'pointer-events-none' : ''}>
+          <Button onClick={onNext} disabled={disabled} size="lg" icon="arrowRight" className="w-full sm:w-auto">
+            {nextLabel}
+          </Button>
+        </Magnetic>
         {hint && <p className="text-center text-xs text-ink/45 sm:text-right">{hint}</p>}
       </div>
     </div>

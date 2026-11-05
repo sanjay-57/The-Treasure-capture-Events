@@ -1,0 +1,33 @@
+/** Customer pose chooser (/poses/:code). Bilingual; names the studio only. */
+export const posesCopy = {
+  notFoundTitle: { en: 'We couldn’t find this page', ta: 'இந்தப் பக்கம் கிடைக்கவில்லை' },
+  notFoundBody: { en: 'Check the link your photographer sent you, or ask them to share it again.', ta: 'புகைப்படக் கலைஞர் அனுப்பிய இணைப்பைச் சரிபாருங்கள், அல்லது மீண்டும் அனுப்பச் சொல்லுங்கள்.' },
+  notReadyTitle: { en: 'Your poses are on their way', ta: 'உங்கள் போஸ்கள் தயாராகின்றன' },
+  notReadyBody: { en: '{studio} is still choosing poses for you. You’ll get a message when they’re ready.', ta: '{studio} உங்களுக்கான போஸ்களைத் தேர்வு செய்கிறது. தயாரானதும் செய்தி வரும்.' },
+  pausedTitle: { en: 'This page is paused', ta: 'இந்தப் பக்கம் இடைநிறுத்தப்பட்டுள்ளது' },
+  pausedBody: { en: 'Please contact your photographer.', ta: 'உங்கள் புகைப்படக் கலைஞரைத் தொடர்பு கொள்ளுங்கள்.' },
+  contact: { en: 'Message the studio', ta: 'ஸ்டுடியோவுக்குச் செய்தி' },
+  kicker: { en: 'Before the shoot', ta: 'படப்பிடிப்புக்கு முன்' },
+  title: { en: 'Choose your poses', ta: 'உங்கள் போஸ்களைத் தேர்வு செய்யுங்கள்' },
+  intro: { en: 'Tap Yes for the poses you’d like and No for the ones you’d skip. Your answers save as you go, so you can come back later.', ta: 'விரும்பும் போஸ்களுக்கு "ஆம்", வேண்டாதவற்றுக்கு "வேண்டாம்" தட்டுங்கள். பதில்கள் உடனே சேமிக்கப்படும்; பின்னர் திரும்பி வரலாம்.' },
+  pinLabel: { en: 'PIN', ta: 'PIN' },
+  pinHint: { en: 'The 4-digit PIN from your photographer', ta: 'புகைப்படக் கலைஞர் அனுப்பிய 4 இலக்க PIN' },
+  pinWrong: { en: 'That PIN doesn’t match. Try again.', ta: 'PIN பொருந்தவில்லை. மீண்டும் முயலுங்கள்.' },
+  enter: { en: 'See my poses', ta: 'என் போஸ்களைப் பார்' },
+  poses: { en: 'poses', ta: 'போஸ்கள்' },
+  yes: { en: 'Yes', ta: 'ஆம்' },
+  no: { en: 'No', ta: 'வேண்டாம்' },
+  how: { en: 'How to pose', ta: 'எப்படி போஸ் கொடுப்பது' },
+  answered: { en: '{n} of {total} answered', ta: '{total}-ல் {n} பதிலளிக்கப்பட்டது' },
+  leftToGo: { en: '{n} left', ta: 'இன்னும் {n}' },
+  submit: { en: 'Send my choices', ta: 'என் தேர்வுகளை அனுப்பு' },
+  submitHint: { en: 'Answer every pose to send.', ta: 'அனுப்ப எல்லா போஸ்களுக்கும் பதிலளியுங்கள்.' },
+  sentToast: { en: 'Sent. Thank you!', ta: 'அனுப்பப்பட்டது. நன்றி!' },
+  thanksTitle: { en: 'Thank you! Your choices have gone to {studio}', ta: 'நன்றி! உங்கள் தேர்வுகள் {studio}-க்கு அனுப்பப்பட்டன' },
+  thanksBody: { en: 'They’ll plan the shoot around the poses you said yes to.', ta: 'நீங்கள் "ஆம்" சொன்ன போஸ்களை வைத்து படப்பிடிப்பைத் திட்டமிடுவார்கள்.' },
+  yourYes: { en: 'Poses you chose', ta: 'நீங்கள் தேர்ந்த போஸ்கள்' },
+  change: { en: 'Want to change something? Message the studio.', ta: 'ஏதாவது மாற்ற வேண்டுமா? ஸ்டுடியோவுக்குச் செய்தி அனுப்புங்கள்.' },
+  changeMsg: { en: 'Hi, I’d like to change my pose choices for {name}.', ta: 'வணக்கம், {name} க்கான என் போஸ் தேர்வுகளை மாற்ற விரும்புகிறேன்.' },
+}
+
+export const fill = (s: string, vars: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ''))

@@ -14,12 +14,14 @@ import {
   countdown,
   dateParts,
   directionsUrl,
+  inviteDay,
   rsvpUrl,
   timeLabel,
   whatsappShareUrl,
   type Invite,
 } from "../../../lib/invite"
 import { coupleUrl } from "../caricature"
+import { Invocation } from "../story/motifs"
 import type { Lang } from "../../../lib/i18n"
 import type { CinematicSceneProps } from "./types"
 
@@ -183,18 +185,23 @@ export function TempleHallway(props: CinematicSceneProps) {
 
   // Calendar .ics download helper
   const downloadCalendarIcs = () => {
-    const startIso = invite.date.replace(/-/g, "")
-    const timeFormatted = invite.time ? invite.time.replace(":", "") + "00" : "090000"
+    // Three hours from the muhurtham (09:00 when no time was given), India time.
+    const day = invite.date.replace(/-/g, "")
+    const [h, m] = /^\d{1,2}:\d{2}$/.test(invite.time) ? invite.time.split(":").map(Number) : [9, 0]
+    const at = (hh: number) => `${day}T${String(Math.min(23, hh)).padStart(2, "0")}${String(m).padStart(2, "0")}00`
+    const esc = (v: string) => v.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, "\\n")
     const icsContent = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
       "PRODID:-//The Treasure Capture Events//Wedding Invite//EN",
       "BEGIN:VEVENT",
-      `SUMMARY:${invite[lang][0]} & ${invite[lang][1]} Wedding`,
-      `DESCRIPTION:Wedding celebration of ${invite.en[0]} and ${invite.en[1]} at ${invite.venue}`,
-      `LOCATION:${invite.venue}, ${invite.address ?? ""}`,
-      `DTSTART:${startIso}T${timeFormatted}`,
-      `DTEND:${startIso}T${timeFormatted}`,
+      `UID:${day}-${invite.en.join("-").replace(/\W+/g, "")}@thetreasurecapture`,
+      `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`,
+      `SUMMARY:${esc(`${invite[lang][0]} & ${invite[lang][1]} Wedding`)}`,
+      `DESCRIPTION:${esc(`Wedding celebration of ${invite.en[0]} and ${invite.en[1]} at ${invite.venue}`)}`,
+      `LOCATION:${esc([invite.venue, invite.address].filter(Boolean).join(", "))}`,
+      `DTSTART;TZID=Asia/Kolkata:${at(h)}`,
+      `DTEND;TZID=Asia/Kolkata:${at(h + 3)}`,
       "END:VEVENT",
       "END:VCALENDAR",
     ].join("\r\n")
@@ -357,6 +364,11 @@ export function TempleHallway(props: CinematicSceneProps) {
 
                 {/* Blessing Invocation */}
                 <div className="text-center">
+                  {invite.tradition && invite.tradition !== "none" && (
+                    <div className="mb-3 text-[13px]">
+                      <Invocation tradition={invite.tradition} lang={lang} color="#A7864A" muted="#63705A" serif="Cinzel" />
+                    </div>
+                  )}
                   <p className="text-[11px] uppercase tracking-[0.25em] font-serif text-[#A7864A] font-semibold">
                     {atelierCopy.ceremonialInvitation[lang]}
                   </p>
@@ -388,6 +400,11 @@ export function TempleHallway(props: CinematicSceneProps) {
                   >
                     {invite[lang][1]}
                   </h2>
+                  {invite.story && (
+                    <p className="mx-auto mt-3 max-w-sm text-[13px] font-serif italic leading-relaxed text-[#63705A]">
+                      {invite.story}
+                    </p>
+                  )}
                 </div>
 
                 {/* Date & Muhurtham Lockup */}
@@ -420,6 +437,24 @@ export function TempleHallway(props: CinematicSceneProps) {
                     </span>
                   </div>
                 </div>
+
+                {/* The other functions (Nichayathartham, Mehendi, Reception…) in date order */}
+                {!!invite.events?.length && (
+                  <ol className="flex flex-col gap-2">
+                    {[...invite.events]
+                      .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
+                      .map((e, i) => (
+                        <li key={i} className="flex items-baseline justify-between gap-3 border-b border-[#D8C9B3]/50 pb-2 last:border-b-0">
+                          <span className="font-serif text-[14px] font-semibold text-[#232720]">{e.name}</span>
+                          <span className="text-right text-[11.5px] font-serif text-[#63705A]">
+                            {inviteDay(e.date, lang)}
+                            {e.time ? ` · ${timeLabel(e.time, lang)}` : ""}
+                            {e.venue && <span className="block">{e.venue}</span>}
+                          </span>
+                        </li>
+                      ))}
+                  </ol>
+                )}
 
                 {/* Venue & Location */}
                 <div className="text-center flex flex-col items-center gap-1">

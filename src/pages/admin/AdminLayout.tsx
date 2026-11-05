@@ -10,7 +10,10 @@ import { eventByKey } from '../../lib/data'
 import { COMMON, useLang, useT, type Bi } from '../../lib/i18n'
 import { toast } from '../../lib/ui'
 import { normalizePhone, useStore } from '../../lib/store'
+import { useStudioStore } from '../../saas/store'
+import { deriveStatus } from '../../saas/usage'
 import { AC, Avatar, ConfirmModal, StatusPill, useIsPhone } from './kit'
+import { LoginCodes } from '../../components/LoginCodes'
 
 const copy = {
   viewSite: { en: 'View site', ta: 'இணையதளம்' },
@@ -22,8 +25,8 @@ const copy = {
   reset: { en: 'Reset demo data', ta: 'டெமோ தரவை மீட்டமை' },
   resetTitle: { en: 'Reset all demo data?', ta: 'அனைத்து டெமோ தரவையும் மீட்டமைக்கவா?' },
   resetBody: {
-    en: 'Orders, payments, crew, leads, messages and CMS edits return to the original sample set. This cannot be undone.',
-    ta: 'ஆர்டர்கள், கட்டணங்கள், குழு, வாய்ப்புகள், செய்திகள், CMS மாற்றங்கள் அனைத்தும் தொடக்க மாதிரிக்குத் திரும்பும். இதைத் திரும்பப் பெற முடியாது.',
+    en: 'Orders, payments, crew, leads, messages, CMS edits and photographer studios return to the original sample set. This cannot be undone.',
+    ta: 'ஆர்டர்கள், கட்டணங்கள், குழு, வாய்ப்புகள், செய்திகள், CMS மாற்றங்கள், புகைப்படக் கலைஞர் ஸ்டுடியோக்கள் அனைத்தும் தொடக்க மாதிரிக்குத் திரும்பும். இதைத் திரும்பப் பெற முடியாது.',
   },
   resetDone: { en: 'Demo data restored', ta: 'டெமோ தரவு மீட்டமைக்கப்பட்டது' },
   role: { en: 'Studio administrator', ta: 'ஸ்டுடியோ நிர்வாகி' },
@@ -36,19 +39,44 @@ const copy = {
   signedOut: { en: 'Signed out', ta: 'வெளியேறினீர்கள்' },
   workspace: { en: 'Workspace', ta: 'பணியிடம்' },
   more: { en: 'More', ta: 'மேலும்' },
+  events: { en: 'Manage customers', ta: 'வாடிக்கையாளர்கள்' },
+  photographers: { en: 'Manage photography clients', ta: 'புகைப்படக் கலைஞர் வாடிக்கையாளர்கள்' },
+  studios: { en: 'Studios', ta: 'ஸ்டுடியோக்கள்' },
+  approvals: { en: 'Approvals', ta: 'ஒப்புதல்கள்' },
+  plans: { en: 'Plans', ta: 'திட்டங்கள்' },
+  server: { en: 'Server & accounts', ta: 'சர்வர் & கணக்குகள்' },
 }
 
-type NavItem = { to: string; label: Bi; icon: IconName; end?: boolean; count?: 'orders' | 'team' | 'messages' | 'leads' }
-const NAV: NavItem[] = [
-  { to: '/admin', label: AC.overview, icon: 'dashboard', end: true },
+type CountKey = 'orders' | 'team' | 'messages' | 'leads' | 'studios' | 'approvals'
+type NavItem = { to: string; label: Bi; icon: IconName; end?: boolean; count?: CountKey; match?: (pathname: string) => boolean }
+const OVERVIEW: NavItem = { to: '/admin', label: AC.overview, icon: 'dashboard', end: true }
+const EVENTS_NAV: NavItem[] = [
   { to: '/admin/orders', label: AC.orders, icon: 'receipt', count: 'orders' },
   { to: '/admin/team', label: AC.team, icon: 'users', count: 'team' },
+  { to: '/admin/poses', label: AC.poses, icon: 'camera' },
   { to: '/admin/messages', label: AC.messages, icon: 'whatsapp', count: 'messages' },
   { to: '/admin/leads', label: AC.leads, icon: 'inbox', count: 'leads' },
   { to: '/admin/showroom', label: AC.showroom, icon: 'sparkle' },
   { to: '/admin/billing', label: AC.billing, icon: 'rupee' },
   { to: '/admin/cms', label: AC.cms, icon: 'image' },
 ]
+const PH_SUB = ['/admin/photographers/approvals', '/admin/photographers/plans']
+const PHOTOGRAPHERS_NAV: NavItem[] = [
+  {
+    to: '/admin/photographers', label: copy.studios, icon: 'camera', count: 'studios',
+    // Studios list and /admin/photographers/:id, but not the Approvals or Plans pages.
+    match: p => p.startsWith('/admin/photographers') && !PH_SUB.some(x => p.startsWith(x)),
+  },
+  { to: '/admin/photographers/approvals', label: copy.approvals, icon: 'check', count: 'approvals' },
+  { to: '/admin/photographers/plans', label: copy.plans, icon: 'grid' },
+]
+const NAV_GROUPS: { label?: Bi; items: NavItem[] }[] = [
+  { items: [OVERVIEW] },
+  { label: copy.events, items: EVENTS_NAV },
+  { label: copy.photographers, items: PHOTOGRAPHERS_NAV },
+  { items: [{ to: '/admin/server', label: copy.server, icon: 'settings' }] },
+]
+const NAV: NavItem[] = NAV_GROUPS.flatMap(g => g.items)
 const TABS = NAV.filter(n => ['/admin', '/admin/orders', '/admin/messages', '/admin/team'].includes(n.to))
 
 function useCounts() {
@@ -56,15 +84,18 @@ function useCounts() {
   const workers = useStore(s => s.workers)
   const outbox = useStore(s => s.outbox)
   const leads = useStore(s => s.leads)
-  return useMemo(
-    () => ({
+  const studios = useStudioStore(s => s.studios)
+  return useMemo(() => {
+    const pending = studios.filter(x => deriveStatus(x) === 'pending').length
+    return {
       orders: orders.filter(o => o.status === 'ENQUIRY').length,
       team: workers.filter(w => w.available).length,
       messages: outbox.length,
       leads: leads.length,
-    }),
-    [orders, workers, outbox, leads],
-  )
+      studios: pending + studios.filter(x => deriveStatus(x) === 'paused').length,
+      approvals: pending,
+    }
+  }, [orders, workers, outbox, leads, studios])
 }
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
@@ -73,6 +104,7 @@ function SidebarContent({ onNavigate, layoutKey }: { onNavigate?: () => void; la
   const lang = useLang()
   const t = useT(copy)
   const counts = useCounts()
+  const { pathname } = useLocation()
   return (
     <div className="relative flex h-full flex-col">
       <Link to="/admin" onClick={onNavigate} className="group flex items-center gap-3 px-6 pb-7 pt-7">
@@ -83,40 +115,48 @@ function SidebarContent({ onNavigate, layoutKey }: { onNavigate?: () => void; la
         </span>
       </Link>
 
-      <p className="t-label px-6 pb-2 text-white/30">{t.workspace}</p>
-      <nav className="flex flex-col gap-0.5 px-3" aria-label="Admin">
-        {NAV.map(item => {
-          const n = item.count ? counts[item.count] : 0
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              onClick={onNavigate}
-              className={({ isActive }) => `group relative flex h-11 items-center gap-3 rounded-2xl px-3.5 text-[14px] font-medium transition-colors duration-300 ${isActive ? 'text-white' : 'text-white/55 hover:text-white'}`}
-            >
-              {({ isActive }) => (
-                <>
-                  {isActive && (
-                    <motion.span
-                      layoutId={`admin-nav-${layoutKey}`}
-                      className="absolute inset-0 rounded-2xl border border-white/10 bg-white/[0.09] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                      transition={{ type: 'spring', stiffness: 420, damping: 38 }}
-                    >
-                      <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-x-[1px] -translate-y-1/2 rounded-full bg-ruby-bright shadow-[0_0_12px_rgba(226,38,79,0.8)]" />
-                    </motion.span>
-                  )}
-                  <Icon name={item.icon} size={18} className={`relative transition-colors ${isActive ? 'text-ruby-bright' : 'text-white/45 group-hover:text-white/80'}`} />
-                  <span className="relative flex-1 truncate">{item.label[lang]}</span>
-                  {item.count && n > 0 && (
-                    <span className={`relative min-w-[22px] rounded-full px-1.5 py-0.5 text-center text-[11px] font-semibold tabular-nums ${item.count === 'orders' ? 'bg-ruby text-white' : 'bg-white/10 text-white/60'}`}>{n}</span>
-                  )}
-                </>
-              )}
-            </NavLink>
-          )
-        })}
-      </nav>
+      {NAV_GROUPS.map((g, gi) => (
+        <div key={gi} className={gi ? 'mt-5' : ''}>
+          <p className="t-label px-6 pb-2 text-white/30">{g.label ? g.label[lang] : t.workspace}</p>
+          <nav className="flex flex-col gap-0.5 px-3" aria-label={g.label ? `Admin ${g.label.en}` : 'Admin'}>
+            {g.items.map(item => {
+              const n = item.count ? counts[item.count] : 0
+              const matched = item.match?.(pathname)
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  onClick={onNavigate}
+                  className={({ isActive: navActive }) => `group relative flex h-11 items-center gap-3 rounded-2xl px-3.5 text-[14px] font-medium transition-colors duration-300 ${(matched ?? navActive) ? 'text-white' : 'text-white/55 hover:text-white'}`}
+                >
+                  {({ isActive: navActive }) => {
+                    const isActive = matched ?? navActive
+                    return (
+                    <>
+                      {isActive && (
+                        <motion.span
+                          layoutId={`admin-nav-${layoutKey}`}
+                          className="absolute inset-0 rounded-2xl border border-white/10 bg-white/[0.09] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                          transition={{ type: 'spring', stiffness: 420, damping: 38 }}
+                        >
+                          <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-x-[1px] -translate-y-1/2 rounded-full bg-ruby-bright shadow-[0_0_12px_rgba(226,38,79,0.8)]" />
+                        </motion.span>
+                      )}
+                      <Icon name={item.icon} size={18} className={`relative transition-colors ${isActive ? 'text-ruby-bright' : 'text-white/45 group-hover:text-white/80'}`} />
+                      <span className="relative flex-1 truncate">{item.label[lang]}</span>
+                      {item.count && n > 0 && (
+                        <span className={`relative min-w-[22px] rounded-full px-1.5 py-0.5 text-center text-[11px] font-semibold tabular-nums ${item.count === 'orders' || item.count === 'approvals' ? 'bg-ruby text-white' : 'bg-white/10 text-white/60'}`}>{n}</span>
+                      )}
+                    </>
+                    )
+                  }}
+                </NavLink>
+              )
+            })}
+          </nav>
+        </div>
+      ))}
 
       <div className="flex-1" />
 
@@ -360,6 +400,7 @@ export default function AdminLayout() {
   const doReset = () => {
     const name = useStore.getState().session?.name ?? 'Studio Admin'
     useStore.getState().resetDemo()
+    useStudioStore.getState().resetStudioDemo()
     // resetDemo clears the session too; keep the admin signed in.
     useStore.getState().loginAdmin(name)
     toast(t.resetDone)
@@ -367,6 +408,7 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-[100svh] bg-mist">
+      <LoginCodes />
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-[272px] overflow-hidden text-white lg:block">
         <div className="ambient-dark absolute inset-0" />

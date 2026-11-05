@@ -1,9 +1,10 @@
-import { defineConfig, type HtmlTagDescriptor, type Plugin } from 'vite'
+/// <reference types="vitest/config" />
+import { createLogger, defineConfig, type HtmlTagDescriptor, type Logger, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 
-import siteConfiguration from './.figma/make/site.json'
+import siteConfiguration from './.figma/make/site.json' with { type: 'json' }
 
 
 // Vite config — https://vitejs.dev/config/
@@ -12,6 +13,7 @@ export default defineConfig(({ mode }) => {
   const emitSourcemaps = mode === 'development'
 
   return {
+    customLogger: quietBackendDownLogger(),
     base: process.env.FIGMA_PUBLIC_URL ? `${process.env.FIGMA_PUBLIC_URL}/` : '/',
     build: {
       sourcemap: emitSourcemaps ? 'inline' : false,
@@ -27,18 +29,27 @@ react(),
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src'),
+        '@': path.resolve(import.meta.dirname, './src'),
       },
     },
     server: {
       host: process.env.FIGMA_DEV_SERVER_HOST || '0.0.0.0',
       port: parseInt(process.env.PORT || '8443'),
       strictPort: true,
+      // LAN backend (server/, `npm run server:dev`). Unused in mock mode.
+      proxy: {
+        '/api': { target: 'http://127.0.0.1:8787' },
+        '/media': { target: 'http://127.0.0.1:8787' },
+      },
       watch: {
         ignored: [
           '**/.figma/**',
 ],
       },
+    },
+    test: {
+      // server/ has its own vitest run (npm run server:test).
+      exclude: ['**/node_modules/**', '**/dist/**', 'server/**'],
     },
     preview: {
       host: process.env.FIGMA_DEV_SERVER_HOST || '0.0.0.0',
@@ -46,6 +57,28 @@ react(),
     },
   }
 })
+
+/**
+ * LAN backend not running (or restarting under `tsx watch`): Vite logs a stack trace for every
+ * proxied /api and /media request. Collapse those into one hint every 10 s; other errors pass through.
+ */
+function quietBackendDownLogger(): Logger {
+  const logger = createLogger()
+  const logError = logger.error.bind(logger)
+  let lastHint = 0
+  logger.error = (msg, options) => {
+    const code = (options?.error as NodeJS.ErrnoException | undefined)?.code
+    if (msg.includes('proxy error') && (code === 'ECONNREFUSED' || code === 'ECONNRESET')) {
+      if (Date.now() - lastHint > 10_000) {
+        lastHint = Date.now()
+        logger.warn('LAN backend on :8787 is not reachable — start it with `npm run server:dev`.', { timestamp: true })
+      }
+      return
+    }
+    logError(msg, options)
+  }
+  return logger
+}
 
 type FigmaSiteConfiguration = {
   title?: string

@@ -24,6 +24,7 @@ export const AC = {
   leads: { en: 'Leads', ta: 'வாய்ப்புகள்' },
   billing: { en: 'Billing', ta: 'கட்டணம்' },
   showroom: { en: 'Showroom', ta: 'ஷோரூம்' },
+  poses: { en: 'Pose library', ta: 'போஸ் நூலகம்' },
   console: { en: 'Studio console', ta: 'ஸ்டுடியோ நிர்வாகம்' },
   search: { en: 'Search', ta: 'தேடு' },
   cancel: { en: 'Cancel', ta: 'ரத்து' },

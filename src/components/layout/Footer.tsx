@@ -104,6 +104,8 @@ export function Footer({ ctaBar = false }: { ctaBar?: boolean }) {
           <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
             <Link to="/terms" className="py-1.5 hover:text-white md:py-0">{c.terms}</Link>
             <Link to="/privacy" className="py-1.5 hover:text-white md:py-0">{c.privacy}</Link>
+            <Link to="/for-photographers" className="py-1.5 hover:text-white md:py-0">{lang === 'ta' ? 'புகைப்படக் கலைஞர்களுக்கு' : 'For photographers'}</Link>
+            <Link to="/login" className="flex items-center gap-1.5 rounded-full border border-white/25 px-4 py-1.5 font-medium text-white/85 transition hover:border-white/50 hover:text-white"><Icon name="users" size={13} />{c.login}</Link>
             <Link to="/admin/login" className="flex items-center gap-1.5 py-1.5 hover:text-white md:py-0"><Icon name="lock" size={13} />{t.staff}</Link>
             <LangToggle dark />
           </div>

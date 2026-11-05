@@ -1,13 +1,14 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useLenis } from 'lenis/react'
 import { Icon, type IconName } from './Icon'
-import { EASE, RevealText, Reveal } from './motion'
+import { EASE, Magnetic, RevealText, Reveal } from './motion'
 import { IMG, photoSrcSet, photoUrl, type ImgKey } from '../lib/images'
 import { useLang, type Bi } from '../lib/i18n'
 import { useSpeaker } from '../lib/speech'
+import { useStore } from '../lib/store'
 
 // ─── Layout ──────────────────────────────────────────────────────────────────
 
@@ -53,10 +54,17 @@ interface ButtonProps {
   full?: boolean
   className?: string
   ariaLabel?: string
+  /** Leans toward the pointer on mouse screens. Not for full-width buttons. */
+  magnetic?: boolean
 }
 
 /** Pill button. Pass `to` for an in-app link, `href` for external. */
-export function Button({ children, variant = 'ruby', size = 'md', to, href, onClick, type = 'button', disabled, icon, iconLeft, full, className = '', ariaLabel }: ButtonProps) {
+export function Button({ magnetic, ...props }: ButtonProps) {
+  if (magnetic && !props.full) return <Magnetic className="max-w-full"><PlainButton {...props} /></Magnetic>
+  return <PlainButton {...props} />
+}
+
+function PlainButton({ children, variant = 'ruby', size = 'md', to, href, onClick, type = 'button', disabled, icon, iconLeft, full, className = '', ariaLabel }: Omit<ButtonProps, 'magnetic'>) {
   const cls = `group relative inline-flex max-w-full items-center justify-center overflow-hidden rounded-full text-center font-medium tracking-tight transition-all duration-300 ease-out active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40 cursor-pointer select-none ${VARIANTS[variant]} ${SIZES[size]} ${full ? 'w-full' : ''} ${className}`
   const content = (
     <>
@@ -182,8 +190,10 @@ export function CrossfadeImg({ keys, interval = 5200, offset = 0, ...rest }: { k
 export function Img({ k, src, alt, w = 1200, ratio, sizes = '100vw', className = '', imgClassName = '', priority = false, dark = false }: ImgProps) {
   const [loaded, setLoaded] = useState(false)
   const ref = useRef<HTMLImageElement>(null)
-  const url = k ? photoUrl(k, w, ratio ? Math.round(w / ratio) : undefined) : src
-  const srcSet = k ? photoSrcSet(k, [480, 800, 1200, 1800, 2400].filter(x => x <= Math.max(w * 1.5, 800)), ratio) : undefined
+  // Subscribing to the admin replacement makes the photo swap live, including inside the CMS itself.
+  const override = useStore(s => (k ? s.cms.images?.[k] : undefined))
+  const url = k ? (override ?? photoUrl(k, w, ratio ? Math.round(w / ratio) : undefined)) : src
+  const srcSet = k && !override ? photoSrcSet(k, [480, 800, 1200, 1800, 2400].filter(x => x <= Math.max(w * 1.5, 800)), ratio) : undefined
 
   useEffect(() => {
     if (ref.current?.complete && ref.current.naturalWidth > 0) setLoaded(true)
@@ -476,6 +486,7 @@ export function BackLink({ to, children }: { to: string; children: ReactNode }) 
 /** Horizontal step progress used by multi-step flows. */
 export function Steps({ steps, current, onStep }: { steps: string[]; current: number; onStep?: (i: number) => void }) {
   const shown = Math.min(current, steps.length - 1)
+  const reduce = useReducedMotion()
   return (
     <div className="w-full">
       <ol className="flex w-full items-center gap-2">
@@ -492,7 +503,12 @@ export function Steps({ steps, current, onStep }: { steps: string[]; current: nu
                 aria-label={s}
               >
                 <span className="block h-1 w-full overflow-hidden rounded-full bg-ink/10">
-                  <motion.span className="block h-full rounded-full bg-ruby" initial={false} animate={{ width: done ? '100%' : active ? '45%' : '0%' }} transition={{ duration: 0.7, ease: EASE }} />
+                  <motion.span
+                    className="block h-full rounded-full bg-ruby"
+                    initial={false}
+                    animate={{ width: done ? '100%' : active ? '45%' : '0%', opacity: active && !reduce ? [1, 0.6, 1] : 1 }}
+                    transition={{ width: { duration: 0.7, ease: EASE }, opacity: active && !reduce ? { duration: 2.4, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.3 } }}
+                  />
                 </span>
               </button>
               <span className={`hidden truncate text-[12px] font-medium sm:block ${active ? 'text-ink' : done ? 'text-ink/60' : 'text-ink/35'}`}>
@@ -516,12 +532,28 @@ const pad2 = (n: number) => String(n).padStart(2, '0')
 const toISO = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 const fromISO = (v: string) => { const [y, m, d] = v.split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1) }
 
+export interface DateMark {
+  /** Short text for the title tooltip and screen readers, e.g. "Subha Muhurtham". */
+  label: string
+}
+
 /**
  * Inline month calendar in the Apple style: month header with arrows, weekday
  * row, day grid with today ringed and the chosen day as a ruby pill. Quick
- * chips jump to common choices. Dates before `min` are disabled.
+ * chips jump to common choices. Dates before `min` are disabled. `mark` may
+ * flag special days (a gold dot under the number) and `legend` names them;
+ * `extraQuick` adds chips after the built-in ones.
  */
-export function DatePicker({ value, onChange, min, lang = 'en', className = '' }: { value: string; onChange: (iso: string) => void; min?: string; lang?: 'en' | 'ta'; className?: string }) {
+export function DatePicker({ value, onChange, min, lang = 'en', className = '', mark, legend, extraQuick = [] }: {
+  value: string
+  onChange: (iso: string) => void
+  min?: string
+  lang?: 'en' | 'ta'
+  className?: string
+  mark?: (iso: string) => DateMark | undefined
+  legend?: string
+  extraQuick?: { label: string; iso: string }[]
+}) {
   const locale = lang === 'ta' ? 'ta-IN' : 'en-IN'
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const minDate = min ? fromISO(min) : today
@@ -566,28 +598,38 @@ export function DatePicker({ value, onChange, min, lang = 'en', className = '' }
           const disabled = d < minDate
           const isSel = iso === value
           const isToday = iso === toISO(today)
+          const mk = mark?.(iso)
           return (
             <button
               key={iso}
               type="button"
               role="gridcell"
               aria-selected={isSel}
+              aria-label={mk ? `${d.getDate()}, ${mk.label}` : undefined}
+              title={mk?.label}
               disabled={disabled}
               onClick={() => onChange(iso)}
               className={`relative mx-auto flex h-10 w-10 items-center justify-center rounded-full text-[14px] tabular-nums transition-all duration-200 ${
-                isSel ? 'bg-ruby font-semibold text-white shadow-ruby' : disabled ? 'text-ink/20 cursor-default' : 'text-ink hover:bg-ruby-soft hover:text-ruby cursor-pointer'
+                isSel ? 'bg-ruby font-semibold text-white shadow-ruby' : disabled ? 'text-ink/20 cursor-default' : mk ? 'bg-gold-soft/70 font-semibold text-gold-deep hover:bg-ruby-soft hover:text-ruby cursor-pointer' : 'text-ink hover:bg-ruby-soft hover:text-ruby cursor-pointer'
               } ${isToday && !isSel ? 'ring-1 ring-ruby/50 font-semibold' : ''}`}
             >
               {d.getDate()}
+              {mk && <span aria-hidden className={`absolute bottom-[5px] left-1/2 h-[4px] w-[4px] -translate-x-1/2 rounded-full ${isSel ? 'bg-white/90' : disabled ? 'bg-gold/30' : 'bg-gold'}`} />}
             </button>
           )
         })}
       </div>
+      {legend && (
+        <p className="mt-2 flex items-center justify-center gap-1.5 text-[11.5px] font-medium text-gold-deep/80">
+          <span aria-hidden className="inline-block h-[5px] w-[5px] rounded-full bg-gold" />
+          {legend}
+        </p>
+      )}
       <div className="mt-3 grid grid-cols-2 gap-1.5 border-t border-ruby/10 pt-3">
-        {quick.map(q => {
-          const iso = toISO(q.d)
-          const on = iso === value
-          return <button key={q.label} type="button" onClick={() => onChange(iso)} className={`h-9 whitespace-nowrap rounded-full px-2 text-[12.5px] font-medium transition cursor-pointer ${on ? 'bg-ruby text-white shadow-ruby' : 'bg-ink/[0.04] text-ink/70 hover:bg-ruby-soft hover:text-ruby'}`}>{q.label}</button>
+        {[...quick.map(q => ({ label: q.label, iso: toISO(q.d) })), ...extraQuick].map(q => {
+          const on = q.iso === value
+          const special = extraQuick.includes(q)
+          return <button key={q.label} type="button" onClick={() => onChange(q.iso)} className={`h-9 whitespace-nowrap rounded-full px-2 text-[12.5px] font-medium transition cursor-pointer ${on ? 'bg-ruby text-white shadow-ruby' : special ? 'bg-gold-soft text-gold-deep hover:bg-ruby-soft hover:text-ruby' : 'bg-ink/[0.04] text-ink/70 hover:bg-ruby-soft hover:text-ruby'}`}>{q.label}</button>
         })}
       </div>
     </div>

@@ -4,7 +4,7 @@ import { motion } from 'motion/react'
 import { CrossfadeImg } from '../../components/ui'
 import { DISTRICT_GALLERY } from '../../lib/images'
 import { Icon } from '../../components/Icon'
-import { Stagger, StaggerItem, Reveal, EASE } from '../../components/motion'
+import { Stagger, StaggerItem, Reveal, Tilt, EASE } from '../../components/motion'
 import { Ornament } from '../../components/tamil'
 import { useLang, useT } from '../../lib/i18n'
 import { useTitle } from '../../lib/ui'
@@ -58,6 +58,7 @@ export default function District() {
           const active = (picked ?? current) === d.key
           return (
             <StaggerItem key={d.key}>
+              <Tilt className="h-full rounded-[22px]" max={6}>
               <motion.button
                 type="button"
                 onClick={() => choose(d.key)}
@@ -72,17 +73,23 @@ export default function District() {
                 {i === 0 && (
                   <span className="glass-ruby absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10.5px] font-semibold tracking-wide">{t.head}</span>
                 )}
-                <span
-                  className={`absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full transition-all duration-500 ${active ? 'scale-100 bg-ruby text-white opacity-100' : 'scale-75 opacity-0'}`}
+                <motion.span
+                  key={active ? 'on' : 'off'}
+                  initial={active ? { scale: 0.3, rotate: -45 } : false}
+                  animate={{ scale: active ? 1 : 0.75, rotate: 0, opacity: active ? 1 : 0 }}
+                  transition={{ type: 'spring', stiffness: 480, damping: 18 }}
+                  className={`absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full ${active ? 'bg-ruby text-white' : ''}`}
                   aria-hidden="true"
                 >
                   <Icon name="check" size={15} strokeWidth={2.4} />
-                </span>
+                </motion.span>
+                {active && picked && <span className="pointer-events-none absolute inset-0 animate-pulse-ring rounded-[22px] border-2 border-white/80" aria-hidden="true" />}
                 <div className="glass-dark absolute inset-x-2 bottom-2 rounded-[16px] px-3 py-2.5">
                   <p className="font-display text-[1.05rem] font-semibold leading-tight text-white [overflow-wrap:anywhere] md:text-[1.15rem]">{d.name[lang]}</p>
                   <p className="mt-0.5 line-clamp-2 text-[11.5px] leading-snug text-white/65">{d.note[lang]}</p>
                 </div>
               </motion.button>
+              </Tilt>
             </StaggerItem>
           )
         })}

@@ -224,3 +224,4 @@ Generated from `src/lib/images.ts` on 21 Oct 2026; 216 photos.
 | `v_madurai_rock` | A rocky temple hill above the trees, Madurai | Tamilinian Ramachandran | [photo-1696566904668-753b716e44d2](https://images.unsplash.com/photo-1696566904668-753b716e44d2) |
 | `v_chettinad_court` | A Chettinad-style courtyard with red tiled roofs and pillared verandas | Nakkeeran Raveendran | [photo-1660915223003-7df0db2e57d8](https://images.unsplash.com/photo-1660915223003-7df0db2e57d8) |
 | `v_resort_lawn` | A green resort lawn with a tiled-roof cottage among trees | Vizag Explore | [photo-1717403129691-09ef4110c4b1](https://images.unsplash.com/photo-1717403129691-09ef4110c4b1) |
+

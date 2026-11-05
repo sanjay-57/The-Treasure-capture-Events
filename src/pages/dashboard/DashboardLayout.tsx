@@ -5,7 +5,7 @@ import { motion } from 'motion/react'
 import { useLenis } from 'lenis/react'
 import { AnimatedOutlet } from '../../components/layout/Shell'
 import { Icon } from '../../components/Icon'
-import { Badge, Button, Container, Eyebrow } from '../../components/ui'
+import { Badge, Button, Container, EmptyState, Eyebrow } from '../../components/ui'
 import { EASE } from '../../components/motion'
 import { Kolam, TamilOnly } from '../../components/tamil'
 import { COMMON, formatDate, useLang, useT } from '../../lib/i18n'
@@ -13,7 +13,7 @@ import { districtName, eventByKey, statusName } from '../../lib/data'
 import { useMyOrder, useStore, type Order } from '../../lib/store'
 import { toast, useTitle } from '../../lib/ui'
 import { DemoSwitcher } from './DemoSwitcher'
-import { SECTIONS, TabBarShown, firstName, sectionState, stageIdx, useNavHidden } from './shared'
+import { TabBarShown, visibleSections, firstName, sectionOfPath, sectionOn, sectionState, stageIdx, useNavHidden } from './shared'
 
 const copy = {
   eyebrow: { en: 'Client dashboard', ta: 'வாடிக்கையாளர் பக்கம்' },
@@ -31,6 +31,9 @@ const copy = {
     ta: 'இது பழைய அமர்வாக இருக்கலாம், அல்லது ஸ்டுடியோ ஆர்டரைப் புதுப்பித்திருக்கலாம். உங்கள் கைபேசி எண்ணுடன் மீண்டும் உள்நுழையுங்கள், அல்லது எங்களைத் தொடர்புகொள்ளுங்கள்.',
   },
   signInAgain: { en: 'Sign in again', ta: 'மீண்டும் உள்நுழை' },
+  offTitle: { en: 'This page isn’t switched on', ta: 'இந்தப் பக்கம் இயக்கப்படவில்லை' },
+  offBody: { en: 'We haven’t turned this on for your booking. Message us if you were expecting it.', ta: 'உங்கள் முன்பதிவுக்கு இதை இயக்கவில்லை. எதிர்பார்த்திருந்தால் எங்களுக்குச் செய்தி அனுப்புங்கள்.' },
+  backHome: { en: 'Back to overview', ta: 'மேலோட்டத்துக்குத் திரும்பு' },
 }
 
 export default function DashboardLayout() {
@@ -60,6 +63,9 @@ function Dashboard({ order, label, onSignOut }: { order: Order; label: string; o
   const contentTop = useRef<HTMLDivElement>(null)
   const end = useRef<HTMLDivElement>(null)
   const [tabsShown, setTabsShown] = useState(true)
+  const t = useT(copy)
+  const section = sectionOfPath(pathname)
+  const sectionOff = !!section && !sectionOn(order, section)
 
   // Phone tab bar slides away once the footer takes over the bottom of the screen.
   useEffect(() => {
@@ -105,7 +111,11 @@ function Dashboard({ order, label, onSignOut }: { order: Order; label: string; o
 
         <div ref={contentTop} aria-hidden="true" />
         <Container className="relative mt-8 md:mt-12">
-          <AnimatedOutlet scrollTop={false} />
+          {sectionOff ? (
+            <EmptyState icon="lock" title={t.offTitle} body={t.offBody} action={<Button to="/dashboard" variant="outline">{t.backHome}</Button>} />
+          ) : (
+            <AnimatedOutlet scrollTop={false} />
+          )}
         </Container>
         <DemoSwitcher order={order} />
         <div ref={end} className="absolute inset-x-0 bottom-0 h-px" aria-hidden="true" />
@@ -247,7 +257,7 @@ function TabBar({ order, label }: { order: Order; label: string }) {
           className={`mx-auto max-w-6xl rounded-full p-1.5 transition-shadow duration-500 ${stuck ? 'glass-strong' : 'glass'}`}
         >
           <div ref={scroller} className="no-scrollbar mask-fade-x relative flex gap-1 overflow-x-auto md:[mask-image:none] md:[-webkit-mask-image:none]" data-lenis-prevent>
-            {SECTIONS.map(s => {
+            {visibleSections(order, 'bar').map(s => {
               const state = sectionState(order, s.key)
               const promoted = s.key === 'review' && delivered && !order.review
               return (
@@ -313,8 +323,8 @@ function BottomTabs({ order, label, shown }: { order: Order; label: string; show
       transition={{ duration: 0.5, ease: EASE }}
     >
       <div className="glass-strong mx-auto flex max-w-md gap-0.5 rounded-[24px] p-1">
-        {/* Six tabs is the most a phone bar holds; the e-invite is reached from the overview tiles there. */}
-        {SECTIONS.filter(s => s.key !== 'invite').map(s => {
+        {/* Six tabs is the most a phone bar holds; see visibleSections for what gives way. */}
+        {visibleSections(order, 'phone').map(s => {
           const state = sectionState(order, s.key)
           const promoted = s.key === 'review' && delivered && !order.review
           return (

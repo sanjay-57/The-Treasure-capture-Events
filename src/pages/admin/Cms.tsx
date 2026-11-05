@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { AnimatePresence, LayoutGroup, motion } from 'motion/react'
 import { Icon } from '../../components/Icon'
 import { Button, Img, Modal, Segmented } from '../../components/ui'
@@ -11,6 +11,8 @@ import { toast, useTitle } from '../../lib/ui'
 import { usePrices, useStore, type CmsState } from '../../lib/store'
 import { CATALOGUE, DEFAULT_PRICES, PRESET_KINDS, SECTION_META, pendingItems, presetName, presetSaving, presetSum, presetTarget, tierPreset, type CatalogueId, type FixedTier, type PresetKind, type Section } from '../../lib/catalogue'
 import { formatINR } from '../../lib/i18n'
+import { isLan } from '../../api/mode'
+import { uploadFile } from '../../api/upload'
 import { AC, FormSelect, PageHeader, Panel, SaveBar, SearchInput, Switch, Tabs, TextInput } from './kit'
 
 const copy = {
@@ -131,10 +133,60 @@ const copy = {
   addrTa: { en: 'Address · Tamil', ta: 'முகவரி · தமிழ்' },
   review: { en: 'Google review link', ta: 'Google கருத்து இணைப்பு' },
   visitUs: { en: 'Visit the studio', ta: 'ஸ்டுடியோவுக்கு வாருங்கள்' },
+  // site photos
+  tabPhotos: { en: 'Site photos', ta: 'தளப் படங்கள்' },
+  photos: { en: 'Every photo on the website', ta: 'இணையதளத்தின் ஒவ்வொரு படமும்' },
+  photosSub: { en: 'Each slot is a stock photo until you replace it with the studio\'s own. Paste a link to a hosted image; the swap is live on every page that uses the slot.', ta: 'ஒவ்வொரு இடமும் ஸ்டுடியோவின் சொந்தப் படத்தால் மாற்றப்படும் வரை ஸ்டாக் படம். ஹோஸ்ட் செய்த படத்தின் இணைப்பை ஒட்டவும்; அந்த இடத்தைப் பயன்படுத்தும் ஒவ்வொரு பக்கத்திலும் உடனே மாறும்.' },
+  grpAll: { en: 'All', ta: 'அனைத்தும்' },
+  grpDistricts: { en: 'Districts', ta: 'மாவட்டங்கள்' },
+  grpOther: { en: 'Venues & commercial', ta: 'இடங்கள் & வணிகம்' },
+  grpEdited: { en: 'Replaced', ta: 'மாற்றியவை' },
+  replaced: { en: 'Replaced', ta: 'மாற்றியது' },
+  stock: { en: 'Stock photo', ta: 'ஸ்டாக் படம்' },
+  searchPhotos: { en: 'Search by name or description', ta: 'பெயர் அல்லது விளக்கத்தால் தேடு' },
+  slotsShown: { en: '{n} of {total} photo slots', ta: '{total}-இல் {n} பட இடங்கள்' },
+  editPhoto: { en: 'Replace photo', ta: 'படத்தை மாற்று' },
+  current: { en: 'Currently showing', ta: 'இப்போது காட்டுவது' },
+  newUrl: { en: 'New image URL', ta: 'புதிய பட URL' },
+  urlHint: { en: 'A full https:// link to a JPG or WebP you host (Google Drive share links do not work; use the direct file link). On the studio server you can also upload a file from this computer.', ta: 'நீங்கள் ஹோஸ்ட் செய்யும் JPG அல்லது WebP-க்கு முழு https:// இணைப்பு (Google Drive பகிர்வு இணைப்புகள் வேலை செய்யா; நேரடி கோப்பு இணைப்பு). ஸ்டுடியோ சர்வரில் இந்தக் கணினியிலிருந்து கோப்பையும் பதிவேற்றலாம்.' },
+  upload: { en: 'Upload photo', ta: 'படத்தைப் பதிவேற்று' },
+  uploading: { en: 'Uploading…', ta: 'பதிவேற்றுகிறது…' },
+  uploadFailed: { en: 'Upload failed', ta: 'பதிவேற்றம் தோல்வி' },
+  savePhoto: { en: 'Use this photo', ta: 'இந்தப் படத்தைப் பயன்படுத்து' },
+  resetPhoto: { en: 'Back to stock photo', ta: 'ஸ்டாக் படத்திற்கு மீட்டமை' },
+  photoSaved: { en: 'Photo replaced — live on the website', ta: 'படம் மாற்றப்பட்டது — இணையதளத்தில் நேரடி' },
+  photoReset: { en: 'Stock photo restored', ta: 'ஸ்டாக் படம் மீட்டமைக்கப்பட்டது' },
+  unsplashNote: { en: 'Stock photos are Unsplash placeholders until the studio\'s own work replaces them.', ta: 'ஸ்டுடியோவின் படங்கள் வரும் வரை ஸ்டாக் படங்கள் Unsplash இடம்பிடிப்புகள்.' },
 }
 
-type Tab = 'banner' | 'hero' | 'gallery' | 'catalogue' | 'studio'
-const isUrl = (s: string) => /^https?:\/\/\S+\.\S+/.test(s.trim())
+type Tab = 'banner' | 'hero' | 'gallery' | 'photos' | 'catalogue' | 'studio'
+// Full links, or a file uploaded to the studio server (served from /media/files/).
+const isUrl = (s: string) => /^https?:\/\/\S+\.\S+/.test(s.trim()) || /^\/media\/files\/[\w.-]+$/.test(s.trim())
+
+/** Studio server only: picks a JPG/PNG/WebP from this computer and hands back its server URL. */
+function UploadButton({ onUrl, className = '' }: { onUrl: (url: string) => void; className?: string }) {
+  const t = useT(copy)
+  const input = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  if (!isLan()) return null
+  const pick = async (file: File) => {
+    setBusy(true)
+    try {
+      onUrl((await uploadFile(file, file.name)).url)
+    } catch (e) {
+      toast(`${t.uploadFailed}: ${e instanceof Error ? e.message : String(e)}`, 'ruby')
+    } finally {
+      setBusy(false)
+      if (input.current) input.current.value = ''
+    }
+  }
+  return (
+    <>
+      <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e => e.target.files?.[0] && pick(e.target.files[0])} />
+      <Button variant="outline" size="md" iconLeft="image" disabled={busy} onClick={() => input.current?.click()} className={`!h-11 ${className}`}>{busy ? t.uploading : t.upload}</Button>
+    </>
+  )
+}
 const isKey = (s: string): s is ImgKey => s in IMG
 
 export default function Cms() {
@@ -168,6 +220,7 @@ export default function Cms() {
           { value: 'banner', label: t.tabBanner, icon: 'sparkle' },
           { value: 'hero', label: t.tabHero, icon: 'image' },
           { value: 'gallery', label: t.tabGallery, icon: 'grid', count: GALLERY.length + cms.extraGallery.length - cms.hiddenGallery.length },
+          { value: 'photos', label: t.tabPhotos, icon: 'camera', count: Object.keys(cms.images ?? {}).length || undefined },
           { value: 'catalogue', label: t.tabCatalogue, icon: 'rupee', count: Object.keys(cms.catalogue.prices).length || undefined },
           { value: 'studio', label: t.tabStudio, icon: 'building' },
         ]}
@@ -177,6 +230,7 @@ export default function Cms() {
           {tab === 'banner' && <BannerEditor value={banner} onChange={setBanner} />}
           {tab === 'hero' && <HeroEditor />}
           {tab === 'gallery' && <GalleryManager />}
+          {tab === 'photos' && <SitePhotosEditor />}
           {tab === 'catalogue' && <RateCardEditor />}
           {tab === 'studio' && <StudioEditor value={studio} onChange={setStudio} />}
         </motion.div>
@@ -251,6 +305,136 @@ function BannerEditor({ value, onChange }: { value: CmsState['banner']; onChange
 }
 
 // ─── Hero ────────────────────────────────────────────────────────────────────
+
+// ─── Site photos ─────────────────────────────────────────────────────────────
+
+type PhotoGroup = 'all' | 'm' | 't' | 'd' | 'other' | 'edited'
+const ALL_KEYS = Object.keys(IMG) as ImgKey[]
+const NO_IMAGES: Partial<Record<ImgKey, string>> = {}
+
+/** Every photo slot on the public site, each replaceable by URL. Replacements flow through photoUrl(), so no page needs to know. */
+function SitePhotosEditor() {
+  const t = useT(copy)
+  const images = useStore(s => s.cms.images) ?? NO_IMAGES
+  const [group, setGroup] = useState<PhotoGroup>('all')
+  const [q, setQ] = useState('')
+  const [limit, setLimit] = useState(36)
+  const [editing, setEditing] = useState<ImgKey | null>(null)
+
+  const keys = useMemo(() => {
+    const s = q.trim().toLowerCase()
+    return ALL_KEYS.filter(k => {
+      if (group === 'edited' && !(k in images)) return false
+      if ((group === 'm' || group === 't' || group === 'd') && !k.startsWith(`${group}_`)) return false
+      if (group === 'other' && !(k.startsWith('e_') || k.startsWith('v_'))) return false
+      return !s || k.includes(s) || IMG[k].alt.toLowerCase().includes(s)
+    })
+  }, [group, q, images])
+  const shown = keys.slice(0, limit)
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-[26px] border border-ink/[0.08] bg-white p-5 md:p-6">
+        <h2 className="text-[18px] font-semibold tracking-tight text-ink">{t.photos}</h2>
+        <p className="mt-1.5 max-w-3xl text-[14px] leading-relaxed text-ink/55">{t.photosSub}</p>
+        <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <Segmented<PhotoGroup>
+            size="sm"
+            value={group}
+            onChange={g => { setGroup(g); setLimit(36) }}
+            options={[
+              { value: 'all', label: t.grpAll },
+              { value: 'm', label: t.modern },
+              { value: 't', label: t.traditional },
+              { value: 'd', label: t.grpDistricts },
+              { value: 'other', label: t.grpOther },
+              { value: 'edited', label: `${t.grpEdited}${Object.keys(images).length ? ` · ${Object.keys(images).length}` : ''}` },
+            ]}
+          />
+          <SearchInput value={q} onChange={v => { setQ(v); setLimit(36) }} placeholder={t.searchPhotos} className="md:w-72" />
+        </div>
+        <p className="mt-4 text-[12.5px] text-ink/45">{t.slotsShown.replace('{n}', String(keys.length)).replace('{total}', String(ALL_KEYS.length))} · {t.unsplashNote}</p>
+
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+          {shown.map(k => {
+            const edited = k in images
+            return (
+              <button key={k} type="button" onClick={() => setEditing(k)} title={IMG[k].alt} className="group relative block overflow-hidden rounded-xl text-left transition hover:opacity-90 cursor-pointer">
+                <Img k={k} w={400} ratio={1} sizes="200px" className="aspect-square w-full" />
+                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/80 to-transparent px-2.5 pb-2 pt-6">
+                  <span className="block truncate font-mono text-[10.5px] text-white/85">{k}</span>
+                </span>
+                {edited && <span className="absolute left-2 top-2 rounded-full bg-ruby px-2 py-0.5 text-[10.5px] font-medium text-white">{t.replaced}</span>}
+              </button>
+            )
+          })}
+        </div>
+        {keys.length > shown.length && (
+          <div className="mt-5 text-center">
+            <Button variant="outline" size="sm" onClick={() => setLimit(l => l + 48)}>{t.more}</Button>
+          </div>
+        )}
+      </div>
+
+      <AnimatePresence>
+        {editing && <PhotoEditModal key={editing} k={editing} current={images[editing]} onClose={() => setEditing(null)} />}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function PhotoEditModal({ k, current, onClose }: { k: ImgKey; current: string | undefined; onClose: () => void }) {
+  const t = useT(copy)
+  const c = useT(COMMON)
+  const setSiteImage = useStore(s => s.setSiteImage)
+  const [url, setUrl] = useState(current ?? '')
+  const [err, setErr] = useState('')
+  const valid = isUrl(url)
+  const save = () => {
+    if (!valid) return setErr(t.badUrl)
+    setSiteImage(k, url.trim())
+    toast(t.photoSaved)
+    onClose()
+  }
+  const reset = () => {
+    setSiteImage(k, null)
+    toast(t.photoReset)
+    onClose()
+  }
+  return (
+    <Modal open onClose={onClose} label={t.editPhoto} className="max-w-2xl">
+      <div className="p-5 md:p-7">
+        <p className="t-label text-ink/45">{t.editPhoto}</p>
+        <h3 className="mt-1 font-mono text-[15px] text-ink">{k}</h3>
+        <p className="mt-1 text-[13px] text-ink/55">{IMG[k].alt}</p>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <div>
+            <p className="t-label mb-1.5 text-ink/50">{t.current} · {current ? t.replaced : t.stock}</p>
+            <Img k={k} w={800} ratio={4 / 3} sizes="400px" className="w-full rounded-2xl" />
+          </div>
+          <div>
+            <p className="t-label mb-1.5 text-ink/50">{t.preview}</p>
+            <div className="aspect-[4/3] w-full overflow-hidden rounded-2xl bg-mist">
+              {valid ? <Img src={url.trim()} className="h-full w-full" /> : <p className="flex h-full items-center justify-center px-4 text-center text-[13px] text-ink/40">{t.noPreview}</p>}
+            </div>
+          </div>
+        </div>
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-end">
+          <TextInput label={t.newUrl} value={url} onChange={v => { setUrl(v); setErr('') }} placeholder="https://" inputMode="url" className="flex-1" />
+          <UploadButton onUrl={u => { setUrl(u); setErr('') }} />
+        </div>
+        <p className={`mt-1.5 text-[12.5px] ${err ? 'text-ruby' : 'text-ink/45'}`}>{err || t.urlHint}</p>
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+          {current ? <Button variant="outline" size="sm" iconLeft="refresh" onClick={reset}>{t.resetPhoto}</Button> : <span />}
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={onClose}>{c.cancel}</Button>
+            <Button size="sm" icon="check" onClick={save} disabled={!valid}>{t.savePhoto}</Button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  )
+}
 
 function SlideImg({ src, w, className = '' }: { src: string; w: number; className?: string }) {
   return isKey(src) ? <Img k={src} w={w} ratio={4 / 3} sizes={`${w}px`} className={className} /> : <Img src={src} className={className} />
@@ -334,6 +518,7 @@ function HeroEditor() {
         </LayoutGroup>
         <div className="mt-5 flex flex-col gap-2 border-t hairline pt-5 sm:flex-row sm:items-end">
           <TextInput label={t.byUrl} value={url} onChange={v => { setUrl(v); setUrlErr('') }} placeholder="https://…" inputMode="url" className="flex-1" />
+          <UploadButton onUrl={u => { setUrl(u); setUrlErr('') }} />
           <Button variant="ink" size="md" iconLeft="plus" onClick={addUrl} className="!h-11">{t.add}</Button>
         </div>
         {urlErr && <p className="mt-1.5 text-[12.5px] text-ruby">{urlErr}</p>}
@@ -519,7 +704,10 @@ function AddImageForm({ onClose }: { onClose: () => void }) {
       <div>
         <h2 className="mb-5 hidden pr-10 text-[20px] font-semibold tracking-tight text-ink md:block">{t.newImage}</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <TextInput label={t.url} value={url} onChange={v => { setUrl(v); setErr(''); setBroken(false) }} placeholder="https://…" inputMode="url" required className="sm:col-span-2" autoFocus />
+          <div className="flex flex-col gap-2 sm:col-span-2 sm:flex-row sm:items-end">
+            <TextInput label={t.url} value={url} onChange={v => { setUrl(v); setErr(''); setBroken(false) }} placeholder="https://…" inputMode="url" required className="flex-1" autoFocus />
+            <UploadButton onUrl={u => { setUrl(u); setErr(''); setBroken(false) }} />
+          </div>
           <TextInput label={t.titleEn} value={titleEn} onChange={v => { setTitleEn(v); setErr('') }} required />
           <TextInput label={t.titleTa} value={titleTa} onChange={setTitleTa} lang="ta" />
           <FormSelect<GalleryCat> label={t.category} value={cat} onChange={setCat} options={GALLERY_CATS.filter(c => c.key !== 'all').map(c => ({ value: c.key as GalleryCat, label: c.name[lang] }))} />

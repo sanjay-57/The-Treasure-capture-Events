@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useParams } from "react-router"
 import { motion, useReducedMotion } from "motion/react"
 import { Button, Container, Eyebrow } from "../../components/ui"
@@ -10,6 +10,7 @@ import {
   StaggerItem,
   EASE,
 } from "../../components/motion"
+import { Burst } from "../../components/CartFlight"
 import { Kolam, Ornament, TempleBorder, Vilakku } from "../../components/tamil"
 import {
   COMMON,
@@ -166,7 +167,8 @@ function ConfirmedView({ order }: { order: Order }) {
             <p className="t-lead mx-auto mt-5 max-w-xl text-ink/60">{t.lead}</p>
           </Reveal>
           <Reveal delay={0.85}>
-            <div className="glass mt-8 inline-flex max-w-full flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-full py-2 pl-5 pr-2">
+            <div className="glass relative mt-8 inline-flex max-w-full flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-full py-2 pl-5 pr-2">
+              <LateBurst />
               <span className="text-[12px] text-ink/50">{t.ref}</span>
               <span className="font-mono text-[15px] font-semibold tracking-wide text-ink">
                 {order.id}
@@ -675,4 +677,16 @@ function Timeline({ order }: { order: Order }) {
       </div>
     </section>
   )
+}
+
+/** Ruby and gold sparks around the booking reference once it has faded in. */
+function LateBurst() {
+  const reduce = useReducedMotion()
+  const [on, setOn] = useState(false)
+  useEffect(() => {
+    if (reduce) return
+    const id = window.setTimeout(() => setOn(true), 1500)
+    return () => window.clearTimeout(id)
+  }, [reduce])
+  return on ? <Burst kind="in" badge={false} /> : null
 }

@@ -184,7 +184,7 @@ export default function Gallery() {
           <Ornament dark className="mb-8" />
           <RevealText text={t.ctaTitle} className="t-1 max-w-3xl text-white" />
           <Reveal delay={0.15}><p className="t-lead mt-5 max-w-xl text-white/55">{t.ctaBody}</p></Reveal>
-          <Reveal delay={0.25} className="mt-9 w-full sm:w-auto"><Button to="/book" size="lg" icon="arrowRight" className="w-full sm:w-auto">{t.cta}</Button></Reveal>
+          <Reveal delay={0.25} className="mt-9 w-full sm:w-auto"><Button magnetic to="/book" size="lg" icon="arrowRight" className="w-full sm:w-auto">{t.cta}</Button></Reveal>
         </Container>
       </section>
 

@@ -13,6 +13,8 @@ import { formatDate, formatDateTime, formatINR, useLang, useT, useTx } from '../
 import type { ImgKey } from '../../lib/images'
 import { toast, useTitle } from '../../lib/ui'
 import { CoverMasthead } from '../dashboard/Photos'
+import { PosesPanel } from './PosesPanel'
+import { OrderControls } from './photographers/CustomerControls'
 import { proofFile, resolveCover, useProofs } from '../dashboard/shared'
 import { balanceDue, invoiceState, paidTotal, useStore, type Order, type OutboxMessage, type Payment, statusMessage } from '../../lib/store'
 import {
@@ -223,6 +225,8 @@ export default function OrderDetail() {
       <div className="mt-4 grid gap-4 md:mt-5 md:gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-4 md:space-y-5">
           <DetailsPanel o={o} />
+          <OrderControls order={o} />
+          <PosesPanel o={o} />
           <CoverPanel key={lang} o={o} />
           <QuotePanel o={o} />
           <CrewPanel o={o} />

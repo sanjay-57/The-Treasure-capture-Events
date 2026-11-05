@@ -8,6 +8,9 @@ import { GopuramSkyline, KolamCorner, TamilOnly, Vilakku } from '../components/t
 import { useLang, useT } from '../lib/i18n'
 import { DEMO_CLIENT_PHONE, normalizePhone, useStore } from '../lib/store'
 import { toast, useDarkHero, useTitle } from '../lib/ui'
+import { isLan } from '../api/mode'
+import { ApiError } from '../api/client'
+import { requestCode, verifyCode } from '../api/auth'
 
 const copy = {
   title: { en: 'Client login', ta: 'வாடிக்கையாளர் நுழைவு' },
@@ -50,6 +53,8 @@ const copy = {
   tryAnother: { en: 'Try another number', ta: 'வேறு எண்' },
 
   demo: { en: 'Demo: 98765 43210, any 4-digit code', ta: 'டெமோ: 98765 43210, ஏதேனும் 4 இலக்கம்' },
+  openFailed: { en: 'Your code was right, but your dashboard didn’t open. Please try again.', ta: 'குறியீடு சரி, ஆனால் உங்கள் பக்கம் திறக்கவில்லை. மீண்டும் முயலுங்கள்.' },
+  lanDemo: { en: 'Your 4-digit code appears on the studio screen. Ask the staff to read it out.', ta: 'உங்கள் 4 இலக்கக் குறியீடு ஸ்டுடியோ திரையில் தெரியும். ஊழியர்களிடம் கேளுங்கள்.' },
   useDemo: { en: 'Use demo', ta: 'டெமோ நிரப்பு' },
   staff: { en: 'Studio staff?', ta: 'ஸ்டுடியோ பணியாளரா?' },
   staffLink: { en: 'Staff login', ta: 'பணியாளர் நுழைவு' },
@@ -83,6 +88,7 @@ export default function Login() {
   const [error, setError] = useState('')
   const [noOrder, setNoOrder] = useState(false)
   const [phase, setPhase] = useState<Phase>('idle')
+  const [otpKey, setOtpKey] = useState(0)
   const timers = useRef<number[]>([])
   const later = (fn: () => void, ms: number) => timers.current.push(window.setTimeout(fn, ms))
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
@@ -96,6 +102,21 @@ export default function Login() {
       return
     }
     setError('')
+    if (isLan()) {
+      setPhase('sending')
+      requestCode(digits, 'customer').then(
+        () => {
+          setPhase('idle')
+          setStep(2)
+        },
+        (e: unknown) => {
+          setPhase('idle')
+          if (e instanceof ApiError && e.code === 'no_booking') setNoOrder(true)
+          else setError(e instanceof Error ? e.message : t.invalid)
+        },
+      )
+      return
+    }
     const exists = orders.some(o => normalizePhone(o.client.contact) === digits)
     if (!exists) {
       setNoOrder(true)
@@ -108,8 +129,25 @@ export default function Login() {
     }, 750)
   }
 
-  const verify = () => {
+  const verify = (code: string) => {
     setPhase('verifying')
+    if (isLan()) {
+      // Success sets the session; the redirect above takes over.
+      verifyCode(digits, 'customer', code).then(
+        () => {
+          if (useStore.getState().session?.role === 'client') return setPhase('success')
+          setPhase('idle')
+          setOtpKey(k => k + 1)
+          toast(t.openFailed, 'ruby')
+        },
+        (e: unknown) => {
+          setPhase('idle')
+          setOtpKey(k => k + 1)
+          toast(e instanceof Error ? e.message : t.invalid, 'ruby')
+        },
+      )
+      return
+    }
     later(() => setPhase('success'), 850)
     later(() => {
       if (!loginClient(digits)) {
@@ -284,7 +322,7 @@ export default function Login() {
                     {t.change}
                   </button>
                 </p>
-                <Otp onComplete={verify} disabled={phase !== 'idle'} phase={phase} label={t.digit} groupLabel={t.step2Title} />
+                <Otp key={otpKey} onComplete={verify} disabled={phase !== 'idle'} phase={phase} label={t.digit} groupLabel={t.step2Title} />
                 <div className="mt-5 min-h-6" aria-live="polite">
                   <AnimatePresence mode="wait" initial={false}>
                     {phase === 'verifying' ? (
@@ -312,9 +350,9 @@ export default function Login() {
           <div className="glass-ruby-tint mt-6 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-2xl px-4 py-3 sm:mt-8">
             <span className="inline-flex items-center gap-2 text-[13px] font-medium text-ruby-deep">
               <Icon name="sparkle" size={15} className="text-ruby" />
-              {t.demo}
+              {isLan() ? t.lanDemo : t.demo}
             </span>
-            {step === 1 && !noOrder && (
+            {step === 1 && !noOrder && !isLan() && (
               <button
                 type="button"
                 onClick={() => {
@@ -370,7 +408,7 @@ function Spinner({ className = '' }: { className?: string }) {
 }
 
 /** Four single-digit boxes with auto-advance, backspace-to-previous, arrow keys and paste. */
-function Otp({ onComplete, disabled, phase, label, groupLabel }: { onComplete: () => void; disabled: boolean; phase: Phase; label: string; groupLabel: string }) {
+function Otp({ onComplete, disabled, phase, label, groupLabel }: { onComplete: (code: string) => void; disabled: boolean; phase: Phase; label: string; groupLabel: string }) {
   const [vals, setVals] = useState(['', '', '', ''])
   const refs = useRef<(HTMLInputElement | null)[]>([])
   const fired = useRef(false)
@@ -385,7 +423,7 @@ function Otp({ onComplete, disabled, phase, label, groupLabel }: { onComplete: (
     if (next.every(v => v !== '') && !fired.current) {
       fired.current = true
       refs.current.forEach(r => r?.blur())
-      onComplete()
+      onComplete(next.join(''))
     }
   }
 

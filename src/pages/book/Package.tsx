@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router'
 import { useLenis } from 'lenis/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Icon } from '../../components/Icon'
-import { Stagger, StaggerItem, Reveal, EASE } from '../../components/motion'
+import { Stagger, StaggerItem, Reveal, Sweep, Tilt, EASE } from '../../components/motion'
 import { KolamCorner, Ornament } from '../../components/tamil'
 import { formatINR, useLang, useT } from '../../lib/i18n'
-import { useTitle } from '../../lib/ui'
+import { useTitle, useUi } from '../../lib/ui'
 import { usePrices, useStore } from '../../lib/store'
 import { eventByKey } from '../../lib/data'
 import { CATALOGUE_BY_ID, TIER_META, cartEntries, cartHours, presetName, tierCart, tierPreset, type FixedTier } from '../../lib/catalogue'
@@ -79,6 +79,7 @@ function PackageStep() {
   const lenis = useLenis()
   const cardsRef = useRef<HTMLDivElement>(null)
   const [stuck, setStuck] = useState(false)
+  const navHidden = useUi(s => s.navHidden)
   const ev = eventByKey(eventType)
 
   // Once the cards scroll away, a slim strip keeps them one tap away.
@@ -149,6 +150,7 @@ function PackageStep() {
             const v = shownVariant(tier)
             return (
               <StaggerItem key={tier} className="min-w-0">
+                <Tilt className="h-full" max={5} glare={false}>
                 <button
                   type="button"
                   aria-pressed={active}
@@ -160,6 +162,7 @@ function PackageStep() {
                   {active && (
                     <motion.span layoutId="pkg-active" className="absolute inset-0 -z-10 rounded-[22px] bg-gradient-to-b from-gold-soft to-white" transition={{ type: 'spring', stiffness: 360, damping: 34 }} />
                   )}
+                  {active && <Sweep trigger={`${tier}-${cart.variant ?? ''}`} tone="rgba(201,162,39,0.35)" />}
                   {lang === 'ta' && active && <KolamCorner className="pointer-events-none absolute bottom-0 right-0 rotate-180 opacity-70" />}
                   <div className="flex min-h-6 items-start justify-between gap-2">
                     {meta.popular ? (
@@ -178,6 +181,7 @@ function PackageStep() {
                   <p className={`mt-1 text-[15px] font-semibold sm:text-[17px] tabular-nums ${active ? 'text-gold-deep' : 'text-ruby'}`}>{formatINR(priceOf(tier, v))}</p>
                   <p className="text-[11.5px] text-ink/45">{preset.pending ? t.toConfirm : t.perSession}</p>
                 </button>
+                </Tilt>
               </StaggerItem>
             )
           })}
@@ -204,7 +208,7 @@ function PackageStep() {
       {ev.key !== 'commercial' && <PackageAlbumNote className="mt-5" />}
 
       {/* Slim package strip, pinned under the nav while the options scroll */}
-      <div className="sticky top-[calc(env(safe-area-inset-top)+84px)] z-30 h-0">
+      <div className="sticky z-30 h-0 transition-[top] duration-500 ease-out" style={{ top: navHidden ? 'calc(env(safe-area-inset-top) + 12px)' : 'calc(var(--nav-h) + 8px)' }}>
         <AnimatePresence>
           {stuck && (
             <motion.nav

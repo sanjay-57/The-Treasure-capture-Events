@@ -6,13 +6,14 @@ import { InviteView, ThemeThumb } from '../pages/invite/Invite'
 import { ShareSheet } from '../pages/invite/ShareSheet'
 import { ensureFonts, themeFonts, themeStyle } from '../pages/invite/themes'
 import { coupleUrl } from '../pages/invite/caricature'
+import { CINEMATIC_META, isCinematicTheme } from '../pages/invite/cinematic/types'
 import { geminiCaricature, hasGemini } from '../lib/gemini'
 import { formatINR, useLang, useT, type Lang } from '../lib/i18n'
 import { toast } from '../lib/ui'
 import { usePrices } from '../lib/store'
 import {
   BLANK_DRAFT, FREE_THEMES, PREMIUM_INVITE_ITEM, PREMIUM_THEMES, THEME_META, draftMissing, draftToInvite, invitePath, isPremium, parseLatLng, themeOpen, toTheme,
-  type InviteDraft, type InviteTheme,
+  type InviteDraft, type InviteEvent, type InviteTheme,
 } from '../lib/invite'
 
 /*
@@ -34,6 +35,24 @@ const copy = {
   premium: { en: 'Premium · animated, with caricature', ta: 'பிரீமியம் · அசைவுடன், கேரிகேச்சருடன்' },
   locked: { en: 'Locked', ta: 'பூட்டப்பட்டது' },
   couple: { en: 'The couple', ta: 'மணமக்கள்' },
+  layout: { en: 'How it opens', ta: 'திறக்கும் விதம்' },
+  layoutStory: { en: 'Story', ta: 'கதை' },
+  layoutCinematic: { en: '3D scene', ta: '3D காட்சி' },
+  layoutCard: { en: 'Single card', ta: 'ஒற்றை அட்டை' },
+  layoutCinematicHint: { en: '3D scene: {name}. {blurb}. Guests tap to open it; the picture you download is the single card.', ta: '3D காட்சி: {name}. {blurb}. விருந்தினர் தொட்டுத் திறப்பார்கள்; பதிவிறக்கும் படம் ஒற்றை அட்டை.' },
+  layoutHint: { en: 'Story opens with doors, curtains or an envelope, then scrolls through the day. Single card is one still page, best for printing and forwarding as a picture.', ta: 'கதை: கதவு, திரை அல்லது உறை திறந்து, நாளின் விவரங்கள் உருளும். ஒற்றை அட்டை: ஒரே பக்கம், படமாக அனுப்ப ஏற்றது.' },
+  tradition: { en: 'Invocation at the top', ta: 'மேலே வரும் வாழ்த்து' },
+  tradHindu: { en: 'Pillaiyar / Ganesha', ta: 'பிள்ளையார் சுழி' },
+  tradMuslim: { en: 'Bismillah', ta: 'பிஸ்மில்லாஹ்' },
+  tradChristian: { en: 'Cross & verse', ta: 'சிலுவை, வசனம்' },
+  tradNone: { en: 'None', ta: 'இல்லை' },
+  story: { en: 'Our story (optional, a line or two)', ta: 'எங்கள் கதை (விருப்பம், ஓரிரு வரிகள்)' },
+  storyPh: { en: 'Met at a cousin’s wedding in Madurai, and never stopped talking since…', ta: 'மதுரையில் ஒரு உறவினர் திருமணத்தில் சந்தித்தோம்…' },
+  events: { en: 'Other functions (optional)', ta: 'மற்ற நிகழ்வுகள் (விருப்பம்)' },
+  eventsLead: { en: 'Nichayathartham, Mehendi, Sangeet, Reception… Guests see them on a timeline with the muhurtham.', ta: 'நிச்சயதார்த்தம், மெஹந்தி, வரவேற்பு… முகூர்த்தத்துடன் காலவரிசையில் தெரியும்.' },
+  eventName: { en: 'Function', ta: 'நிகழ்வு' },
+  eventVenue: { en: 'Venue (if different)', ta: 'இடம் (வேறு என்றால்)' },
+  addEvent: { en: 'Add a function', ta: 'நிகழ்வைச் சேர்' },
   brideEn: { en: 'Bride (English)', ta: 'மணமகள் (ஆங்கிலம்)' },
   groomEn: { en: 'Groom (English)', ta: 'மணமகன் (ஆங்கிலம்)' },
   brideTa: { en: 'Bride (Tamil)', ta: 'மணமகள் (தமிழ்)' },
@@ -245,7 +264,8 @@ export function InviteBuilder({ initial, premium, storageKey, unlock }: {
         key={k}
         type="button"
         aria-pressed={active}
-        onClick={() => set('theme', k)}
+        // Only some designs have a 3D scene; the others fall back to their story page.
+        onClick={() => setD(x => ({ ...x, theme: k, layout: x.layout === 'cinematic' && !isCinematicTheme(k) ? 'story' : x.layout }))}
         title={m.blurb[lang]}
         className={`min-w-0 rounded-2xl border p-1.5 text-left transition-colors duration-300 cursor-pointer ${active ? 'border-ruby bg-white ring-4 ring-ruby/10' : 'border-ink/10 bg-white/70 hover:border-ink/25'}`}
       >
@@ -283,6 +303,37 @@ export function InviteBuilder({ initial, premium, storageKey, unlock }: {
           </p>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-6">{PREMIUM_THEMES.map(themeCard)}</div>
           <p className="mt-4 text-[12.5px] leading-relaxed text-ink/55">{THEME_META[d.theme].name[lang]} · {THEME_META[d.theme].blurb[lang]}</p>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <div>
+              <p className="t-label mb-2 text-ink/55">{t.layout}</p>
+              <Segmented
+                size="sm"
+                value={d.layout}
+                onChange={v => set('layout', v)}
+                options={[
+                  { value: 'story', label: t.layoutStory },
+                  ...(isCinematicTheme(d.theme) ? [{ value: 'cinematic' as const, label: t.layoutCinematic }] : []),
+                  { value: 'card', label: t.layoutCard },
+                ]}
+              />
+              <p className="mt-2 text-[12px] leading-relaxed text-ink/50">
+                {d.layout === 'cinematic' && isCinematicTheme(d.theme)
+                  ? t.layoutCinematicHint.replace('{name}', CINEMATIC_META[d.theme].name[lang]).replace('{blurb}', CINEMATIC_META[d.theme].blurb[lang])
+                  : t.layoutHint}
+              </p>
+            </div>
+            <div>
+              <p className="t-label mb-2 text-ink/55">{t.tradition}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {(['hindu', 'muslim', 'christian', 'none'] as const).map(k => (
+                  <button key={k} type="button" onClick={() => set('tradition', k)} aria-pressed={d.tradition === k}
+                    className={`min-h-9 rounded-full border px-3 text-[12.5px] font-medium cursor-pointer transition ${d.tradition === k ? 'border-ink bg-ink text-white' : 'border-ink/15 bg-white text-ink/70 hover:border-ink/35'}`}>
+                    {t[`trad${k[0].toUpperCase()}${k.slice(1)}` as 'tradHindu']}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </Section>
 
         <Section step={2} title={t.couple}>
@@ -293,6 +344,9 @@ export function InviteBuilder({ initial, premium, storageKey, unlock }: {
             <Field label={t.groomTa} value={d.groomTa} onChange={v => set('groomTa', v)} hint={t.taHint} />
             <Field label={t.parentsEn} value={d.parentsEn} onChange={v => set('parentsEn', v)} placeholder={copy.parentsPh.en} />
             <Field label={t.parentsTa} value={d.parentsTa} onChange={v => set('parentsTa', v)} placeholder={copy.parentsPh.ta} />
+          </div>
+          <div className="mt-4">
+            <Field label={t.story} value={d.story} onChange={v => set('story', v)} placeholder={t.storyPh} rows={2} maxLength={280} />
           </div>
         </Section>
 
@@ -322,6 +376,33 @@ export function InviteBuilder({ initial, premium, storageKey, unlock }: {
                 <Field label={t.pinPaste} value={d.pin} onChange={v => set('pin', v)} icon="mapPin" hint={t.pinHint} error={pinBad ? t.pinBad : undefined} />
               </div>
             </details>
+          </div>
+          <div className="mt-6">
+            <p className="t-label mb-1 text-ink/55">{t.events}</p>
+            <p className="mb-3 text-[12.5px] leading-relaxed text-ink/55">{t.eventsLead}</p>
+            <div className="space-y-3">
+              {d.events.map((e, i) => {
+                const edit = (patch: Partial<InviteEvent>) => set('events', d.events.map((x, j) => (j === i ? { ...x, ...patch } : x)))
+                return (
+                  <div key={i} className="relative grid gap-3 rounded-2xl border border-ink/10 bg-white/60 p-3 pr-12 sm:grid-cols-2">
+                    <Field label={t.eventName} value={e.name} onChange={v => edit({ name: v })} />
+                    <Field label={t.eventVenue} value={e.venue ?? ''} onChange={v => edit({ venue: v })} />
+                    <Field label={t.date} value={e.date} onChange={v => edit({ date: v })} type="date" />
+                    <Field label={t.time} value={e.time} onChange={v => edit({ time: v })} type="time" />
+                    <button type="button" aria-label={t.remove} onClick={() => set('events', d.events.filter((_, j) => j !== i))}
+                      className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full text-ink/50 hover:bg-ink/5 hover:text-ink cursor-pointer">
+                      <Icon name="trash" size={15} />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+            {d.events.length < 6 && (
+              <button type="button" onClick={() => set('events', [...d.events, { name: '', date: d.date, time: '', venue: '' }])}
+                className="mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-full border border-dashed border-ink/25 px-4 text-[12.5px] font-medium text-ink/70 hover:border-ink/45 cursor-pointer">
+                <Icon name="plus" size={14} /> {t.addEvent}
+              </button>
+            )}
           </div>
         </Section>
 
@@ -408,7 +489,7 @@ export function InviteBuilder({ initial, premium, storageKey, unlock }: {
         <div className="mx-auto w-[300px] max-w-full overflow-hidden rounded-[38px] border-[6px] border-ink bg-ink shadow-[0_30px_60px_-30px_rgba(10,10,11,0.6)]">
           {/* One phone screen, no scrolling: exactly what guests see */}
           <div style={{ width: 390, zoom: 288 / 390 }}>
-            <InviteView key={d.theme} invite={previewInvite} lang={previewLang} size={{ w: 390, h: 800 }} art={art ?? undefined} />
+            <InviteView key={`${d.theme}-${d.layout}`} invite={previewInvite} lang={previewLang} size={{ w: 390, h: 800 }} art={art ?? undefined} />
           </div>
         </div>
         <p className="mx-auto mt-3 max-w-[300px] text-center text-[12px] leading-relaxed text-ink/50">{THEME_META[d.theme].name[lang]}{isPremium(d.theme) ? ` · ${formatINR(premiumPrice)}` : ` · ${t.freeTag}`}</p>

@@ -11,6 +11,7 @@ import {
   type Invite,
 } from "../../../lib/invite"
 import { coupleUrl } from "../caricature"
+import { Invocation } from "../story/motifs"
 import type { Lang } from "../../../lib/i18n"
 
 export interface CardStyle {
@@ -22,6 +23,15 @@ export interface CardStyle {
   fontFamily: string
   taFontFamily: string
   glowColor?: string
+}
+
+/** True for a dark ink colour, i.e. the card itself is light (Kolam Keepsake's cream folio). */
+function darkInk(color: string): boolean {
+  const m = /^#([0-9a-f]{6})$/i.exec(color.trim())
+  if (!m) return false
+  const n = parseInt(m[1], 16)
+  const lum = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255
+  return lum < 0.5
 }
 
 export function InviteDetailsCard({
@@ -55,6 +65,14 @@ export function InviteDetailsCard({
     return () => clearInterval(id)
   }, [invite])
 
+  // Light cards get dark rules and tiles; dark cards keep the smoky glass look.
+  const light = darkInk(style.text)
+  const rule = light ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.1)"
+  const tile = light
+    ? { background: "rgba(0,0,0,0.04)", borderColor: "rgba(0,0,0,0.08)" }
+    : { background: "rgba(0,0,0,0.25)", borderColor: "rgba(255,255,255,0.08)" }
+  const nameShadow = light ? "none" : "0 2px 10px rgba(0,0,0,0.3)"
+
   const wedsWord = lang === "ta" ? "திருமணம்" : "weds"
   const muhurthamWord = lang === "ta" ? "முகூர்த்தம்" : "Muhurtham"
 
@@ -79,6 +97,19 @@ export function InviteDetailsCard({
         style={{ borderColor: style.accent }}
       />
 
+      {/* Invocation: Pillaiyar Suzhi / Ganesha, Bismillah or a verse, as the couple chose */}
+      {invite.tradition && invite.tradition !== "none" && (
+        <div className="mb-3 text-[13px]">
+          <Invocation
+            tradition={invite.tradition}
+            lang={lang}
+            color={style.accent}
+            muted={style.muted}
+            serif={style.fontFamily.split(",")[0].trim()}
+          />
+        </div>
+      )}
+
       {/* Parents Blessing Line */}
       {invite.parents?.[lang] && (
         <p
@@ -97,7 +128,7 @@ export function InviteDetailsCard({
         >
           <img
             src={pic}
-            alt="Couple portrait"
+            alt={lang === "ta" ? "மணமக்கள் ஓவியம்" : "Couple portrait"}
             className="h-full w-full object-cover object-top"
           />
         </div>
@@ -110,7 +141,7 @@ export function InviteDetailsCard({
           style={{
             fontFamily: lang === "ta" ? style.taFontFamily : style.fontFamily,
             color: style.text,
-            textShadow: "0 2px 10px rgba(0,0,0,0.3)",
+            textShadow: nameShadow,
           }}
         >
           {names[0]}
@@ -138,7 +169,7 @@ export function InviteDetailsCard({
           style={{
             fontFamily: lang === "ta" ? style.taFontFamily : style.fontFamily,
             color: style.text,
-            textShadow: "0 2px 10px rgba(0,0,0,0.3)",
+            textShadow: nameShadow,
           }}
         >
           {names[1]}
@@ -173,7 +204,7 @@ export function InviteDetailsCard({
             {d.day}
           </span>
           <div className="text-left text-[12px] leading-tight uppercase tracking-wider font-semibold">
-            <span className="block text-white/90">
+            <span className="block" style={{ color: style.text }}>
               {d.month} {d.year}
             </span>
             <span className="block opacity-65" style={{ color: style.muted }}>
@@ -188,7 +219,7 @@ export function InviteDetailsCard({
             style={{ color: style.muted }}
           >
             {muhurthamWord} ·{" "}
-            <span className="font-semibold text-white/95">
+            <span className="font-semibold" style={{ color: style.text }}>
               {timeLabel(invite.time, lang)}
             </span>
           </p>
@@ -197,7 +228,7 @@ export function InviteDetailsCard({
 
       {/* Venue */}
       <div className="mt-3 flex flex-col items-center">
-        <p className="flex items-center gap-1.5 text-[14px] sm:text-[15px] font-semibold text-white/90">
+        <p className="flex items-center gap-1.5 text-[14px] sm:text-[15px] font-semibold" style={{ color: style.text }}>
           <Icon
             name="mapPin"
             size={14}
@@ -218,7 +249,7 @@ export function InviteDetailsCard({
 
       {/* Live Countdown (interactive) OR Static QR code (PNG export mode) */}
       {still ? (
-        <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-center gap-3">
+        <div className="mt-4 pt-3 border-t flex items-center justify-center gap-3" style={{ borderColor: rule }}>
           <div className="rounded-lg bg-white p-1.5 shadow">
             <Qr
               text={directionsUrl(invite)}
@@ -229,7 +260,9 @@ export function InviteDetailsCard({
             />
           </div>
           <div className="text-left text-[11px] leading-tight">
-            <p className="font-semibold text-white/90">Scan for Directions</p>
+            <p className="font-semibold" style={{ color: style.text }}>
+              {lang === "ta" ? "வழிக்கு ஸ்கேன் செய்யவும்" : "Scan for directions"}
+            </p>
             <p className="opacity-60" style={{ color: style.muted }}>
               The Treasure Capture Events
             </p>
@@ -237,7 +270,8 @@ export function InviteDetailsCard({
         </div>
       ) : (
         <div
-          className="mt-4 pt-3 border-t border-white/10"
+          className="mt-4 pt-3 border-t"
+          style={{ borderColor: rule }}
           role="timer"
           aria-live="off"
         >
@@ -246,7 +280,7 @@ export function InviteDetailsCard({
               className="text-[13px] font-semibold"
               style={{ color: style.accent }}
             >
-              {lang === "ta" ? "திருமணம் நடந்தேறியது" : "Celebration Completed"}
+              {lang === "ta" ? "திருமணம் நடந்தேறியது" : "Happily married"}
             </p>
           ) : (
             <div className="flex justify-center gap-1.5">
@@ -259,10 +293,7 @@ export function InviteDetailsCard({
                 <div
                   key={l as string}
                   className="flex min-w-[46px] flex-col items-center rounded-lg border px-1 py-1"
-                  style={{
-                    background: "rgba(0,0,0,0.25)",
-                    borderColor: "rgba(255,255,255,0.08)",
-                  }}
+                  style={tile}
                 >
                   <span
                     className="font-serif text-[15px] font-bold leading-none tabular-nums"

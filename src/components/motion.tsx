@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { animate, motion, useInView, useReducedMotion, useScroll, useTransform, type Variants } from 'motion/react'
+import { formatINR } from '../lib/i18n'
+import { animate, motion, useInView, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform, type Variants } from 'motion/react'
 
 export const EASE = [0.16, 1, 0.3, 1] as const
 
@@ -203,6 +204,149 @@ function ScrollWord({ word, range, progress, dimClass }: { word: string; range: 
     <span className="relative mr-[0.25em] inline-block" aria-hidden="true">
       <span className={dimClass}>{word}</span>
       <motion.span style={{ opacity }} className="absolute inset-0">{word}</motion.span>
+    </span>
+  )
+}
+
+/**
+ * Card that leans toward the pointer in 3D with a soft glare following it.
+ * Mouse and pen only; touch screens and reduced motion get a flat card.
+ */
+export function Tilt({ children, className = '', max = 7, glare = true }: { children: ReactNode; className?: string; max?: number; glare?: boolean }) {
+  const reduce = useReducedMotion()
+  const px = useMotionValue(0.5)
+  const py = useMotionValue(0.5)
+  const sx = useSpring(px, { stiffness: 220, damping: 22 })
+  const sy = useSpring(py, { stiffness: 220, damping: 22 })
+  const rotateY = useTransform(sx, [0, 1], [-max, max])
+  const rotateX = useTransform(sy, [0, 1], [max, -max])
+  const glareBg = useTransform([sx, sy], ([x, y]) => `radial-gradient(420px circle at ${(x as number) * 100}% ${(y as number) * 100}%, rgba(255,255,255,0.28), transparent 45%)`)
+  const [hover, setHover] = useState(false)
+  if (reduce) return <div className={className}>{children}</div>
+  const move = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'touch') return
+    const r = e.currentTarget.getBoundingClientRect()
+    px.set((e.clientX - r.left) / r.width)
+    py.set((e.clientY - r.top) / r.height)
+  }
+  const leave = () => {
+    px.set(0.5)
+    py.set(0.5)
+    setHover(false)
+  }
+  return (
+    <div className={`[perspective:1000px] ${className}`} onPointerMove={move} onPointerEnter={e => e.pointerType !== 'touch' && setHover(true)} onPointerLeave={leave}>
+      <motion.div className="relative h-full w-full rounded-[inherit] [transform-style:preserve-3d]" style={{ rotateX, rotateY }}>
+        {children}
+        {glare && (
+          <motion.span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-10 rounded-[inherit] mix-blend-soft-light"
+            style={{ background: glareBg }}
+            animate={{ opacity: hover ? 1 : 0 }}
+            transition={{ duration: 0.4 }}
+          />
+        )}
+      </motion.div>
+    </div>
+  )
+}
+
+/** A one-off band of light that sweeps across its parent each time `trigger` changes. */
+export function Sweep({ trigger, className = '', tone = 'rgba(255,255,255,0.65)' }: { trigger: unknown; className?: string; tone?: string }) {
+  const reduce = useReducedMotion()
+  if (reduce) return null
+  return (
+    <motion.span
+      key={String(trigger)}
+      aria-hidden="true"
+      className={`pointer-events-none absolute inset-y-0 -left-1/2 z-10 w-1/2 skew-x-[-18deg] ${className}`}
+      style={{ background: `linear-gradient(90deg, transparent, ${tone}, transparent)` }}
+      initial={{ x: '0%', opacity: 0 }}
+      animate={{ x: '400%', opacity: [0, 1, 0] }}
+      transition={{ duration: 1.1, ease: EASE }}
+    />
+  )
+}
+
+/**
+ * Rupee amount that rolls smoothly to each new value and flashes ruby when it
+ * rises, grey when it falls, before settling back to its own colour.
+ */
+export function AnimatedINR({ value, className = '', flash = true, live = true }: { value: number; className?: string; flash?: boolean; live?: boolean }) {
+  const reduce = useReducedMotion()
+  const ref = useRef<HTMLSpanElement>(null)
+  const mv = useMotionValue(value)
+  const text = useTransform(mv, v => formatINR(v))
+  const prev = useRef(value)
+  useEffect(() => {
+    const was = prev.current
+    prev.current = value
+    if (reduce) {
+      mv.set(value)
+      return
+    }
+    const c = animate(mv, value, { duration: 0.9, ease: EASE })
+    const el = ref.current
+    let f: { stop: () => void } | undefined
+    if (flash && el && was !== value) {
+      el.style.color = ''
+      const base = getComputedStyle(el).color
+      f = animate(el, { color: [value > was ? '#9b111e' : '#8a8a92', base] }, { duration: 1.1, ease: EASE })
+    }
+    return () => {
+      c.stop()
+      f?.stop()
+    }
+  }, [value, reduce, mv, flash])
+  return (
+    <motion.span ref={ref} className={`tabular-nums ${className}`} aria-live={live ? 'polite' : undefined} aria-atomic={live ? 'true' : undefined}>
+      {text}
+    </motion.span>
+  )
+}
+
+/** Pulls its child toward the pointer a little, like a magnet. Mouse and pen only. */
+export function Magnetic({ children, className = '', strength = 0.28 }: { children: ReactNode; className?: string; strength?: number }) {
+  const reduce = useReducedMotion()
+  const mx = useMotionValue(0)
+  const my = useMotionValue(0)
+  const x = useSpring(mx, { stiffness: 180, damping: 16 })
+  const y = useSpring(my, { stiffness: 180, damping: 16 })
+  if (reduce) return <div className={className}>{children}</div>
+  return (
+    <motion.div
+      className={`inline-flex ${className}`}
+      style={{ x, y }}
+      onPointerMove={e => {
+        if (e.pointerType === 'touch') return
+        const r = e.currentTarget.getBoundingClientRect()
+        mx.set((e.clientX - r.left - r.width / 2) * strength)
+        my.set((e.clientY - r.top - r.height / 2) * strength)
+      }}
+      onPointerLeave={() => {
+        mx.set(0)
+        my.set(0)
+      }}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
+/** A Sweep that plays once, the first time its parent scrolls into view. Parent needs relative + overflow-hidden. */
+export function SweepInView({ tone, className = '', delay = 0.3 }: { tone?: string; className?: string; delay?: number }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const inView = useInView(ref, { once: true, margin: '0px 0px -15% 0px' })
+  const [go, setGo] = useState(false)
+  useEffect(() => {
+    if (!inView) return
+    const id = window.setTimeout(() => setGo(true), delay * 1000)
+    return () => window.clearTimeout(id)
+  }, [inView, delay])
+  return (
+    <span ref={ref} aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
+      {go && <Sweep trigger="once" tone={tone} className={className} />}
     </span>
   )
 }

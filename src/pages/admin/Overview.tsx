@@ -9,6 +9,9 @@ import { STATUS_ORDER, districtName, eventByKey, statusName } from '../../lib/da
 import { formatDate, formatINR, useLang, useT } from '../../lib/i18n'
 import { useTitle } from '../../lib/ui'
 import { balanceDue, paidTotal, useStore, type Order } from '../../lib/store'
+import { useStudioStore } from '../../saas/store'
+import { formatBytes } from '../../saas/usage'
+import { wingTotals } from './photographers/helpers'
 import { AC, AvatarStack, PageHeader, Panel, StatusPill, WaBubble, daysUntil, inDays, relTime } from './kit'
 
 const copy = {
@@ -52,6 +55,17 @@ const copy = {
   viewAll: { en: 'View all', ta: 'அனைத்தும்' },
   client: { en: 'to client', ta: 'வாடிக்கையாளருக்கு' },
   worker: { en: 'to crew', ta: 'குழுவினருக்கு' },
+  phWing: { en: 'Manage photography clients', ta: 'புகைப்படக் கலைஞர் வாடிக்கையாளர்கள்' },
+  phActive: { en: 'Active studios', ta: 'செயலில் உள்ள ஸ்டுடியோக்கள்' },
+  phActiveSub: { en: 'paused', ta: 'இடைநிறுத்தம்' },
+  phAwaiting: { en: 'Galleries awaiting selection', ta: 'தேர்வுக்குக் காத்திருக்கும் கேலரிகள்' },
+  phAwaitingSub: { en: 'galleries opened this month', ta: 'இம்மாதம் திறந்தவை' },
+  phExpiring: { en: 'Expiring in 14 days', ta: '14 நாளில் முடிவடைபவை' },
+  phExpiringSub: { en: 'proof storage', ta: 'படச் சேமிப்பு' },
+  phDues: { en: 'Studio dues', ta: 'ஸ்டுடியோ நிலுவை' },
+  phDuesSub: { en: 'first payments and renewals', ta: 'முதல் கட்டணமும் புதுப்பித்தலும்' },
+  phPending: { en: 'Pending payments', ta: 'நிலுவைக் கட்டணங்கள்' },
+  phPendingSub: { en: 'sign-ups waiting to pay', ta: 'கட்டணத்துக்குக் காத்திருக்கும் பதிவுகள்' },
 }
 
 function greeting(t: { morning: string; afternoon: string; evening: string }) {
@@ -68,6 +82,16 @@ export default function Overview() {
   const workers = useStore(s => s.workers)
   const leads = useStore(s => s.leads)
   useTitle({ en: 'Admin overview', ta: 'நிர்வாக மேலோட்டம்' })
+  const stStudios = useStudioStore(s => s.studios)
+  const stEvents = useStudioStore(s => s.events)
+  const stProofs = useStudioStore(s => s.proofs)
+  const stActivity = useStudioStore(s => s.activity)
+  const stTerms = useStudioStore(s => s.terms)
+  const stPlans = useStudioStore(s => s.plans)
+  const wing = useMemo(
+    () => wingTotals({ studios: stStudios, events: stEvents, proofs: stProofs, activity: stActivity, terms: stTerms, plans: stPlans }),
+    [stStudios, stEvents, stProofs, stActivity, stTerms, stPlans],
+  )
 
   const stats = useMemo(() => {
     const confirmed = orders.filter(o => o.status !== 'ENQUIRY')
@@ -119,7 +143,19 @@ export default function Overview() {
         <Kpi i={3} icon="clock" label={t.pending} value={stats.pending} money sub={`${stats.pendingCount} · ${t.pendingSub}`} to="/admin/orders?sort=balance" />
       </div>
 
-      <div className="mt-4 grid gap-4 md:mt-5 md:gap-5 lg:grid-cols-3">
+      <p className="t-label mb-3 mt-7 flex items-center gap-2 text-ink/45 md:mt-8">
+        <Icon name="camera" size={13} />
+        {t.phWing}
+      </p>
+      <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-5 [&>*:last-child]:col-span-2 xl:[&>*:last-child]:col-span-1">
+        <Kpi i={4} icon="camera" label={t.phActive} value={wing.active} sub={`${wing.paused} ${t.phActiveSub}`} to="/admin/photographers?status=active" />
+        <Kpi i={5} icon="clock" label={t.phExpiring} value={wing.expiringSoon} sub={`${formatBytes(wing.storage)} ${t.phExpiringSub}`} to="/admin/photographers?status=active" highlight={wing.expiringSoon > 0} />
+        <Kpi i={6} icon="image" label={t.phAwaiting} value={wing.awaitingSelection} sub={`${wing.galleriesThisMonth} ${t.phAwaitingSub}`} to="/admin/photographers?sort=usage" />
+        <Kpi i={7} icon="rupee" label={t.phDues} value={wing.dues} money sub={t.phDuesSub} to="/admin/photographers?sort=due" />
+        <Kpi i={8} icon="check" label={t.phPending} value={wing.pending} sub={t.phPendingSub} to="/admin/photographers/approvals" highlight={wing.pending > 0} />
+      </div>
+
+      <div className="mt-6 grid gap-4 md:mt-8 md:gap-5 lg:grid-cols-3">
         <Panel title={t.pipeline} subtitle={t.pipelineSub} icon="filter" className="lg:col-span-2" kolam action={<Link to="/admin/orders" className="text-[13px] font-medium text-ink/50 transition hover:text-ruby">{t.viewAll}</Link>}>
           <Pipeline data={stats.byStatus} unit={t.orders} />
         </Panel>
@@ -230,7 +266,7 @@ export default function Overview() {
   )
 }
 
-function Kpi({ i, icon, label, value, sub, money, highlight, to }: { i: number; icon: IconName; label: string; value: number; sub: string; money?: boolean; highlight?: boolean; to?: string }) {
+function Kpi({ i, icon, label, value, sub, money, highlight, to, display }: { i: number; icon: IconName; label: string; value: number; sub: string; money?: boolean; highlight?: boolean; to?: string; display?: string }) {
   const lang = useLang()
   const inner = (
     <>
@@ -241,7 +277,7 @@ function Kpi({ i, icon, label, value, sub, money, highlight, to }: { i: number; 
       </span>
       <p className={`relative mt-4 line-clamp-2 min-h-[2.75em] text-[12.5px] font-medium leading-snug md:mt-5 md:min-h-0 ${highlight ? 'text-white/65' : 'text-ink/55'}`}>{label}</p>
       <p className={`relative mt-1.5 whitespace-nowrap font-display font-medium leading-none tracking-tight ${lang === 'ta' ? 'text-[22px] sm:text-[28px] md:text-[34px]' : 'text-[25px] sm:text-[32px] md:text-[40px]'}`}>
-        <Counter to={value} prefix={money ? '₹' : ''} duration={1.6} />
+        {display ?? <Counter to={value} prefix={money ? '₹' : ''} duration={1.6} />}
       </p>
       <p className={`relative mt-2 truncate text-[12px] ${to ? 'pr-5' : ''} md:pr-0 ${highlight ? 'text-white/50' : 'text-ink/40'}`}>{sub}</p>
       {to && <Icon name="arrowUpRight" size={16} className={`absolute bottom-4 right-4 md:bottom-5 md:right-5 transition ${highlight ? 'text-white/40' : 'text-ink/20 group-hover:text-ruby'}`} />}

@@ -1,0 +1,32 @@
+{
+  "name": "ttc-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "LAN-first backend for The Treasure Capture (see docs/backend-plan.md)",
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/index.ts",
+    "start": "NODE_ENV=production tsx src/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p .",
+    "admin": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@fastify/cookie": "11.1.5",
+    "@fastify/multipart": "10.1.7",
+    "@fastify/rate-limit": "11.2.2",
+    "@fastify/static": "10.1.10",
+    "better-sqlite3": "13.0.3",
+    "fastify": "5.12.8",
+    "qrcode": "1.5.4",
+    "tsx": "4.23.15",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "9.6.0",
+    "@types/node": "22.20.5",
+    "@types/qrcode": "1.5.5",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
+  }
+}

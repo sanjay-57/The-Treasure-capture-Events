@@ -6,16 +6,23 @@ import {
   type ReactNode,
 } from "react"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
-import { Icon, type IconName } from "../../../components/Icon"
+import { Icon } from "../../../components/Icon"
 import { LangToggle } from "../../../components/layout/Nav"
-import { directionsUrl, rsvpUrl, type Invite } from "../../../lib/invite"
+import {
+  calendarUrl,
+  directionsUrl,
+  inviteDay,
+  mapEmbedUrl,
+  rsvpUrl,
+  timeLabel,
+  type Invite,
+  type InviteEvent,
+} from "../../../lib/invite"
 import { FORTUNES, nextFortune } from "../../../lib/fortunes"
 import type { Lang } from "../../../lib/i18n"
 import type { SceneState } from "./types"
 
 const copy = {
-  open: { en: "Open invitation", ta: "அழைப்பிதழைத் திறக்க" },
-  tapPrompt: { en: "Tap ceremonial latch to open", ta: "திறக்க பூட்டைத் தொடவும்" },
   skip: { en: "Skip animation", ta: "தவிர்க்க" },
   replay: { en: "Replay reveal", ta: "மீண்டும் பார்க்க" },
   directions: { en: "Directions", ta: "வழி" },
@@ -23,11 +30,14 @@ const copy = {
   map: { en: "Map & QR", ta: "வரைபடம்" },
   cookie: { en: "A fortune for you", ta: "உங்களுக்கு ஒரு வாழ்த்துச் சீட்டு" },
   cookieBtn: { en: "Fortune", ta: "வாழ்த்து" },
-  tapCookie: { en: "Tap the cookie", ta: "பிஸ்கட்டைத் தொடுங்கள்" },
   another: { en: "Another cookie", ta: "இன்னொரு பிஸ்கட்" },
   share: { en: "Share", ta: "பகிர்" },
   close: { en: "Close", ta: "மூடு" },
   sample: { en: "Sample invite", ta: "மாதிரி அழைப்பிதழ்" },
+  day: { en: "The day", ta: "நிகழ்ச்சி நிரல்" },
+  ourStory: { en: "Our story", ta: "எங்கள் கதை" },
+  muhurtham: { en: "Muhurtham", ta: "முகூர்த்தம்" },
+  calendar: { en: "Add to calendar", ta: "நாட்காட்டியில் சேர்" },
 }
 
 interface FrameworkProps {
@@ -97,7 +107,7 @@ export function CinematicFramework({
   const [state, setState] = useState<SceneState>(() =>
     reduce || size ? "opened" : "closed",
   )
-  const [sheet, setSheet] = useState<"map" | "cookie" | "share" | null>(null)
+  const [sheet, setSheet] = useState<"day" | "map" | "cookie" | "share" | null>(null)
 
   // Subtle pointer parallax on desktop
   const [parallax, setParallax] = useState<{ x: number; y: number }>({
@@ -263,6 +273,16 @@ export function CinematicFramework({
 
                 <button
                   type="button"
+                  onClick={() => setSheet("day")}
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white backdrop-blur-md transition hover:bg-black/80 hover:border-white/40 active:scale-95"
+                  title={t.day}
+                  aria-label={t.day}
+                >
+                  <Icon name="calendar" size={16} />
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setSheet("map")}
                   className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white backdrop-blur-md transition hover:bg-black/80 hover:border-white/40 active:scale-95"
                   title={t.map}
@@ -308,11 +328,25 @@ export function CinematicFramework({
           <SheetModal
             onClose={() => setSheet(null)}
             label={
-              sheet === "map" ? t.map : sheet === "cookie" ? t.cookie : t.share
+              sheet === "day"
+                ? t.day
+                : sheet === "map"
+                  ? t.map
+                  : sheet === "cookie"
+                    ? t.cookie
+                    : t.share
             }
             closeLabel={t.close}
             accentColor={accentColor}
           >
+            {sheet === "day" && (
+              <DayModalContent
+                invite={invite}
+                lang={lang}
+                labels={t}
+                accentColor={accentColor}
+              />
+            )}
             {sheet === "map" && <MapModalContent invite={invite} lang={lang} />}
             {sheet === "cookie" && (
               <FortuneModalContent
@@ -395,18 +429,98 @@ function SheetModal({
   )
 }
 
+/** "Our story", then every function with the muhurtham in date order, each with its own calendar link. */
+function DayModalContent({
+  invite,
+  lang,
+  labels,
+  accentColor,
+}: {
+  invite: Invite
+  lang: Lang
+  labels: Record<string, string>
+  accentColor: string
+}) {
+  const main: InviteEvent = {
+    name: labels.muhurtham,
+    date: invite.date,
+    time: invite.time,
+    venue: invite.venue,
+  }
+  const list = [...(invite.events ?? []), main].sort((a, b) =>
+    `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`),
+  )
+  return (
+    <div className="flex flex-col gap-4 py-2 text-left">
+      {invite.story && (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+          <p
+            className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.2em]"
+            style={{ color: accentColor }}
+          >
+            {labels.ourStory}
+          </p>
+          <p
+            className={
+              lang === "ta"
+                ? "font-['Noto_Serif_Tamil'] text-[15px] leading-relaxed text-white/90"
+                : "font-serif text-[17px] italic leading-snug text-white/90"
+            }
+          >
+            {invite.story}
+          </p>
+        </div>
+      )}
+      <ol className="relative flex flex-col gap-2.5 border-l border-white/15 pl-5">
+        {list.map((e, i) => (
+          <li key={i} className="relative">
+            <span
+              className="absolute -left-[25px] top-4 h-2.5 w-2.5 rotate-45"
+              style={{ background: e === main ? accentColor : "rgba(255,255,255,0.4)" }}
+            />
+            <div
+              className="flex items-center justify-between gap-3 rounded-2xl border bg-white/[0.04] px-4 py-3"
+              style={{ borderColor: e === main ? accentColor : "rgba(255,255,255,0.1)" }}
+            >
+              <div className="min-w-0">
+                <p
+                  className="truncate text-[15px] font-semibold"
+                  style={{ color: e === main ? accentColor : "#FAF8F5" }}
+                >
+                  {e.name}
+                </p>
+                <p className="text-[12px] text-white/60">
+                  {inviteDay(e.date, lang)}
+                  {e.time ? ` · ${timeLabel(e.time, lang)}` : ""}
+                </p>
+                {e.venue && <p className="truncate text-[12px] text-white/50">{e.venue}</p>}
+              </div>
+              <a
+                href={calendarUrl(invite, e === main ? undefined : e)}
+                target="_blank"
+                rel="noreferrer"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/20 text-white/85 transition hover:bg-white/10"
+                title={labels.calendar}
+                aria-label={`${labels.calendar}: ${e.name}`}
+              >
+                <Icon name="calendar" size={15} />
+              </a>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
+}
+
 function MapModalContent({ invite, lang }: { invite: Invite; lang: Lang }) {
-  const where =
-    invite.lat && invite.lng
-      ? `${invite.lat},${invite.lng}`
-      : encodeURIComponent(invite.venue)
-  const embedUrl = `https://www.google.com/maps?q=${where}&output=embed`
+  const embedUrl = mapEmbedUrl(invite)
 
   return (
     <div className="flex flex-col gap-4 py-2">
       <div className="relative h-60 w-full overflow-hidden rounded-2xl border border-white/10">
         <iframe
-          title="Venue Map"
+          title={lang === "ta" ? "மண்டப வரைபடம்" : "Venue map"}
           src={embedUrl}
           className="h-full w-full border-0"
           loading="lazy"

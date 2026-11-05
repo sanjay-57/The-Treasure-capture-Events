@@ -153,9 +153,9 @@ export default function Showroom() {
   const pick = (tier: FixedTier) =>
     changeCart(cart.tier === tier ? { ...cart, tier: 'custom', variant: undefined, album: undefined, items: {} } : packageCart(c.eventType, tier, cartHours(cart)))
 
-  const save = () => {
+  const save = async () => {
     if (!ready) return toast(t.need, 'ruby')
-    const id = saveShowroomQuote({
+    const id = await saveShowroomQuote({
       ...EMPTY_DRAFT,
       name: c.name.trim(),
       contact: c.contact,

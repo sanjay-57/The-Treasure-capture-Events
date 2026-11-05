@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router'
 import { AnimatePresence, motion, useMotionValueEvent, useScroll } from 'motion/react'
 import { useLenis } from 'lenis/react'
@@ -129,6 +129,7 @@ export function Nav() {
   const [scrolled, setScrolled] = useState(false)
   const [hidden, setHidden] = useState(false)
   const [open, setOpen] = useState(false)
+  const headerRef = useRef<HTMLElement>(null)
 
   useMotionValueEvent(scrollY, 'change', y => {
     const prev = scrollY.getPrevious() ?? 0
@@ -138,6 +139,18 @@ export function Nav() {
 
   useEffect(() => setOpen(false), [pathname])
   useEffect(() => useUi.setState({ navHidden: hidden }), [hidden])
+  // Publish the real header height (nav + order status pill) so sticky bars clear it.
+  useEffect(() => {
+    const el = headerRef.current
+    if (!el) return
+    const root = document.documentElement
+    const ro = new ResizeObserver(() => root.style.setProperty('--nav-h', `${el.offsetHeight}px`))
+    ro.observe(el)
+    return () => {
+      ro.disconnect()
+      root.style.removeProperty('--nav-h')
+    }
+  }, [])
   useEffect(() => {
     if (open) lenis?.stop()
     else lenis?.start()
@@ -153,12 +166,16 @@ export function Nav() {
   // Clear glass over a dark hero, dark glass on fully dark pages, light glass otherwise.
   const onDark = navOnDark === 'page' || (navOnDark === 'hero' && !scrolled)
   const solidDark = navOnDark === 'page' && scrolled
-  const accountTo = session?.role === 'admin' ? '/admin' : session?.role === 'client' ? '/dashboard' : '/login'
-  const accountLabel = session?.role === 'admin' ? t.admin : session?.role === 'client' ? t.dashboard : t.login
+  // The nav is for clients only; staff reach the admin through the footer's staff login.
+  const accountTo = session?.role === 'client' ? '/dashboard' : '/login'
+  const accountLabel = session?.role === 'client' ? t.dashboard : t.login
+  // Tamil labels run longer, so the inline links need the wider breakpoint before they fit.
+  const ta = lang === 'ta'
 
   return (
     <>
       <motion.header
+        ref={headerRef}
         className="fixed inset-x-0 top-0 z-50 pt-[env(safe-area-inset-top)]"
         animate={{ y: hidden ? '-110%' : '0%' }}
         transition={{ duration: 0.5, ease: EASE }}
@@ -172,16 +189,18 @@ export function Nav() {
             }`}
             aria-label="Main"
           >
-            <Logo light={onDark} />
+            <div className="shrink-0">
+              <Logo light={onDark} />
+            </div>
 
-            <ul className={`absolute left-1/2 hidden -translate-x-1/2 items-center lg:flex ${lang === 'ta' ? 'gap-0' : 'gap-1'}`}>
+            <ul className={`hidden min-w-0 flex-1 items-center justify-center px-3 ${ta ? 'gap-0 xl:flex' : 'gap-0.5 lg:flex xl:gap-1'}`}>
               {LINKS.map(l => (
                 <li key={l.to}>
                   <NavLink
                     to={l.to}
                     end={l.to === '/'}
                     className={({ isActive }) =>
-                      `relative block rounded-full py-2 font-medium transition-colors duration-300 ${lang === 'ta' ? 'px-2.5 text-[13px]' : 'px-3.5 text-[14px]'} ${
+                      `relative block whitespace-nowrap rounded-full py-2 font-medium transition-colors duration-300 ${ta ? 'px-2.5 text-[13px]' : 'px-3 text-[14px] xl:px-3.5'} ${
                         isActive ? (onDark ? 'text-white' : 'text-ink') : onDark ? 'text-white/70 hover:text-white' : 'text-ink/60 hover:text-ink'
                       }`
                     }
@@ -197,17 +216,18 @@ export function Nav() {
               ))}
             </ul>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex shrink-0 items-center gap-1.5">
               <LangToggle dark={onDark} className="max-sm:hidden" />
               <Link
                 to={accountTo}
                 aria-label={accountLabel}
                 title={accountLabel}
-                className={`hidden h-10 w-10 items-center justify-center rounded-full transition md:flex ${onDark ? 'text-white/80 hover:bg-white/10 hover:text-white' : 'text-ink/65 hover:bg-ink/[0.05] hover:text-ink'}`}
+                className={`hidden h-10 items-center gap-1.5 whitespace-nowrap rounded-full border text-[13.5px] font-medium transition md:flex ${ta ? 'w-10 justify-center' : 'w-10 justify-center xl:w-auto xl:px-4'} ${onDark ? 'border-white/25 text-white/90 hover:bg-white/10 hover:text-white' : 'border-ink/15 text-ink/75 hover:bg-ink/[0.05] hover:text-ink'}`}
               >
-                <Icon name={session ? 'dashboard' : 'users'} size={18} />
+                <Icon name={session?.role === 'client' ? 'dashboard' : 'users'} size={16} />
+                {!ta && <span className="hidden xl:inline">{accountLabel}</span>}
               </Link>
-              <Button to="/book" size="sm" className="!h-10 !px-5 max-md:hidden">
+              <Button to="/book" size="sm" className="!h-10 whitespace-nowrap !px-5 max-md:hidden">
                 {t.book}
               </Button>
               <button
@@ -215,7 +235,7 @@ export function Nav() {
                 onClick={() => setOpen(o => !o)}
                 aria-label={open ? (lang === 'ta' ? 'மூடு' : 'Close menu') : lang === 'ta' ? 'பட்டியல்' : 'Menu'}
                 aria-expanded={open}
-                className={`flex h-11 w-11 items-center justify-center rounded-full transition lg:hidden cursor-pointer ${onDark ? 'text-white hover:bg-white/10' : 'text-ink hover:bg-ink/5'}`}
+                className={`flex h-11 w-11 items-center justify-center rounded-full transition cursor-pointer ${ta ? 'xl:hidden' : 'lg:hidden'} ${onDark ? 'text-white hover:bg-white/10' : 'text-ink hover:bg-ink/5'}`}
               >
                 <Icon name={open ? 'x' : 'menu'} size={20} />
               </button>
@@ -252,7 +272,7 @@ function MobileMenu({ open, onClose, accountTo, accountLabel }: { open: boolean;
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-40 lg:hidden"
+          className={`fixed inset-0 z-40 ${lang === 'ta' ? 'xl:hidden' : 'lg:hidden'}`}
           initial={{ clipPath: 'circle(0% at calc(100% - 44px) 44px)' }}
           animate={{ clipPath: 'circle(150% at calc(100% - 44px) 44px)' }}
           exit={{ clipPath: 'circle(0% at calc(100% - 44px) 44px)' }}

@@ -61,6 +61,7 @@ const copy = {
   doneLead: { en: 'The gallery is now read-only. Need a change? Message the studio and we’ll reopen it.', ta: 'கேலரி இப்போது பார்வைக்கு மட்டும். மாற்றம் வேண்டுமா? ஸ்டுடியோவுக்குச் செய்தி அனுப்புங்கள், மீண்டும் திறப்போம்.' },
   submittedOn: { en: 'Submitted', ta: 'சமர்ப்பித்தது' },
   designAlbum: { en: 'Design your album', ta: 'ஆல்பம் வடிவமை' },
+  watchAlbum: { en: 'Watch e-album', ta: 'இ-ஆல்பம் பார்க்க' },
   finalised: { en: 'Your selection was finalised with the studio in person.', ta: 'உங்கள் தேர்வு ஸ்டுடியோவில் நேரில் இறுதி செய்யப்பட்டது.' },
 }
 
@@ -680,9 +681,14 @@ function Submitted({ order }: { order: Order }) {
               <p className="mt-1 text-[13px] text-ink/50">{t.doneLead}</p>
             </div>
           </div>
-          <Button to="/dashboard/album" icon="arrowRight" className="shrink-0">
-            {t.designAlbum}
-          </Button>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button to="/dashboard/album/view" variant="outline" iconLeft="play">
+              {t.watchAlbum}
+            </Button>
+            <Button to="/dashboard/album" icon="arrowRight">
+              {t.designAlbum}
+            </Button>
+          </div>
         </Card>
       </Reveal>
 

@@ -407,7 +407,7 @@ function ContactForm() {
             </div>
 
             <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <Button type="submit" size="lg" icon="send" className="w-full sm:w-auto">{t.send}</Button>
+              <Button magnetic type="submit" size="lg" icon="send" className="w-full sm:w-auto">{t.send}</Button>
               <p className="text-center text-[12px] leading-relaxed text-ink/45 sm:max-w-xs sm:text-left">
                 {t.consent}{' '}
                 <Link to="/privacy" className="underline decoration-ink/20 underline-offset-2 hover:text-ruby">{c.privacy}</Link>

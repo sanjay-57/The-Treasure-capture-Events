@@ -3,7 +3,7 @@ import { DISTRICTS } from './data'
 import { STORIES } from './gallery'
 import { landingCopy } from './landing'
 import {
-  LANDING_EVENTS, LANDING_EVENT_SLUGS, PUBLIC_ROUTES, SITE_URL, indexablePaths, landingPath, landingPaths, langFromSearch, langUrl, parseLandingSlug, sitemapXml, withLangParam,
+  LANDING_EVENTS, LANDING_EVENT_SLUGS, PUBLIC_ROUTES, PHOTOGRAPHER_ROUTES, SITE_URL, indexablePaths, landingPath, landingPaths, langFromSearch, langUrl, parseLandingSlug, sitemapXml, withLangParam,
 } from './seo'
 
 describe('indexable paths', () => {
@@ -13,7 +13,8 @@ describe('indexable paths', () => {
     expect(landingPaths()).toHaveLength(DISTRICTS.length * LANDING_EVENTS.length)
     expect(landingPaths()).toHaveLength(96)
     const all = indexablePaths()
-    expect(all).toHaveLength(PUBLIC_ROUTES.length + STORIES.length + 96)
+    expect(all).toHaveLength(PUBLIC_ROUTES.length + PHOTOGRAPHER_ROUTES.length + STORIES.length + 96)
+    expect(all).toContain('/for-photographers/poses')
     expect(new Set(all).size).toBe(all.length)
     expect(all).toContain('/photography/madurai/wedding')
     expect(all).toContain('/photography/theni/puberty-ceremony')

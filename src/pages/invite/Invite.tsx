@@ -43,23 +43,14 @@ import {
   type ThemeStyle,
 } from "./themes"
 import { coupleUrl } from "./caricature"
-import {
-  isCinematicTheme,
-  ChettinadCourtyard,
-  KanjivaramCeremony,
-  LotusMandapam,
-  RoyalJharokha,
-  MoonlitJasmine,
-  KolamKeepsake,
-  MarigoldMandap,
-  MayilMandapam,
-  SheeshMahal,
-  UtsavRangoli,
-  TempleHallway,
-} from "./cinematic"
+import { StoryInvite, StoryThumb } from "./story/StoryInvite"
+import { isStoryTheme, sheetStyle, storyTheme } from "./story/theme"
+import { CinematicInvite, isCinematicTheme } from "./cinematic"
 
 /*
- * The invite page (roadmap 6.6): one screen, no scrolling. Names, the date,
+ * The invite page (roadmap 6.6). Links open the story page (story/): an
+ * opening ritual, then a scrolling page. Below is the classic single-screen
+ * card, used by the classic designs' card layout and their PNG: one screen, no scrolling. Names, the date,
  * the venue, a live countdown and the actions (directions, RSVP, map & QR,
  * fortune cookie, share) all fit the phone; the map, the cookie and sharing
  * open as sheets over it. The fortune cookie greets every guest: it opens and
@@ -117,8 +108,8 @@ const copy = {
   open: { en: "Tap to open", ta: "திறக்கத் தொடுங்கள்" },
 }
 
-type Labels = Record<keyof typeof copy, string>
-const labels = (lang: Lang) =>
+export type Labels = Record<keyof typeof copy, string>
+export const labels = (lang: Lang) =>
   Object.fromEntries(
     Object.entries(copy).map(([k, v]) => [k, v[lang]]),
   ) as Labels
@@ -147,14 +138,20 @@ const store = {
 export default function InvitePage() {
   const lang = useLang()
   const { theme } = useParams()
-  const { hash } = useLocation()
+  const { hash, search } = useLocation()
   const payload = hash.replace(/^#/, "")
+  // The sample (no payload) can be opened in any layout: /i/lotus?layout=cinematic
+  const sampleLayout = new URLSearchParams(search).get("layout")
   const invite = useMemo(
     () =>
       payload
         ? decodeInvite(payload)
-        : { ...SAMPLE, theme: toTheme(theme) ?? SAMPLE.theme },
-    [payload, theme],
+        : {
+            ...SAMPLE,
+            theme: toTheme(theme) ?? SAMPLE.theme,
+            layout: sampleLayout === "card" || sampleLayout === "cinematic" ? sampleLayout : SAMPLE.layout,
+          },
+    [payload, theme, sampleLayout],
   )
   const t = labels(lang)
 
@@ -184,7 +181,11 @@ export default function InvitePage() {
       </div>
     )
   }
-  const s = themeStyle(invite.theme)
+  // Story pages (and story designs' cards) colour their sheets from the story theme.
+  const s =
+    invite.layout === "card" && !isStoryTheme(invite.theme)
+      ? themeStyle(invite.theme)
+      : sheetStyle(storyTheme(invite.theme))
   return (
     <InviteView
       invite={invite}
@@ -243,34 +244,35 @@ export function InviteView({
   share?: ReactNode
   onReady?: () => void
 }) {
-  if (isCinematicTheme(invite.theme)) {
-    const props = { invite, lang, sample, size, still, art, share, onReady }
-    switch (invite.theme) {
-      case "athangudi":
-        return <ChettinadCourtyard {...props} />
-      case "kanjivaram":
-        return <KanjivaramCeremony {...props} />
-      case "lotus":
-        return <LotusMandapam {...props} />
-      case "ruby":
-        return <RoyalJharokha {...props} />
-      case "moonlit":
-        return <MoonlitJasmine {...props} />
-      case "kolam":
-        return <KolamKeepsake {...props} />
-      case "marigold":
-        return <MarigoldMandap {...props} />
-      case "peacock":
-        return <MayilMandapam {...props} />
-      case "emerald":
-        return <SheeshMahal {...props} />
-      case "rangoli":
-        return <UtsavRangoli {...props} />
-      case "lamp":
-        return <TempleHallway {...props} />
-    }
-  }
+  const props = { invite, lang, sample, size, still, art, share, onReady }
+  // The 3D scene, where the design has one; its PNG is the story card below.
+  if (invite.layout === "cinematic" && !still && isCinematicTheme(invite.theme))
+    return <CinematicInvite theme={invite.theme} {...props} />
+  // The story page serves every design; the still card is drawn per design (classic) or by the story module.
+  if (!(still || invite.layout === "card") || isStoryTheme(invite.theme))
+    return <StoryInvite {...props} />
+  return <ClassicInvite {...props} />
+}
 
+function ClassicInvite({
+  invite,
+  lang,
+  sample = false,
+  size,
+  still = false,
+  art,
+  share,
+  onReady,
+}: {
+  invite: Invite
+  lang: Lang
+  sample?: boolean
+  size?: { w: number; h: number }
+  still?: boolean
+  art?: string
+  share?: ReactNode
+  onReady?: () => void
+}) {
   const t = labels(lang)
   const s = themeStyle(invite.theme)
   const reduce = useReducedMotion() || still
@@ -1490,7 +1492,7 @@ function ActionBar({
   )
 }
 
-function Sheet({
+export function Sheet({
   s,
   label,
   t,
@@ -1563,7 +1565,7 @@ function Sheet({
   )
 }
 
-function MapSheet({
+export function MapSheet({
   invite,
   s,
   t,
@@ -1762,6 +1764,17 @@ export function ThemeThumb({
   initials: string
   className?: string
 }) {
+  if (isStoryTheme(theme))
+    return (
+      <span className={`relative block overflow-hidden ${className}`}>
+        <StoryThumb theme={theme} initials={initials} />
+        {isCinematicTheme(theme) && (
+          <span className="absolute bottom-1 right-1 z-20 rounded border border-amber-400/50 bg-black/75 px-1 py-0.5 text-[8.5px] font-bold uppercase leading-none tracking-wider text-amber-300">
+            3D
+          </span>
+        )}
+      </span>
+    )
   const s = themeStyle(theme)
   const premium = isPremium(theme)
   return (
@@ -1880,16 +1893,11 @@ export function ThemeThumb({
       >
         {initials}
       </span>
-      {isCinematicTheme(theme) && (
-        <span className="absolute bottom-1 right-1 z-20 rounded bg-black/80 px-1 py-0.5 text-[8.5px] font-bold tracking-wider text-amber-300 border border-amber-400/50 uppercase backdrop-blur-sm shadow">
-          3D
-        </span>
-      )}
     </span>
   )
 }
 
-function FortuneCookie({
+export function FortuneCookie({
   labels,
   lang,
   s,

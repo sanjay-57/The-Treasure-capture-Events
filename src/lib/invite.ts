@@ -1,8 +1,10 @@
 /*
  * E-invites without a server: the whole invite travels in the URL fragment as
- * base64url JSON, `/i/<theme>#<payload>`. Twenty-nine single-screen designs,
- * twelve free and seventeen premium; old links with the retired `gopuram` id
- * open as Lantern Night. When the backend lands, the same page reads
+ * base64url JSON, `/i/<theme>#<payload>`. Twenty-nine designs, twelve free
+ * and seventeen premium, each in two layouts: the story page (an opening
+ * ritual, then a scroll through the day) and the single card (also the PNG).
+ * Eleven of them also have a 3D cinematic scene (pages/invite/cinematic).
+ * Old links with the retired `gopuram` id open as Lantern Night. When the backend lands, the same page reads
  * `/api/invite/<code>` instead and links shrink to `/i/abc123`.
  * Keep this file free of React imports.
  */
@@ -73,6 +75,26 @@ export function toTheme(s: unknown): InviteTheme | null {
     : null
 }
 
+/** The invocation at the top of the invite: Pillaiyar Suzhi / Shree Ganeshay Namah, Bismillah, a cross, or none. */
+
+export type Tradition = "hindu" | "muslim" | "christian" | "none"
+
+/**
+ * `story` opens with a ritual into a scrolling page; `card` is the single still card (also the PNG);
+ * `cinematic` is the 3D scene, for the designs that have one (others show their story page).
+ */
+
+export type InviteLayout = "story" | "card" | "cinematic"
+
+/** One function of the wedding (Nichayathartham, Mehendi, Reception…), as the couple typed it. */
+
+export interface InviteEvent {
+  name: string
+  date: string
+  time: string
+  venue?: string
+}
+
 export interface Invite {
   /** Names in English and Tamil: [bride, groom]. */
 
@@ -103,6 +125,22 @@ export interface Invite {
   theme: InviteTheme
 
   caricature?: string
+
+  /** Functions besides the muhurtham; the story page lists them on a timeline. */
+
+  events?: InviteEvent[]
+
+  /** Missing on old links: no invocation. */
+
+  tradition?: Tradition
+
+  /** Missing means `story`. */
+
+  layout?: InviteLayout
+
+  /** A line or two of "our story" for the story page. */
+
+  story?: string
 }
 
 // Short keys keep the fragment near 300 bytes.
@@ -119,7 +157,14 @@ type Wire = {
   w?: string
   m: InviteTheme
   c?: string
+  x?: [string, string, string, string?][]
+  r?: "h" | "m" | "c"
+  y?: "c" | "3"
+  s?: string
 }
+
+const TRAD_WIRE = { hindu: "h", muslim: "m", christian: "c" } as const
+const TRAD_BACK = { h: "hindu", m: "muslim", c: "christian" } as const
 
 const toB64Url = (s: string) => {
   const bytes = new TextEncoder().encode(s)
@@ -162,6 +207,16 @@ export function encodeInvite(i: Invite): string {
 
   if (i.caricature) w.c = i.caricature
 
+  if (i.events?.length)
+    w.x = i.events.map((e) => (e.venue ? [e.name, e.date, e.time, e.venue] : [e.name, e.date, e.time]))
+
+  if (i.tradition && i.tradition !== "none") w.r = TRAD_WIRE[i.tradition]
+
+  if (i.layout === "card") w.y = "c"
+  else if (i.layout === "cinematic") w.y = "3"
+
+  if (i.story) w.s = i.story
+
   return toB64Url(JSON.stringify(w))
 }
 
@@ -197,6 +252,16 @@ export function decodeInvite(payload: string): Invite | null {
       lng: w.l?.[1],
       phone: w.w,
       caricature: w.c,
+
+      events: Array.isArray(w.x)
+        ? w.x
+            .filter((e) => Array.isArray(e) && typeof e[0] === "string")
+            .map(([name, date, time, venue]) => ({ name, date: date ?? "", time: time ?? "", venue }))
+        : undefined,
+
+      tradition: w.r && w.r in TRAD_BACK ? TRAD_BACK[w.r] : undefined,
+      layout: w.y === "c" ? "card" : w.y === "3" ? "cinematic" : undefined,
+      story: typeof w.s === "string" ? w.s : undefined,
     }
   } catch {
     return null
@@ -219,6 +284,22 @@ export const mapEmbedUrl = (i: Invite) =>
 
 export const directionsUrl = (i: Invite) =>
   `https://www.google.com/maps/dir/?api=1&destination=${where(i)}`
+
+/** "Add to Google Calendar" for the muhurtham (or another function), three hours long, India time. */
+
+export function calendarUrl(i: Invite, e?: InviteEvent): string {
+  const date = (e?.date ?? i.date).replace(/-/g, "")
+  const [h, m] = /^\d{1,2}:\d{2}$/.test(e?.time ?? i.time) ? (e?.time ?? i.time).split(":").map(Number) : [9, 0]
+  const at = (hh: number) => `${date}T${String(Math.min(23, hh)).padStart(2, "0")}${String(m).padStart(2, "0")}00`
+  const q = new URLSearchParams({
+    action: "TEMPLATE",
+    text: `${i.en[0]} & ${i.en[1]}${e ? ` · ${e.name}` : " · Wedding"}`,
+    dates: `${at(h)}/${at(h + 3)}`,
+    ctz: "Asia/Kolkata",
+    location: [e?.venue ?? i.venue, e?.venue ? "" : i.address ?? ""].filter(Boolean).join(", "),
+  })
+  return `https://calendar.google.com/calendar/render?${q}`
+}
 
 /** RSVP on WhatsApp to the couple, with the "We'll be there" message prefilled. */
 
@@ -285,12 +366,12 @@ export const THEME_META: Record<InviteTheme, {
   },
 
   kolam: {
-    name: { en: "Kolam Keepsake 3D", ta: "கோலப் பெட்டகம் 3D" },
+    name: { en: "Kolam Gatefold", ta: "கோல மடிப்பு" },
     blurb: {
-      en: "Heirloom rosewood keepsake box with self-tracing kolam",
-      ta: "மரப் பெட்டகம், தானாக வரையும் கோலம், பித்தளைப் பூட்டு",
+      en: "Red-oxide gatefold; the kolam draws itself before it opens",
+      ta: "சிவப்புத் தரை மடிப்பு, தானாக வரையும் கோலம்",
     },
-    swatch: ["#341208", "#DC2626"],
+    swatch: ["#7a2418", "#f6efe2"],
   },
 
   mono: {
@@ -303,12 +384,12 @@ export const THEME_META: Record<InviteTheme, {
   },
 
   marigold: {
-    name: { en: "Grand Marigold Mandap 3D", ta: "செண்டுமல்லி மண்டபம் 3D" },
+    name: { en: "Marigold Strings", ta: "செண்டுமல்லி சரங்கள்" },
     blurb: {
-      en: "Cascading genda phool canopy, brass temple bells & rose petal shower",
-      ta: "செண்டுமல்லி மாலைத் தோரணம், கோவில் மணி, ரோஜா இதழ் மழை",
+      en: "A curtain of marigold strands parts, petals drift down",
+      ta: "செண்டுமல்லி சரத் திரை விலகி இதழ் மழை",
     },
-    swatch: ["#451A03", "#F59E0B"],
+    swatch: ["#f6a21a", "#7a1f0e"],
   },
 
   blush: {
@@ -330,12 +411,12 @@ export const THEME_META: Record<InviteTheme, {
   },
 
   lamp: {
-    name: { en: "The Temple Atelier 3D", ta: "கோவில் சிற்பக்கூடம் 3D" },
+    name: { en: "Temple Doors", ta: "கோவில் கதவுகள்" },
     blurb: {
-      en: "Contemporary architectural exhibition of a miniature temple pavilion with lifting roof & keepsake folio",
-      ta: "நவீன கலைக்கூடத்தில் கோவில் சிற்ப மாதிரி மண்டபம், திறக்கும் கூரை & சுவடி",
+      en: "Brass-studded temple doors open to a row of glowing deepams",
+      ta: "பித்தளைக் கதவுகள் திறந்து தீப வரிசை",
     },
-    swatch: ["#F5F1E8", "#A7864A"],
+    swatch: ["#2a1406", "#f0b545"],
   },
 
   pattu: {
@@ -348,12 +429,12 @@ export const THEME_META: Record<InviteTheme, {
   },
 
   moonlit: {
-    name: { en: "Moonlit Jasmine 3D", ta: "நிலா மல்லிகை 3D" },
+    name: { en: "Moonlit Jasmine", ta: "நிலவு மல்லிகை" },
     blurb: {
-      en: "Evening garden, swaying jasmine garlands & moonlit panel",
-      ta: "மாலைத் தோட்டம், ஊஞ்சல், தொங்கும் மல்லிகைச் சரம்",
+      en: "Midnight envelope, jasmine wax seal, a sky of slow stars",
+      ta: "நள்ளிரவு உறை, மல்லிகை முத்திரை, நட்சத்திர வானம்",
     },
-    swatch: ["#152244", "#60A5FA"],
+    swatch: ["#0f1733", "#e7e2cf"],
   },
 
   rose: {
@@ -384,21 +465,21 @@ export const THEME_META: Record<InviteTheme, {
   },
 
   kanjivaram: {
-    name: { en: "Kanjivaram Ceremony 3D", ta: "காஞ்சிப் பட்டு 3D" },
+    name: { en: "Kanjivaram Silk", ta: "காஞ்சிப் பட்டு" },
     blurb: {
-      en: "Sculptural silk folds, golden zari borders & brass medallion",
-      ta: "அரக்குப் பட்டு மடிப்புகள், ஜரிகைப் பட்டைகள், பித்தளை முத்திரை",
+      en: "Silk pallu curtains with a zari border draw apart",
+      ta: "சரிகைப் பட்டுத் திரை விலகும்",
     },
-    swatch: ["#450A18", "#EAB308"],
+    swatch: ["#5a0d2c", "#e2b450"],
   },
 
   ruby: {
-    name: { en: "Royal Jharokha 3D", ta: "ராஜ ஜரோகா 3D" },
+    name: { en: "Jharokha Arch", ta: "ஜரோகா வளைவு" },
     blurb: {
-      en: "Sandstone palace arch, carved jaali screens & royal seal",
-      ta: "அரண்மனை ஜன்னல், ஜாலி திரைகள், அரச முத்திரை",
+      en: "Arched ruby door wrapped in bougainvillea, light spills through",
+      ta: "பூகெய்ன்வில்லா சூழ்ந்த வளைவுக் கதவு",
     },
-    swatch: ["#4C0519", "#F43F5E"],
+    swatch: ["#6e0f1f", "#e8b86a"],
   },
 
   banana: {
@@ -420,21 +501,21 @@ export const THEME_META: Record<InviteTheme, {
   },
 
   peacock: {
-    name: { en: "Mayil Mandapam 3D", ta: "மயில் மண்டபம் 3D" },
+    name: { en: "Mayil Peacock", ta: "மயில் தோகை" },
     blurb: {
-      en: "Royal peacock darbar, iridescent feather fan & emerald brooch",
-      ta: "ராஜ மயில் தோகை விசிறி, மரகதப் பதக்கம், பொன் ஜரிகை",
+      en: "Peacock-feather gatefold in teal and antique gold",
+      ta: "மயில் தோகை மடிப்பு, பச்சை, பழந்தங்கம்",
     },
-    swatch: ["#042F2E", "#14B8A6"],
+    swatch: ["#06363a", "#d6b25e"],
   },
 
   athangudi: {
-    name: { en: "Chettinad Courtyard 3D", ta: "செட்டிநாட்டு முற்றம் 3D" },
+    name: { en: "Chettinad Doors", ta: "செட்டிநாட்டுக் கதவுகள்" },
     blurb: {
-      en: "Carved timber doors, Athangudi floor, brass lamps & floral garland",
-      ta: "மரக் கதவுகள், ஆத்தங்குடி தரை, பித்தளை விளக்குகள், மலர் மாலை",
+      en: "Carved teak doors swing open onto an Athangudi-tiled courtyard",
+      ta: "தேக்குக் கதவுகள் திறந்து ஆத்தங்குடி முற்றம்",
     },
-    swatch: ["#2D1810", "#F59E0B"],
+    swatch: ["#3b1f12", "#d9a24a"],
   },
 
   sunburst: {
@@ -465,12 +546,12 @@ export const THEME_META: Record<InviteTheme, {
   },
 
   lotus: {
-    name: { en: "Lotus Mandapam 3D", ta: "தாமரை மண்டபம் 3D" },
+    name: { en: "Lotus Gatefold", ta: "தாமரை மடிப்பு" },
     blurb: {
-      en: "Sculpted lotus bloom in an ivory & gold temple pavilion",
-      ta: "கோயில் மண்டபத்தில் விரியும் சிற்பத் தாமரை மலர்",
+      en: "Paper lotuses, a gold medallion that splits and folds open",
+      ta: "காகிதத் தாமரை, திறக்கும் தங்கப் பதக்கம்",
     },
-    swatch: ["#201323", "#F472B6"],
+    swatch: ["#fbeef0", "#c2476b"],
   },
 
   madras: {
@@ -498,21 +579,21 @@ export const THEME_META: Record<InviteTheme, {
   },
 
   rangoli: {
-    name: { en: "Utsav Rangoli Mandala 3D", ta: "உற்சவ ரங்கோலி 3D" },
+    name: { en: "Rangoli Envelope", ta: "ரங்கோலி உறை" },
     blurb: {
-      en: "Concentric spinning 3D floral rangoli & glowing brass diya altar",
-      ta: "சுழலும் 3D மலர் ரங்கோலி, ஒளிரும் பித்தளை அகல் விளக்குகள்",
+      en: "Bright envelope with a rangoli seal and a burst of colour",
+      ta: "வண்ண உறை, ரங்கோலி முத்திரை, வண்ணச் சிதறல்",
     },
-    swatch: ["#3B0720", "#F43F5E"],
+    swatch: ["#ffe9c7", "#d4306a"],
   },
 
   emerald: {
-    name: { en: "Sheesh Mahal 3D", ta: "கண்ணாடி அரண்மனை 3D" },
+    name: { en: "Noor Arch", ta: "நூர் வளைவு" },
     blurb: {
-      en: "Thikri mirror mosaic arches, crystal chandeliers & emerald velvet",
-      ta: "கண்ணாடி மாளிகை வளைவுகள், சரவிளக்குகள், மரகத வெல்வெட்",
+      en: "Turquoise arch, white roses and hanging lanterns; Nikah-ready",
+      ta: "நீல வளைவு, வெள்ளை ரோஜா, தொங்கும் விளக்குகள்",
     },
-    swatch: ["#064E3B", "#10B981"],
+    swatch: ["#0f5257", "#f2ead3"],
   },
 
   confetti: {
@@ -632,6 +713,14 @@ export interface InviteDraft {
   /** A hosted caricature image. The uploaded one stays on the device and never enters the link. */
 
   caricatureUrl: string
+
+  events: InviteEvent[]
+
+  tradition: Tradition
+
+  layout: InviteLayout
+
+  story: string
 }
 
 export const BLANK_DRAFT: InviteDraft = {
@@ -650,6 +739,10 @@ export const BLANK_DRAFT: InviteDraft = {
   phone: "",
   theme: "ivory",
   caricatureUrl: "",
+  events: [],
+  tradition: "hindu",
+  layout: "story",
+  story: "",
 }
 
 /** Fields still needed before the link can be made. */
@@ -696,6 +789,18 @@ export function draftToInvite(d: InviteDraft): Invite {
   }
 
   if (d.phone.trim()) i.phone = d.phone.trim()
+
+  const events = (d.events ?? [])
+    .map((e) => ({ name: e.name.trim(), date: e.date, time: e.time, venue: e.venue?.trim() || undefined }))
+    .filter((e) => e.name && /^\d{4}-\d{2}-\d{2}$/.test(e.date))
+
+  if (events.length) i.events = events.slice(0, 6)
+
+  if (d.tradition && d.tradition !== "none") i.tradition = d.tradition
+
+  if (d.layout === "card" || d.layout === "cinematic") i.layout = d.layout
+
+  if (d.story?.trim()) i.story = d.story.trim().slice(0, 280)
 
   // Only hosted images travel in the link; data URLs would blow the fragment up.
 

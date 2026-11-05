@@ -758,6 +758,8 @@ export function fxParticles(s: ThemeStyle) {
 const FONT_SPECS: Record<string, string> = {
   'Playfair Display': 'Playfair+Display:ital,wght@0,400..900;1,400..900',
   'Great Vibes': 'Great+Vibes',
+  'Allura': 'Allura',
+  'Amiri': 'Amiri:wght@400;700',
   'Italiana': 'Italiana',
   'Bodoni Moda': 'Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900',
   'Abril Fatface': 'Abril+Fatface',

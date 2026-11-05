@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useLenis } from 'lenis/react'
 import { LangImg, ChoiceCard, Chip } from '../../components/ui'
 import { Icon } from '../../components/Icon'
-import { Stagger, StaggerItem, Reveal, EASE } from '../../components/motion'
+import { Stagger, StaggerItem, Reveal, Sweep, Tilt, EASE } from '../../components/motion'
 import { KolamCorner, Ornament } from '../../components/tamil'
 import { formatINR, useLang, useT } from '../../lib/i18n'
 import { useTitle } from '../../lib/ui'
@@ -103,7 +103,8 @@ function EventStep() {
         {EVENTS.filter(e => e.bucket === b.key && e.bookable !== false).map((e, i) => {
           const active = draft.eventType === e.key
           return (
-            <StaggerItem key={e.key}>
+            <StaggerItem key={e.key} className="h-full">
+              <Tilt className="h-full rounded-[22px]" max={6}>
               <button
                 type="button"
                 aria-pressed={active}
@@ -115,6 +116,7 @@ function EventStep() {
                 <div className="relative aspect-[4/3] w-full overflow-hidden">
                   <LangImg pair={e.img} w={480} ratio={4 / 3} sizes="(min-width: 768px) 200px, 50vw" className="absolute inset-0" imgClassName="transition-transform duration-[1.2s] ease-out group-hover:scale-[1.06]" priority={i < 4} />
                   <div className={`absolute inset-0 transition-colors duration-500 ${active ? 'bg-ruby/10' : 'bg-transparent'}`} />
+                  {active && <Sweep trigger={e.key} />}
                   <span
                     className={`absolute right-2.5 top-2.5 flex h-7 w-7 items-center justify-center rounded-full transition-all duration-500 ${active ? 'scale-100 bg-ruby text-white' : 'glass scale-90 text-transparent'}`}
                     aria-hidden="true"
@@ -131,6 +133,7 @@ function EventStep() {
                   </p>
                 </div>
               </button>
+              </Tilt>
             </StaggerItem>
           )
         })}
@@ -153,6 +156,7 @@ function EventStep() {
           const active = draft.crowd === c.key
           return (
             <StaggerItem key={c.key} className="h-full">
+              <Tilt className="h-full rounded-[22px]" max={4} glare={false}>
               <ChoiceCard active={active} onClick={() => updateDraft({ crowd: c.key })} className="h-full p-4 sm:p-5">
                 <span className="flex gap-0.5 text-ruby" aria-hidden="true">
                   {Array.from({ length: i + 1 }, (_, k) => (
@@ -165,6 +169,7 @@ function EventStep() {
                 </p>
                 <p className="mt-2 text-[12px] leading-snug text-ink/45">{c.note[lang]}</p>
               </ChoiceCard>
+              </Tilt>
             </StaggerItem>
           )
         })}

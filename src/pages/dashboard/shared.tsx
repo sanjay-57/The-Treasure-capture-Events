@@ -7,7 +7,7 @@ import { EASE, Reveal } from '../../components/motion'
 import { KolamCorner } from '../../components/tamil'
 import { formatDate, useLang, useT, type Bi, type Lang } from '../../lib/i18n'
 import { IMG, type ImgKey } from '../../lib/images'
-import { PROOF_CATEGORY, PROOF_EXTRAS, PROOF_SETS, STATUS_ORDER, statusName, type GalleryCover, type OrderStatus, type ProofCategory } from '../../lib/data'
+import { ALBUM, DEFAULT_ALBUM, PROOF_CATEGORY, PROOF_EXTRAS, PROOF_SETS, STATUS_ORDER, statusName, type AlbumSpec, type GalleryCover, type OrderStatus, type ProofCategory } from '../../lib/data'
 import { albumSheets } from '../../lib/catalogue'
 import type { Order } from '../../lib/store'
 
@@ -38,6 +38,27 @@ export const firstName = (name: string) => name.split(/\s*&\s*|\s+/)[0] || name
 export const includedSheets = (o: Order) => albumSheets(o.cart)
 /** How many proofs the album is designed around; soft-copy-only orders still pick a highlight set. */
 export const photoQuota = (o: Order) => albumSheets(o.cart) || 24
+
+// ─── Album defaults ──────────────────────────────────────────────────────────
+
+/** Starting spec for the studio and the e-album: package sheets, the couple's names and the event date. */
+export function albumDefaults(order: Order): AlbumSpec {
+  const d = order.date ? new Date(order.date) : null
+  const sub = d && !Number.isNaN(d.getTime()) ? `${String(d.getDate()).padStart(2, '0')} · ${String(d.getMonth() + 1).padStart(2, '0')} · ${d.getFullYear()}` : ''
+  const included = includedSheets(order)
+  return { ...DEFAULT_ALBUM, sheets: (ALBUM.sheetOptions as readonly number[]).includes(included) ? included : DEFAULT_ALBUM.sheets, title: order.client.name, subtitle: sub }
+}
+
+/** The saved design without its timestamp, or null when nothing was saved yet. */
+export const savedAlbum = (a?: AlbumSpec & { submittedAt?: string }): AlbumSpec | null =>
+  a ? { cover: a.cover, color: a.color, paper: a.paper, size: a.size, font: a.font, sheets: a.sheets, title: a.title, subtitle: a.subtitle, layout: a.layout } : null
+
+/** Client's own picks first, padded with proofs so a preview is never empty. */
+export function albumPhotos(order: Order, lang: Lang, min = 6, max = 18): ImgKey[] {
+  const own = order.selection.filter(isProof)
+  const pad = (lang === 'ta' ? PROOF_SETS.traditional : PROOF_SETS.modern).filter(p => !own.includes(p))
+  return [...own, ...pad].slice(0, Math.max(min, Math.min(own.length, max)))
+}
 
 // ─── Proof catalogue (mocked GCS listing) ────────────────────────────────────
 
@@ -261,10 +282,11 @@ export function Fact({ icon, label, value, sub }: { icon: IconName; label: strin
 
 // ─── Sections ────────────────────────────────────────────────────────────────
 
-export type SectionKey = 'overview' | 'track' | 'photos' | 'album' | 'billing' | 'invite' | 'review'
+export type SectionKey = 'overview' | 'poses' | 'track' | 'photos' | 'album' | 'billing' | 'invite' | 'review'
 
 export const SECTIONS: { key: SectionKey; to: string; icon: IconName; label: Bi; desc: Bi }[] = [
   { key: 'overview', to: '/dashboard', icon: 'dashboard', label: { en: 'Overview', ta: 'மேலோட்டம்' }, desc: { en: 'Everything at a glance', ta: 'அனைத்தும் ஒரே பார்வையில்' } },
+  { key: 'poses', to: '/dashboard/poses', icon: 'camera', label: { en: 'Poses', ta: 'போஸ்கள்' }, desc: { en: 'Pick the poses you love', ta: 'பிடித்த போஸ்களைத் தேர்வு' } },
   { key: 'track', to: '/dashboard/track', icon: 'clock', label: { en: 'Track', ta: 'நிலை' }, desc: { en: 'Every stage, as it happens', ta: 'ஒவ்வொரு கட்டமும் உடனுக்குடன்' } },
   { key: 'photos', to: '/dashboard/photos', icon: 'heart', label: { en: 'Photos', ta: 'படங்கள்' }, desc: { en: 'Choose favourites for the album', ta: 'ஆல்பத்திற்குப் பிடித்தவற்றைத் தேர்வு' } },
   { key: 'album', to: '/dashboard/album', icon: 'book', label: { en: 'Album', ta: 'ஆல்பம்' }, desc: { en: 'Cover, paper, size & type', ta: 'அட்டை, தாள், அளவு, எழுத்துரு' } },
@@ -278,6 +300,9 @@ export type SectionState = 'locked' | 'action' | 'done' | 'open'
 /** What each tab should signal: locked, needs the client's action, done, or simply open. */
 export function sectionState(o: Order, key: SectionKey): SectionState {
   switch (key) {
+    case 'poses':
+      if (!o.poses) return 'locked'
+      return o.poses.submittedAt ? 'done' : 'action'
     case 'photos':
       if (!photosUnlocked(o)) return 'locked'
       return selectionClosed(o) ? 'done' : 'action'
@@ -293,6 +318,38 @@ export function sectionState(o: Order, key: SectionKey): SectionState {
     default:
       return 'open'
   }
+}
+
+/** Commercial / ad shoots have no pose guide; the studio can also switch it off per order. */
+export const posesEnabled = (o: Order) => o.eventType !== 'commercial' && o.features?.poses !== false
+
+/** Sections the studio can switch off per order (admin → order → Customer settings). Missing flag = on. */
+const SECTION_FLAG: Partial<Record<SectionKey, 'gallery' | 'poses' | 'invite'>> = { photos: 'gallery', poses: 'poses', invite: 'invite' }
+
+/** False when the section's feature is off for this order (or poses don't apply). */
+export function sectionOn(o: Order, key: SectionKey): boolean {
+  if (key === 'poses') return posesEnabled(o)
+  const flag = SECTION_FLAG[key]
+  return !flag || o.features?.[flag] !== false
+}
+
+/** Section a /dashboard/... path belongs to. */
+export const sectionOfPath = (pathname: string): SectionKey | undefined => {
+  const seg = pathname.replace(/^\/dashboard\/?/, '').split('/')[0]
+  return SECTIONS.find(s => s.key === seg)?.key
+}
+
+/**
+ * Tabs to show. The phone bar holds six: the e-invite always lives on the
+ * overview tiles there, and the pose guide takes Track's slot while it needs
+ * the client (Track is one tap away on the overview).
+ */
+export function visibleSections(o: Order, where: 'bar' | 'phone' | 'tiles') {
+  const list = SECTIONS.filter(s => sectionOn(o, s.key))
+  if (where === 'tiles') return list.filter(s => s.key !== 'overview')
+  if (where === 'bar') return list
+  const posesNow = posesEnabled(o) && sectionState(o, 'poses') === 'action'
+  return list.filter(s => s.key !== 'invite' && (s.key === 'poses' ? posesNow : s.key !== 'track' || !posesNow))
 }
 
 export function formatTime(hhmm: string | undefined, lang: 'en' | 'ta'): string {
