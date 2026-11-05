@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Treasure Capture Events — One-sheet catalogue</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@300;400;500;600;700&family=Noto+Serif+Tamil:wght@400;500;600;700&display=block" rel="stylesheet">
+<style>
+@page { size:297mm 420mm; margin:0; }
+:root { --ink:#0a0a0b; --ink3:#1f1f22; --smoke:#e7e7e9; --ruby:#9b111e; --ruby-deep:#6e0b1a; --ruby-bright:#c41e3a; --ruby-soft:#fbe9eb;
+  --serif:'Cormorant Garamond',serif; --sans:'Inter',system-ui,sans-serif; --ta:'Noto Serif Tamil',serif; --m:14mm; }
+* { box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+html,body { margin:0; background:#d9d9dc; font-family:var(--sans); color:var(--ink); -webkit-font-smoothing:antialiased; }
+@media screen { .page { margin:10mm auto; box-shadow:0 10px 40px rgba(0,0,0,.25); } }
+@media print { html,body { background:#fff; } }
+.page { width:297mm; height:420mm; overflow:hidden; position:relative; background:#fff; }
+img { display:block; width:100%; height:100%; object-fit:cover; background:var(--smoke); }
+em { font-family:var(--serif); font-style:italic; color:var(--ruby); }
+
+/* hero */
+.hero { position:relative; height:108mm; display:grid; grid-template-columns:1fr 140mm; color:#fff;
+  background:radial-gradient(70% 80% at 0% 0%, rgba(155,17,30,.55), transparent 70%), var(--ink); }
+.hero-img { order:2; position:relative; }
+.hero-img::after { content:''; position:absolute; inset:0; background:linear-gradient(90deg, var(--ink) 0%, rgba(10,10,11,0) 30%); }
+.hero-text { padding:10mm var(--m) 8mm; display:flex; flex-direction:column; }
+.wm { font-family:var(--serif); font-weight:600; font-size:15pt; }
+.eyebrow { margin-top:auto; font-size:7pt; font-weight:600; letter-spacing:.24em; text-transform:uppercase; color:var(--ruby-bright); }
+.hero h1 { font-family:var(--serif); font-weight:500; font-size:44pt; line-height:.95; letter-spacing:-.02em; margin:3mm 0 0; }
+.hero em { color:var(--ruby-bright); }
+.hero .ta { font-family:var(--ta); font-size:12pt; color:rgba(255,255,255,.8); margin:3mm 0 0; }
+.hero .lead { font-size:8.5pt; line-height:1.55; color:rgba(255,255,255,.62); margin:3mm 0 0; max-width:120mm; }
+.stats { display:grid; grid-template-columns:repeat(4,1fr); margin-top:5mm; padding-top:4mm; border-top:.3mm solid rgba(255,255,255,.18); }
+.stats b { display:block; font-family:var(--serif); font-weight:500; font-size:21pt; line-height:1; }
+.stats sup { color:var(--ruby-bright); font-size:11pt; }
+.stats span { display:block; font-size:6pt; letter-spacing:.2em; text-transform:uppercase; color:rgba(255,255,255,.5); margin-top:1mm; }
+
+/* events strip */
+.events { display:grid; grid-template-columns:repeat(11,1fr); gap:2mm; padding:5mm var(--m) 0; }
+.events figure { margin:0; }
+.events img { height:22mm; }
+.events figcaption { font-family:var(--serif); font-weight:600; font-size:8.5pt; line-height:1.1; margin-top:1.5mm; }
+.events small { display:block; font-family:var(--ta); font-weight:500; font-size:6pt; color:var(--ruby); margin-top:.5mm; }
+
+/* packages */
+.sec-title { display:flex; align-items:baseline; gap:4mm; padding:5mm var(--m) 0; }
+.num { font-family:var(--serif); font-size:16pt; color:var(--ruby); }
+.sec-title h2 { font-family:var(--serif); font-weight:500; font-size:24pt; margin:0; letter-spacing:-.01em; }
+.sec-title p { margin:0 0 0 auto; font-size:7pt; color:rgba(10,10,11,.5); letter-spacing:.04em; }
+.tiers { display:grid; grid-template-columns:repeat(3,1fr); gap:4mm; padding:4mm var(--m) 0; }
+.tier { position:relative; background:var(--ink); color:#fff; padding:5mm 5mm 4mm; }
+.tier.pop { background:linear-gradient(180deg, var(--ruby), var(--ruby-deep)); }
+.badge { position:absolute; top:-2.4mm; right:4mm; background:#fff; color:var(--ruby); font-size:5.5pt; font-weight:700; letter-spacing:.2em; text-transform:uppercase; padding:1.2mm 2.4mm; border:.3mm solid var(--ruby); }
+.tn { font-size:6.5pt; font-weight:700; letter-spacing:.24em; text-transform:uppercase; color:rgba(255,255,255,.65); }
+.tp { font-family:var(--serif); font-size:27pt; font-weight:500; line-height:1; margin-top:1.5mm; }
+.td { font-family:var(--serif); font-style:italic; font-size:9.5pt; line-height:1.25; color:rgba(255,255,255,.82); margin:2mm 0 2mm; min-height:8mm; }
+.tier ul { list-style:none; margin:0; padding:0; columns:2; column-gap:3mm; }
+.tier li { font-size:7pt; line-height:1.3; padding:.9mm 0 .9mm 3.5mm; position:relative; break-inside:avoid; }
+.tier li::before { content:'✦'; position:absolute; left:0; top:1.1mm; font-size:4.5pt; color:var(--ruby-bright); }
+.tier.pop li::before { color:#fff; }
+.incl { margin:2.5mm var(--m) 0; font-size:7pt; line-height:1.5; color:rgba(10,10,11,.55); }
+
+/* blocks */
+.grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:8mm; padding:6mm var(--m) 0; }
+.grid3.rc { padding-top:5mm; }
+.bh { font-size:6.8pt; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--ruby); padding-bottom:1.8mm; border-bottom:.45mm solid var(--ink); display:flex; justify-content:space-between; align-items:baseline; gap:2mm; }
+.bh span { font-weight:500; letter-spacing:.03em; text-transform:none; color:rgba(10,10,11,.45); font-size:6.5pt; }
+.r { display:flex; align-items:baseline; gap:2mm; padding:1.25mm 0; border-bottom:.2mm solid rgba(10,10,11,.09); }
+.r span { font-family:var(--serif); font-size:10.5pt; font-weight:600; white-space:nowrap; }
+.r i { flex:1; border-bottom:.3mm dotted rgba(10,10,11,.25); }
+.r b { font-family:var(--serif); font-size:11pt; font-weight:600; color:var(--ruby); }
+.mt { display:grid; grid-template-columns:15mm 1fr auto; gap:2mm; align-items:baseline; padding:1.5mm 0; border-bottom:.2mm solid rgba(10,10,11,.09); }
+.mt b { font-size:6pt; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:rgba(10,10,11,.55); }
+.mt span { font-size:7pt; color:rgba(10,10,11,.65); line-height:1.3; }
+.mt em { font-style:normal; font-family:var(--serif); font-weight:600; font-size:12.5pt; color:var(--ruby); }
+.gtk { margin-top:3mm; background:var(--ruby-soft); padding:2.5mm 3mm; font-size:6.6pt; line-height:1.5; color:rgba(10,10,11,.72); }
+.gtk b { display:block; font-size:6pt; letter-spacing:.18em; text-transform:uppercase; color:var(--ruby); margin-bottom:.6mm; }
+
+.cols { display:grid; grid-template-columns:repeat(3,1fr); gap:8mm; padding:5mm var(--m) 0; }
+.blk + .blk { margin-top:4.5mm; }
+.cols .gtk { margin-top:4.5mm; }
+.side-img { margin-top:4.5mm; } .side-img img { height:40mm; }
+/* deliverables */
+.dl { display:grid; grid-template-columns:52mm 1fr 78mm; gap:8mm; padding:6mm var(--m) 0; }
+.dl-img img { height:46mm; }
+.albums { display:grid; grid-template-columns:repeat(3,1fr); gap:2mm; margin-top:2.5mm; }
+.albums div { border:.25mm solid rgba(10,10,11,.14); padding:2mm 2.5mm; display:grid; grid-template-columns:auto 1fr; column-gap:1.5mm; align-items:baseline; }
+.albums b { font-family:var(--serif); font-weight:500; font-size:17pt; line-height:1; }
+.albums span { font-size:5.5pt; letter-spacing:.14em; text-transform:uppercase; color:rgba(10,10,11,.5); }
+.albums em { grid-column:1 / -1; font-style:normal; font-family:var(--serif); font-weight:600; font-size:11pt; color:var(--ruby); }
+.albums div:nth-child(4) { background:var(--ink); color:#fff; border-color:var(--ink); }
+.albums div:nth-child(4) span { color:rgba(255,255,255,.55); } .albums div:nth-child(4) em { color:var(--ruby-bright); }
+table { width:100%; border-collapse:collapse; margin-top:1mm; }
+td { padding:1.5mm 0; border-bottom:.2mm solid rgba(10,10,11,.09); font-family:var(--serif); font-weight:600; font-size:11pt; color:var(--ruby); }
+td:first-child { font-family:var(--sans); font-weight:500; font-size:7.5pt; color:var(--ink); }
+
+/* footer */
+.foot { position:absolute; left:0; right:0; bottom:0; height:50mm; color:#fff; padding:6mm var(--m) 0;
+  background:radial-gradient(60% 120% at 100% 100%, rgba(155,17,30,.5), transparent 70%), var(--ink); }
+.steps { display:grid; grid-template-columns:repeat(5,1fr); gap:3mm; }
+.steps div { border-top:.4mm solid var(--ruby-bright); padding-top:1.8mm; font-family:var(--serif); font-size:10.5pt; font-weight:600; }
+.steps span { color:var(--ruby-bright); margin-right:2mm; }
+.cta { display:grid; grid-template-columns:1fr 104mm; gap:8mm; margin-top:4.5mm; align-items:start; }
+.cta h2 { font-family:var(--serif); font-weight:500; font-size:22pt; line-height:1.02; margin:0; }
+.cta em { color:var(--ruby-bright); }
+.cta p { margin:3mm 0 0; font-size:7pt; letter-spacing:.06em; color:rgba(255,255,255,.55); line-height:1.5; }
+.contact { background:#fff; color:var(--ink); padding:2.5mm 4mm; }
+.contact div { padding:1mm 0; border-bottom:.2mm solid rgba(10,10,11,.1); }
+.contact div:last-child { border:0; }
+.contact span { display:block; font-size:5.5pt; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--ruby); }
+.contact b { display:block; font-size:8.5pt; font-weight:600; margin-top:.3mm; }
+.fine { position:absolute; bottom:4mm; left:var(--m); margin:0; font-size:6pt; color:rgba(255,255,255,.4); }
+</style></head><body>
+<section class="page">
+  <header class="hero">
+    <div class="hero-img"><img src="https://images.unsplash.com/photo-1722952934708-749c22eb2e58?w=840&h=648&fit=crop&crop=faces,entropy&q=82&auto=format" alt=""></div>
+    <div class="hero-text">
+      <div class="top"><span class="wm">The Treasure Capture Events</span></div>
+      <div class="eyebrow">Madurai · Est. 2018 · Eight districts</div>
+      <h1>Moments, <em>treasured</em> forever.</h1>
+      <p class="ta">காலத்தால் அழியாத நினைவுகள்.</p>
+      <p class="lead">Wedding, ceremony and portrait photography across Tamil Nadu — documented quietly, edited with care, bound into albums built to outlive us.</p>
+      <div class="stats">
+        <div><b>1,400<sup>+</sup></b><span>Events</span></div>
+        <div><b>8</b><span>Districts</span></div>
+        <div><b>960<sup>+</sup></b><span>Albums</span></div>
+        <div><b>4.9<sup>★</sup></b><span>Google</span></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="events">
+    <figure><img src="https://images.unsplash.com/photo-1647949940712-bfcf82015d9b?w=132&h=156&fit=crop&crop=faces,entropy&q=82&auto=format" alt=""><figcaption>Wedding<small>திருமணம்</small></figcaption></figure><figure><img src="https://images.unsplash.com/photo-1529519195486-16945f0fb37f?w=132&h=156&fit=crop&crop=faces,entropy&q=82&auto=format" alt=""><figcaption>Engagement<small>நிச்சயதார்த்தம்</small></figcaption></figure><figure><img src="https://images.unsplash.com/photo-1587271407850-8d438ca9fdf2?w=132&h=156&fit=crop&crop=faces,entropy&q=82&auto=format" alt=""><figcaption>Reception<small>வரவேற்பு</small></figcaption></figure><figure><img src="https://images.unsplash.com/photo-1703044412425-b1977e3f793f?w=132&h=156&fit=crop&crop=faces,entropy&q=82&auto=format" alt=""><figcaption>Puberty ceremony<small>மஞ்சள் நீராட்டு</small></figcaption></figure><figure><img src="https://images.unsplash.com/photo-1649880210584-3365f4c4c08b?w=132&h=156&fit=crop&crop=faces,entropy&q=82&auto=format" alt=""><figcaption>Ear piercing<small>காதுகுத்து</small></figcaption></figure><figure><img src="https://images.unsplash.com/photo-1610901137736-d7cc46657b11?w=132&h=156&fit=crop&crop=faces,entropy&q=82&auto=format" alt=""><figcaption>Naming<small>பெயர் சூட்டு</small></figcaption></figure><figure><img src="https://images.unsplash.com/photo-1544155892-b2b6c64204fc?w=132&h=156&fit=crop&crop=faces,entropy&q=82&auto=format" alt=""><figcaption>Birthday<small>பிறந்தநாள்</small></figcaption></figure><figure><img src="https://images.unsplash.com/photo-1619734089700-842e56497353?w=132&h=156&fit=crop&crop=faces,entropy&q=82&auto=format" alt=""><figcaption>Baby shower<small>வளைகாப்பு</small></figcaption></figure><figure><img src="https://images.unsplash.com/photo-1610901158532-d246c011729e?w=132&h=156&fit=crop&crop=faces,entropy&q=82&auto=format" alt=""><figcaption>Baby shoot<small>குழந்தை</small></figcaption></figure><figure><img src="https://images.unsplash.com/photo-1631621583126-ed10a80f62b1?w=132&h=156&fit=crop&crop=faces,entropy&q=82&auto=format" alt=""><figcaption>Couple shoots<small>ஜோடி</small></figcaption></figure><figure><img src="https://images.unsplash.com/photo-1775113586139-b583cc93517f?w=132&h=156&fit=crop&crop=faces,entropy&q=82&auto=format" alt=""><figcaption>Corporate<small>நிறுவனம்</small></figcaption></figure>
+  </div>
+
+  <div class="sec-title"><span class="num">01</span><h2>Wedding & family <em>packages</em></h2><p>Wedding · Engagement · Reception · Puberty · Ear piercing · Naming · Birthday</p></div>
+  <div class="tiers">
+    
+      <div class="tier ">
+        
+        <div class="tn">Basic</div><div class="tp">₹33,000</div>
+        <p class="td">Traditional photo and video with a 30-sheet album.</p>
+        <ul><li>Traditional photographer</li><li>Traditional videographer</li><li>Album · 30 sheets</li></ul>
+      </div>
+      <div class="tier pop">
+        <span class="badge">Most chosen</span>
+        <div class="tn">Standard</div><div class="tp">₹52,200</div>
+        <p class="td">Adds a candid photographer, a bigger album and a frame.</p>
+        <ul><li>Traditional photographer</li><li>Traditional videographer</li><li>Candid photographer</li><li>Album · 40 sheets</li><li>Frame · 16×24 in</li></ul>
+      </div>
+      <div class="tier ">
+        
+        <div class="tn">Premium</div><div class="tp">₹88,500</div>
+        <p class="td">All four cameras, drone, highlight film and the full print set.</p>
+        <ul><li>Traditional photo + video</li><li>Candid photo + video</li><li>Drone coverage</li><li>Album · 50 sheets</li><li>Frame · 24×36 in</li><li>Printed magazine</li></ul>
+      </div>
+  </div>
+  <p class="incl">Every package includes all photos and edited photos as soft copies, the 2-hour traditional video on pendrive, and — with candid video — a 3–4 minute highlight film. Prices are for one session (4–5 hours).</p>
+
+  <div class="cols">
+    <div>
+      <div class="blk"><div class="bh">02 · Baby & maternity<span>valaikappu, newborn</span></div>
+      <div class="mt"><b>Basic</b><span>One photographer</span><em>₹8,000</em></div><div class="mt"><b>Standard</b><span>Traditional + candid, mini book</span><em>₹23,500</em></div><div class="mt"><b>Premium</b><span>Photo, candid video, album, frame</span><em>₹51,200</em></div></div>
+      <div class="blk"><div class="bh">05 · Crew<span>per person · per session</span></div><div class="r"><span>Traditional photography</span><i></i><b>₹8,000</b></div><div class="r"><span>Traditional videography</span><i></i><b>₹10,000</b></div><div class="r"><span>Candid photography</span><i></i><b>₹12,000</b></div><div class="r"><span>Candid videography</span><i></i><b>₹20,000</b></div></div>
+      <div class="blk"><div class="bh">08 · Albums<span>one per booking</span></div>
+      <div class="albums"><div><b>25</b><span>sheets</span><em>₹10,000</em></div><div><b>30</b><span>sheets</span><em>₹15,000</em></div><div><b>35</b><span>sheets</span><em>₹17,500</em></div><div><b>40</b><span>sheets</span><em>₹20,000</em></div><div><b>50</b><span>sheets</span><em>₹25,000</em></div><div><b>60</b><span>sheets</span><em>₹30,000</em></div></div></div>
+    </div>
+    <div>
+      <div class="blk"><div class="bh">03 · Corporate events<span>launches, conferences</span></div>
+      <div class="mt"><b>Basic</b><span>Event photography</span><em>₹8,000</em></div><div class="mt"><b>Standard</b><span>Photo + full-length video</span><em>₹18,000</em></div><div class="mt"><b>Premium</b><span>Four cameras, drone, LED wall</span><em>₹68,000</em></div></div>
+      <div class="blk"><div class="bh">06 · Add-ons<span>for the day</span></div><div class="r"><span>Drone coverage</span><i></i><b>₹6,000</b></div><div class="r"><span>E-invite</span><i></i><b>₹1,500</b></div><div class="r"><span>LED wall · 6×8 ft</span><i></i><b>₹12,000</b></div><div class="r"><span>Photo booth</span><i></i><b>₹12,000</b></div><div class="r"><span>360° selfie booth</span><i></i><b>₹14,000</b></div></div>
+      <div class="blk"><div class="bh">09 · Frames<span>classic · premium acrylic</span></div>
+      <table><tr><td>12×18 in</td><td>₹1,200</td><td>₹1,900</td></tr><tr><td>16×24 in</td><td>₹2,200</td><td>₹3,500</td></tr><tr><td>20×30 in</td><td>₹3,500</td><td>₹5,600</td></tr><tr><td>24×36 in</td><td>₹5,000</td><td>₹8,000</td></tr></table></div>
+    </div>
+    <div>
+      <div class="blk"><div class="bh">04 · Special shoots<span>per shoot</span></div><div class="r"><span>Pre / post-wedding</span><i></i><b>₹15,000</b></div><div class="r"><span>Outdoor couple</span><i></i><b>₹6,000</b></div><div class="r"><span>Outdoor baby</span><i></i><b>₹5,000</b></div><div class="r"><span>Outdoor maternity</span><i></i><b>₹5,000</b></div><div class="r"><span>Model portfolio</span><i></i><b>₹12,000</b></div><div class="r"><span>Commercial / ad</span><i></i><b>₹18,000</b></div></div>
+      <div class="blk"><div class="bh">07 · Prints<span>any quantity</span></div><div class="r"><span>Magazine</span><i></i><b>₹2,500</b></div><div class="r"><span>Mini book</span><i></i><b>₹3,500</b></div><div class="r"><span>Calendar</span><i></i><b>₹1,500</b></div></div>
+      <div class="gtk"><b>Good to know</b>Mahal / hall + ₹3,000 · Crowd 50–150 + ₹2,500, 150–400 + ₹6,000, 400+ + ₹12,000 · Travel free up to 20 km, then ₹40/km · Extra sessions repeat the crew rates.</div>
+      <div class="side-img"><img src="https://images.unsplash.com/photo-1784722237781-88d640eee061?w=504&h=240&fit=crop&crop=faces,entropy&q=82&auto=format" alt=""></div>
+    </div>
+  </div>
+
+  <footer class="foot">
+    <div class="steps"><div><span>01</span>Share your date</div><div><span>02</span>Meet as family</div><div><span>03</span>The day</div><div><span>04</span>Pick favourites</div><div><span>05</span>Your album</div></div>
+    <div class="cta">
+      <div>
+        <h2>Let’s make something <em>worth treasuring.</em></h2>
+        <p>Madurai · Chennai · Coimbatore · Thanjavur · Salem · Tirunelveli · Theni · Dindigul</p>
+      </div>
+      <div class="contact">
+        <div><span>Call / WhatsApp</span><b>+91 98940 12345</b></div>
+        <div><span>Email</span><b>hello@treasurecaptureevents.in</b></div>
+        <div><span>Studio · Mon–Sat · 9:30 am – 8 pm</span><b>14, West Masi Street, Madurai 625001</b></div>
+      </div>
+    </div>
+    <p class="fine">Prices in Indian rupees. Packages are a starting point — your final quote is confirmed after the family consultation.</p>
+  </footer>
+</section></body></html>
